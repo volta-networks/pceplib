@@ -47,7 +47,7 @@ void sendKeepAlive(PcepSession *session)
 	{
 		printf("[%ld-%ld] PcepSessionLogic set KeepAlive for sessionId [%d]\n",
 				time(NULL), pthread_self(), session->sessionId);
-		session->timerIdKeepAlive = createTimer(TIME_KEEP_ALIVE, session);
+		session->timerIdKeepAlive = createTimer(session->pccConfig->keepAliveSeconds, session);
 	}
 	else
 	{
@@ -79,12 +79,15 @@ void handleTimerEvent(PcepSessionEvent *event)
      */
     if (event->expiredTimerId == session->timerIdDeadTimer)
     {
+        session->timerIdDeadTimer = TIMER_ID_NOT_SET;
         closePcepSession(session, PCEP_CLOSE_REASON_DEADTIMER);
-            session->timerIdDeadTimer = TIMER_ID_NOT_SET;
+        return;
     }
     else if(event->expiredTimerId == session->timerIdKeepAlive)
     {
+        session->timerIdKeepAlive = TIMER_ID_NOT_SET;
         sendKeepAlive(session);
+        return;
     }
 
     /*
@@ -124,7 +127,7 @@ void handleTimerEvent(PcepSessionEvent *event)
 }
 
 
-/* State Machine handling for expired timers */
+/* State Machine handling for received messages */
 void handleSocketCommEvent(PcepSessionEvent *event)
 {
     PcepSession * session = event->session;
@@ -175,14 +178,14 @@ void handleSocketCommEvent(PcepSessionEvent *event)
         }
         else
         {
-        	session->timerIdDeadTimer = createTimer(TIME_DEAD_TIMER, session);
+        	session->timerIdDeadTimer = createTimer(session->pccConfig->deadTimerSeconds, session);
         }
     	break;
 
     case PCEP_TYPE_PCREQ:
         if (session->sessionState == SESSION_STATE_WAIT_PCREQ)
         {
-            /* TODO store the results and reply */
+            /* TODO store the results */
         }
         else
         {

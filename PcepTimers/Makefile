@@ -8,7 +8,6 @@ INC_DIR = include
 OBJ_DIR = ./obj
 SRC_DIR = ./src
 LIB_DIR = ../build
-TEST_DIR = ./test
 PCEP_UTILS_INC_DIR = ../PcepUtils/include
 
 LIB = $(LIB_DIR)/libPcepTimers.a

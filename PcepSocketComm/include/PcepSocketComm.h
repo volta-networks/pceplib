@@ -12,7 +12,6 @@
 
 #include "PcepUtilsQueue.h"
 
-#define PCEP_PORT 4189
 #define MAX_RECVD_MSG_SIZE 2048
 
 /*
@@ -55,24 +54,14 @@ typedef struct PcepSocketCommSession_
  * the next read from this socket */
 
 /* The msgRcvHandler and msgReadyHandler are mutually exclusive, and only
- * one can be set (as explained above), else NULL will be returned.
- * Uses the default PCEP port */
+ * one can be set (as explained above), else NULL will be returned. */
 PcepSocketCommSession *
 socketCommSessionInitialize(messageReceivedHandler msgRcvHandler,
 		                    messageReadyToReadHandler msgReadyHandler,
 		                    connectionExceptNotifier notifier,
-							const char* host,
+							struct in_addr *hostIp,
+							short port,
 							void *sessionData);
-
-/* The msgRcvHandler and msgReadyHandler are mutually exclusive, and only
- * one can be set (as explained above), else NULL will be returned. */
-PcepSocketCommSession *
-socketCommSessionInitializeWithPort(messageReceivedHandler handler,
-		                            messageReadyToReadHandler msgReadyHandler,
-		                            connectionExceptNotifier notifier,
-		                            const char* host,
-									int port,
-									void *sessionData);
 
 bool socketCommSessionTeardown(PcepSocketCommSession *socketCommSession);
 

@@ -12,7 +12,6 @@ INC_DIR = include
 OBJ_DIR = ./obj
 SRC_DIR = ./src
 LIB_DIR = ../build
-TEST_DIR = ./test
 PCEP_UTILS_INC_DIR = ../PcepUtils/include
 PCEP_MESSAGES_INC_DIR = ../PcepMessages/include
 PCEP_TIMERS_INC_DIR = ../PcepTimers/include
@@ -27,7 +26,7 @@ EXTERNAL_DEPS = $(patsubst %,$(PCEP_UTILS_INC_DIR)/%,$(_DEPS))  \
                 $(patsubst %,$(PCEP_TIMERS_INC_DIR)/%,$(_DEPS)) \
                 $(patsubst %,$(PCEP_SOCKETCOMM_INC_DIR)/%,$(_DEPS))
 
-_OBJ = PcepSessionLogic.o PcepSessionLogicApi.o PcepSessionLogicLoop.o PcepSessionLogicStates.o
+_OBJ = PcepSessionLogic.o PcepSessionLogicLoop.o PcepSessionLogicStates.o
 OBJ = $(patsubst %,$(OBJ_DIR)/%,$(_OBJ))
 
 $(LIB): $(OBJ)

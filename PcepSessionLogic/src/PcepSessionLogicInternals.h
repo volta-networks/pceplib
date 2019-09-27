@@ -17,12 +17,6 @@
 #include "PcepUtilsOrderedList.h"
 #include "PcepUtilsQueue.h"
 
-/* TODO these defines are temporary, need to make configurable */
-#define TIME_OPEN_KEEP_WAIT 10
-#define TIME_KEEP_ALIVE 10
-#define TIME_DEAD_TIMER 10
-#define TIME_WAIT_PCEREQ 10
-
 
 typedef struct PcepSessionLogicHandle_
 {

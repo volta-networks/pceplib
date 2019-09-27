@@ -71,21 +71,9 @@ PcepSocketCommSession *
 socketCommSessionInitialize(messageReceivedHandler messageHandler,
 		                    messageReadyToReadHandler messageReadyHandler,
 		                    connectionExceptNotifier notifier,
-							const char* host,
+							struct in_addr *hostIp,
+                            short port,
 							void *sessionData)
-{
-	return socketCommSessionInitializeWithPort(
-			messageHandler, messageReadyHandler, notifier, host, PCEP_PORT, sessionData);
-}
-
-
-PcepSocketCommSession *
-socketCommSessionInitializeWithPort(messageReceivedHandler messageHandler,
-		                            messageReadyToReadHandler messageReadyHandler,
-		                            connectionExceptNotifier notifier,
-									const char* host,
-									int port,
-									void *sessionData)
 {
     /* Check that not both message handlers were set */
     if (messageHandler != NULL && messageReadyHandler != NULL)
@@ -119,15 +107,6 @@ socketCommSessionInitializeWithPort(messageReceivedHandler messageHandler,
 		return NULL;
 	}
 
-	/* TODO make sure this is IPv6 compliant */
-	struct hostent *hostInfo = gethostbyname(host);
-    if(hostInfo == NULL) {
-        fprintf(stderr, "ERROR: Failed to find address from host.\n");
-        socketCommSessionTeardown(socketCommSession);
-
-        return NULL;
-    }
-
     socketCommSession->closeAfterWrite = false;
     socketCommSession->sessionData = sessionData;
 	socketCommSession->messageHandler = messageHandler;
@@ -136,7 +115,7 @@ socketCommSessionInitializeWithPort(messageReceivedHandler messageHandler,
 	socketCommSession->messageQueue = queueInitialize();
     socketCommSession->destSockAddr.sin_family = AF_INET;
     socketCommSession->destSockAddr.sin_port = htons(port);
-    memcpy(&(socketCommSession->destSockAddr.sin_addr), hostInfo->h_addr, hostInfo->h_length);
+    memcpy(&(socketCommSession->destSockAddr.sin_addr), hostIp, sizeof(struct in_addr));
 
     /* Dont connect to the destination yet, since the PCE will have a timer
      * for max time between TCP connect and PCEP open. We'll connect later

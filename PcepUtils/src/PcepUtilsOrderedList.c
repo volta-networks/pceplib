@@ -170,7 +170,7 @@ void *orderedListRemoveFirstNodeEquals2(OrderedListHandle *handle,
 
 	if (handle->head == NULL)
 	{
-        fprintf(stderr, "WARN orderedListRemoveFirstNodeEquals2, empty list\n");
+        //printf("DEBUG orderedListRemoveFirstNodeEquals2, empty list\n");
 		return NULL;
 	}
 

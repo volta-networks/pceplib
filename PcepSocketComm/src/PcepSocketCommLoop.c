@@ -26,8 +26,8 @@ void writeMessage(int socketFd, const char *message, unsigned int msgLength)
 	{
 		bytesSent = write(socketFd, message + totalBytesSent, msgLength);
 
-        printf("[%ld] SocketComm writing on socket [%d] msgLenth [%d] bytes sent [%d]\n",
-        		time(NULL), socketFd, msgLength, bytesSent);
+        printf("[%ld-%ld] SocketComm writing on socket [%d] msgLenth [%d] bytes sent [%d]\n",
+        		time(NULL), pthread_self(), socketFd, msgLength, bytesSent);
 
 		if (bytesSent < 0)
 		{
@@ -51,8 +51,8 @@ unsigned int readMessage(int socketFd, char *receivedMessage, unsigned int maxMe
 
     /* TODO what if bytesRead == maxMessageSize? there could be more to read */
 	unsigned int bytesRead = read(socketFd, receivedMessage, maxMessageSize);
-	printf("[%ld] SocketComm read message bytesRead [%d] on socket [%d]\n",
-			time(NULL), bytesRead, socketFd);
+	printf("[%ld-%ld] SocketComm read message bytesRead [%d] on socket [%d]\n",
+			time(NULL), pthread_self(), bytesRead, socketFd);
 
 	return bytesRead;
 }

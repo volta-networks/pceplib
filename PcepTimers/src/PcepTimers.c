@@ -202,7 +202,7 @@ bool cancelTimer(int timerId)
 			timersContext_->timerList, &compareTimer, timerListNodeTimerIdCompare);
 	if (timerToRemove == NULL)
 	{
-        fprintf(stderr, "ERROR trying to cancel a timer that does not exist\n");
+        fprintf(stderr, "ERROR trying to cancel a timer [%d] that does not exist\n", timerId);
 		return false;
 	}
 	free(timerToRemove);

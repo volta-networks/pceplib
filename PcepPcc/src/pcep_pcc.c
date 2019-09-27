@@ -1,4 +1,5 @@
 
+#include <netdb.h> // gethostbyname
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -6,7 +7,7 @@
 #include <time.h>
 #include <unistd.h>
 
-#include "PcepSessionLogic.h"
+#include "PcepPccApi.h"
 
 /*
  * PCEP PCC Design spec:
@@ -48,9 +49,16 @@ int setup_signals()
 	return 0;
 }
 
-/* TODO temporary functions to create a session and send a message */
-extern PcepSession *createNbiPcepSession(const char *host, int port);
-const char *message = "Hello World!\n";
+
+void sendPceReqMessage(PcepSession *session)
+{
+	PcepPceReq *pceReq = malloc(sizeof(PcepPceReq));
+    bzero(pceReq, sizeof(PcepPceReq));
+
+	int requestId = requestPathComputationAsync(session, pceReq);
+	getAsyncResult(session, requestId);
+}
+
 
 int main(int argc, char **argv)
 {
@@ -61,25 +69,41 @@ int main(int argc, char **argv)
 	/* Blocking call:
 	 * if (!runSessionLogicWaitForCompletion()) */
 
-	if (!runSessionLogic())
+	if (!initializePcc())
 	{
-		fprintf(stderr, "Error initializing PCEP Session logic.\n");
+		fprintf(stderr, "Error initializing PCC.\n");
 		return -1;
 	}
 
-    char *host = "localhost";
-	PcepSession *session = createNbiPcepSession(host, 4189);
+	struct hostent *hostInfo = gethostbyname("localhost");
+    if(hostInfo == NULL) {
+		fprintf(stderr, "Error getting IP address.\n");
+        return -1;
+    }
+
+    struct in_addr hostAddress;
+    memcpy(&hostAddress, hostInfo->h_addr, hostInfo->h_length);
+
+    PcepConfiguration *config = createDefaultPcepConfiguration();
+	PcepSession *session = connectPce(config, &hostAddress);
     if (session == NULL)
     {
 		fprintf(stderr, "Error in createNbiPcepSession.\n");
         return -1;
     }
 
+    sleep(5);
+
+    sendPceReqMessage(session);
+
     sleep(60);
 
-	if (!stopSessionLogic())
+    printf("Disconnecting from PCE\n");
+    disconnectPce(session);
+
+	if (!destroyPcc())
 	{
-		fprintf(stderr, "Error stopping PCEP Session Logic.\n");
+		fprintf(stderr, "Error stopping PCC.\n");
 	}
 
 	return 0;

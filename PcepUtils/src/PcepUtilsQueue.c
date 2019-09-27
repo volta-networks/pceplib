@@ -81,7 +81,7 @@ void *queueDequeue(QueueHandle *handle)
 
 	if (handle->head == NULL)
 	{
-        fprintf(stderr, "WARN queueDequeue, the queue is empty\n");
+        //printf("DEBUG queueDequeue, the queue is empty\n");
 		return NULL;
 	}
 

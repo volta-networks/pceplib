@@ -1,0 +1,7 @@
+.cproject
+.project
+.sconsign.dblite
+.settings/
+**/*.o
+**/lib*.a
+build/pcep_pcc

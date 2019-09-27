@@ -5,6 +5,7 @@
  *      Author: brady
  */
 
+#include <limits.h>
 #include <malloc.h>
 #include <pthread.h>
 #include <stdbool.h>
@@ -21,6 +22,8 @@
  */
 
 PcepSessionLogicHandle *sessionLogicHandle_ = NULL;
+int sessionId_ = 0;
+
 
 int sessionIdCompareFunction(void *listEntry, void *newEntry)
 {
@@ -32,6 +35,7 @@ int sessionIdCompareFunction(void *listEntry, void *newEntry)
 
     return ((PcepSession *) newEntry)->sessionId - ((PcepSession *) listEntry)->sessionId;
 }
+
 
 bool runSessionLogic()
 {
@@ -101,4 +105,92 @@ bool stopSessionLogic()
 	sessionLogicHandle_ = NULL;
 
     return true;
+}
+
+
+void destroyPcepSession(PcepSession *session)
+{
+    if (session->timerIdDeadTimer != TIMER_ID_NOT_SET)
+    {
+    	cancelTimer(session->timerIdDeadTimer);
+    }
+
+    if (session->timerIdKeepAlive != TIMER_ID_NOT_SET)
+    {
+    	cancelTimer(session->timerIdKeepAlive);
+    }
+
+    if (session->timerIdOpenKeepWait != TIMER_ID_NOT_SET)
+    {
+    	cancelTimer(session->timerIdOpenKeepWait);
+    }
+
+    if (session->timerIdPcReqWait != TIMER_ID_NOT_SET)
+    {
+    	cancelTimer(session->timerIdPcReqWait);
+    }
+
+    socketCommSessionTeardown(session->socketCommSession);
+
+    free(session);
+}
+
+
+int getNextSessionId()
+{
+	if (sessionId_ == INT_MAX)
+	{
+		sessionId_ = 0;
+	}
+
+	return sessionId_++;
+}
+
+
+PcepSession *createPcepSession(PcepConfiguration *config, struct in_addr *pceIp, short port)
+{
+    PcepSession *session = malloc(sizeof(PcepSession));
+    session->sessionId = getNextSessionId();
+    session->sessionState = SESSION_STATE_INITIALIZED;
+    session->timerIdOpenKeepWait = TIMER_ID_NOT_SET;
+    session->timerIdPcReqWait = TIMER_ID_NOT_SET;
+    session->timerIdDeadTimer = TIMER_ID_NOT_SET;
+    session->timerIdKeepAlive = TIMER_ID_NOT_SET;
+    session->numErroneousMessages = 0;
+    session->pcepOpenReceived = false;
+    session->pccConfig = config;
+
+    session->socketCommSession = socketCommSessionInitialize(
+            NULL,
+    		sessionLogicMsgReadyHandler,
+			sessionLogicConnExceptNotifier,
+			pceIp,
+			port,
+			session);
+    if (session->socketCommSession == NULL)
+    {
+        fprintf(stderr, "Cannot establish socketCommSession.\n");
+        destroyPcepSession(session);
+
+    	return NULL;
+    }
+
+    if (!socketCommSessionConnectTcp(session->socketCommSession))
+    {
+        fprintf(stderr, "Cannot establish TCP socket.\n");
+        destroyPcepSession(session);
+
+    	return NULL;
+    }
+    session->sessionState = SESSION_STATE_TCP_CONNECTED;
+
+    /* Create and Send PCEP Open */
+    struct pcep_header* openMsg =
+    		pcep_msg_create_open(config->keepAliveSeconds, config->deadTimerSeconds, session->sessionId);
+    socketCommSessionSendMessage(session->socketCommSession, (const char *) openMsg, ntohs(openMsg->length));
+
+    session->timerIdOpenKeepWait = createTimer(config->keepAliveSeconds, session);
+    //session->sessionState = SESSION_STATE_OPENED;
+
+    return session;
 }
