@@ -41,9 +41,6 @@ int sessionLogicMsgReadyHandler(void *data, int socketFd)
 {
     PcepSession *session = (PcepSession *) data;
 
-    printf("[%ld-%ld] PcepSessionLogic sessionLogicMsgReadyHandler, sessionId [%d]\n",
-    		time(NULL), pthread_self(), session->sessionId);
-
     pthread_mutex_lock(&(sessionLogicHandle_->sessionLogicMutex));
     sessionLogicHandle_->sessionLogicCondition = true;
     /* TODO how to determine if the socket was closed */
@@ -56,8 +53,9 @@ int sessionLogicMsgReadyHandler(void *data, int socketFd)
         return -1;
     }
 
-    printf("[%ld-%ld] Received message of type [%d]\n",
-    		time(NULL), pthread_self(), msgList->header.type);
+    printf("[%ld-%ld] sessionLogicMsgReadyHandler Received message of type [%d] len [%d] on sessionId [%d]\n",
+    		time(NULL), pthread_self(), msgList->header.type, msgList->header.length, session->sessionId);
+
     PcepSessionEvent *rcvdMsgEvent = createSessionEvent(session);
     rcvdMsgEvent->receivedMsgList = msgList;
     queueEnqueue(sessionLogicHandle_->sessionEventQueue, rcvdMsgEvent);
@@ -104,7 +102,7 @@ void sessionLogicTimerExpireHandler(void *data, int timerId)
     	return;
     }
 
-    printf("[%ld-%ld] Timer expired handler\n", time(NULL), pthread_self());
+    printf("[%ld-%ld] Timer expired handler timerId [%d]\n", time(NULL), pthread_self(), timerId);
     PcepSessionEvent *expiredTimerEvent = createSessionEvent((PcepSession *) data);
     expiredTimerEvent->expiredTimerId = timerId;
 

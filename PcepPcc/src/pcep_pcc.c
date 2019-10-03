@@ -1,5 +1,6 @@
 
 #include <netdb.h> // gethostbyname
+#include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -50,21 +51,87 @@ int setup_signals()
 }
 
 
-void sendPceReqMessage(PcepSession *session)
+void sendPceReqMessageSync(PcepSession *session)
 {
-	PcepPceReq *pceReq = malloc(sizeof(PcepPceReq));
-    bzero(pceReq, sizeof(PcepPceReq));
+	PcepPceRequest *pceReq = malloc(sizeof(PcepPceRequest));
+    bzero(pceReq, sizeof(PcepPceRequest));
 
-	int requestId = requestPathComputationAsync(session, pceReq);
-	getAsyncResult(session, requestId);
+    pceReq->endpointIpVersion = IPPROTO_IP;
+    inet_pton(AF_INET, "192.168.10.33", &(pceReq->srcEndpointIp.srcV4EndpointIp));
+    inet_pton(AF_INET, "172.100.80.56", &(pceReq->dstEndpointIp.dstV4EndpointIp));
+
+    PcepPceReply *pceReply = requestPathComputation(session, pceReq, 1500);
+
+    if (pceReply->responseError)
+    {
+    	fprintf(stderr, "ERROR pcep_pcc sendPceReqMessageSync response error\n");
+    }
+    else if (pceReply->timedOut)
+    {
+    	fprintf(stderr, "ERROR pcep_pcc sendPceReqMessageSync response timed-out\n");
+    }
+    else
+    {
+    	printf("pcep_pcc sendPceReqMessageSync got a response, elapsed time [%d ms]\n",
+    			pceReply->elapsedTimeMilliSeconds);
+    }
+}
+
+void sendPceReqMessageAsync(PcepSession *session)
+{
+	PcepPceRequest *pceReq = malloc(sizeof(PcepPceRequest));
+    bzero(pceReq, sizeof(PcepPceRequest));
+
+    pceReq->endpointIpVersion = IPPROTO_IP;
+    inet_pton(AF_INET, "192.168.1.33", &(pceReq->srcEndpointIp.srcV4EndpointIp));
+    inet_pton(AF_INET, "172.100.8.56", &(pceReq->dstEndpointIp.dstV4EndpointIp));
+
+    PcepPceReply *pceReply = requestPathComputationAsync(session, pceReq, 1500);
+
+    bool retval;
+    bool keepChecking = true;
+    while (keepChecking)
+    {
+    	retval = getAsyncResult(pceReply);
+        if (retval)
+        {
+        	printf("pcep_pcc sendPceReqMessageAsync got a response, elapsed time [%d ms]\n",
+        			pceReply->elapsedTimeMilliSeconds);
+            keepChecking = false;
+        }
+        else
+        {
+        	if (pceReply->responseError)
+        	{
+        		fprintf(stderr, "ERROR pcep_pcc sendPceReqMessageAsync response error\n");
+        		keepChecking = false;
+        	}
+        	else if (pceReply->timedOut)
+        	{
+        		fprintf(stderr, "ERROR pcep_pcc sendPceReqMessageAsync response timed-out\n");
+        		keepChecking = false;
+        	}
+            else
+            {
+                /* Sleep 250 milliseconds */
+                struct timespec ts;
+                ts.tv_sec = 0;
+                ts.tv_nsec = 250 * 1000 * 1000;
+            	nanosleep(&ts, &ts);
+            	printf("pcep_pcc sendPceReqMessageAsync sleep while waiting for a response\n");
+            }
+        }
+    }
+
+    free(pceReq);
 }
 
 
 int main(int argc, char **argv)
 {
 
-	printf("[%ld] Starting pcc_pcep example client\n", time(NULL));
-	fflush(stdout);
+	printf("[%ld-%ld] Starting pcc_pcep example client\n",
+			time(NULL), pthread_self());
 
 	/* Blocking call:
 	 * if (!runSessionLogicWaitForCompletion()) */
@@ -94,9 +161,10 @@ int main(int argc, char **argv)
 
     sleep(5);
 
-    sendPceReqMessage(session);
+    sendPceReqMessageAsync(session);
+    sendPceReqMessageSync(session);
 
-    sleep(60);
+    sleep(30);
 
     printf("Disconnecting from PCE\n");
     disconnectPce(session);

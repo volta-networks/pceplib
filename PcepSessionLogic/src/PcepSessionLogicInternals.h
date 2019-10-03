@@ -28,6 +28,7 @@ typedef struct PcepSessionLogicHandle_
 
     OrderedListHandle *sessionList;
     QueueHandle *sessionEventQueue;
+    OrderedListHandle *responseMsgList;
 
 } PcepSessionLogicHandle;
 

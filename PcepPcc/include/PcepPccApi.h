@@ -22,7 +22,12 @@
 
 typedef struct PcepPceReply_
 {
-    int pcepPceReplyId;
+    bool timedOut;
+    bool responseError;
+    int elapsedTimeMilliSeconds;
+	struct pcep_messages_list *responseMsgList;
+    /* Internally used field */
+	PcepMessageResponse *response;
 
 } PcepPceReply;
 
@@ -42,13 +47,30 @@ PcepSession *connectPceWithPort(PcepConfiguration *config, struct in_addr *pceIp
 void disconnectPce(PcepSession *session);
 
 /* Synchronously request path computation routes. This method will block
- * until the reply is available. For the objects in PcepPceReq, use the
- * pcep_obj_create_*() functions defined in pcep-objects.h */
-PcepPceReply *requestPathComputation(PcepSession *session, PcepPceReq *pceReq, int maxWaitMilliSeconds);
+ * until the reply is available, or until maxWaitMilliSeconds is reached.
+ * For the objects in PcepPceReq, use the pcep_obj_create_*() functions
+ * defined in pcep-objects.h. Memory allocated by these creation functions
+ * will be freed internally.
+ * Returns a PcepPceReply when the response is available, or NULL on timeout */
+PcepPceReply *requestPathComputation(PcepSession *session, PcepPceRequest *pceReq, int maxWaitMilliSeconds);
 
-int requestPathComputationAsync(PcepSession *session, PcepPceReq *pceReq);
+/* Asynchronously request path computation routes. This method will return
+ * immediately and the response can be obtained by polling getAsyncResult()
+ * with the PcepPceReply returned from this function.
+ * Returns a PcepPceReply to be used with getAsyncResult() */
+PcepPceReply *requestPathComputationAsync(PcepSession *session, PcepPceRequest *pceReq, int maxWaitMilliSeconds);
 
-PcepPceReply *getAsyncResult(PcepSession *session, int requestId);
+/* Check if a response is available yet, using the PcepPceReply returned
+ * from requestPathComputationAsync().
+ * Returns true if the response is ready and fills in the following fields:
+ * - PcepPceReply->elapsedTimeMilliSeconds
+ * - PcepPceReply->responseMsgList
+ * Returns false for one of the following 3 reasons:
+ * - if the reply is not ready yet
+ * - if there is an error, sets PcepPceReply->responseError = true
+ * - if there is a timeout, sets PcepPceReply->timedOut = true
+ */
+bool getAsyncResult(PcepPceReply *pceReply);
 
 
 #endif /* PCEPPCC_INCLUDE_PCEPPCCAPI_H_ */

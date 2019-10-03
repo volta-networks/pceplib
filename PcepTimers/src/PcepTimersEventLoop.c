@@ -67,8 +67,9 @@ void *eventLoop(void *context)
 
 	while (timersContext->active)
 	{
-		timer.tv_sec = 1;
-		timer.tv_usec = 0;
+        /* Check the timers every half second */
+		timer.tv_sec = 0;
+		timer.tv_usec = 500000;
 
 		do
 		{

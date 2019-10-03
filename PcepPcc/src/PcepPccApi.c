@@ -9,11 +9,16 @@
 #include <malloc.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
+#include <strings.h>
 
 #include "pcep-messages.h"
 #include "PcepPccApi.h"
 
 int requestId_ = 0;
+
+/* Simple util function implemented in PcepSessionLogic.c */
+extern int timespecDiff(struct timespec *start, struct timespec *stop);
 
 int getNextRequestId()
 {
@@ -90,16 +95,27 @@ void disconnectPce(PcepSession *session)
 
 /* Synchronously request Path Computation, so this method will block
  * until the reply is available */
-PcepPceReply *requestPathComputation(PcepSession *pceConnection, PcepPceReq *pceReq, int maxWaitMilliSeconds)
+PcepPceReply *requestPathComputation(PcepSession *session, PcepPceRequest *pceReq, int maxWaitMilliSeconds)
 {
-    /* TODO make a pce request message, send it, and figure out how to wait for the response */
-    return NULL;
+	PcepPceReply *pceReply = requestPathComputationAsync(session, pceReq, maxWaitMilliSeconds);
+
+    /* This call will block for at most maxWaitMilliSeconds */
+    waitForResponseMessage(pceReply->response);
+
+    pceReply->responseMsgList = pceReply->response->responseMsgList;
+    pceReply->elapsedTimeMilliSeconds =
+    		timespecDiff(&(pceReply->response->timeRequestRegistered),
+    				     &(pceReply->response->timeResponseReceived));
+    destroyResponseMessage(pceReply->response);
+    pceReply->response = NULL;
+
+    return pceReply;
 }
 
 
 /* Asynchronously request Path Computation, call getAsyncResult()
  * with the returned requestId to get the result */
-int requestPathComputationAsync(PcepSession *session, PcepPceReq *pceReq)
+PcepPceReply *requestPathComputationAsync(PcepSession *session, PcepPceRequest *pceReq, int maxWaitMilliSeconds)
 {
     int requestId = getNextRequestId();
 
@@ -123,58 +139,171 @@ int requestPathComputationAsync(PcepSession *session, PcepPceReq *pceReq)
     }
 	struct pcep_object_rp *rp = pcep_obj_create_rp(0, rpFlags, requestId);
 
+    /* TODO currently only supporting IPv4 */
 	struct pcep_object_endpoints_ipv4 *endpoints =
-			pcep_obj_create_enpoint_ipv4(&(pceReq->srcEndpoint), &(pceReq->dstEndpoint));
+			pcep_obj_create_enpoint_ipv4(&(pceReq->srcEndpointIp.srcV4EndpointIp),
+					                     &(pceReq->dstEndpointIp.dstV4EndpointIp));
+
+    int messageSize =
+    		sizeof(struct pcep_header) +
+    		ntohs(rp->header.object_length) +
+			ntohs(endpoints->header.object_length);
 
 	/*
 	 * Optional fields
+	 * First calculate the size needed for the buffer
 	 */
-    /* Bandwidth */
-	struct pcep_object_bandwidth *bw = NULL;
-    if (pceReq->bandwidth > 0)
+    if (pceReq->bandwidth != NULL)
     {
-    	bw = pcep_obj_create_bandwidth(pceReq->bandwidth);
+        messageSize += ntohs(pceReq->bandwidth->header.object_length);
+    }
+    if (pceReq->lspa != NULL)
+    {
+        messageSize += ntohs(pceReq->lspa->header.object_length);
+    }
+    if (pceReq->metrics != NULL)
+    {
+        messageSize += ntohs(pceReq->metrics->header.object_length);
+    }
+    if (pceReq->rroList != NULL)
+    {
+        messageSize += ntohs(pceReq->rroList->ero_hdr.header.object_length);
+    }
+    if (pceReq->iroList != NULL)
+    {
+        messageSize += ntohs(pceReq->iroList->ero_hdr.header.object_length);
+    }
+    if (pceReq->loadBalancing != NULL)
+    {
+        messageSize += ntohs(pceReq->loadBalancing->header.object_length);
+    }
+
+    /* Allocate the buffer and copy the objects into it */
+    char *messageBuffer = malloc(messageSize);
+    bzero(messageBuffer, messageSize);
+
+    /* Common PcReq header
+     * Flags
+     *  0 1 2 3 4 5 6 7
+     * +-+-+-+-+-+-+-+-+
+     * | Ver |  Flags  |
+     * +-+-+-+-+-+-+-+-+ */
+    struct pcep_header *hdr = (struct pcep_header *) messageBuffer;
+    hdr->ver_flags = 0x20; /* version 1 */
+    hdr->length = htons(messageSize);
+    hdr->type = PCEP_TYPE_PCREQ;
+    int index = sizeof(struct pcep_header);
+
+    /* Copy the RP */
+    memcpy(messageBuffer + index, rp, ntohs(rp->header.object_length));
+    index += ntohs(rp->header.object_length);
+    free(rp); /* free the memory allocated by the pcep_obj_create*() functions */
+
+    /* Copy the Endpoints */
+    memcpy(messageBuffer + index, endpoints, ntohs(endpoints->header.object_length));
+    index += ntohs(endpoints->header.object_length);
+    free(endpoints);
+
+    /* Bandwidth */
+    if (pceReq->bandwidth != NULL)
+    {
+    	memcpy(messageBuffer + index, pceReq->bandwidth, ntohs(pceReq->bandwidth->header.object_length));
+    	index += ntohs(pceReq->bandwidth->header.object_length);
+        free(pceReq->bandwidth);
+    }
+
+    /* Label Switch Path Attributes */
+    if (pceReq->lspa != NULL)
+    {
+    	memcpy(messageBuffer + index, pceReq->lspa, ntohs(pceReq->lspa->header.object_length));
+    	index += ntohs(pceReq->lspa->header.object_length);
+        free(pceReq->lspa);
     }
 
     /* Metrics */
     if (pceReq->metrics != NULL)
     {
-        // TODO
+    	memcpy(messageBuffer + index, pceReq->metrics, ntohs(pceReq->metrics->header.object_length));
+    	index += ntohs(pceReq->metrics->header.object_length);
+        free(pceReq->metrics);
     }
 
     /* RRO */
     if (pceReq->rroList != NULL)
     {
-        // TODO
+    	memcpy(messageBuffer + index, pceReq->rroList, ntohs(pceReq->rroList->ero_hdr.header.object_length));
+    	index += ntohs(pceReq->rroList->ero_hdr.header.object_length);
+        free(pceReq->rroList);
     }
 
     /* IRO */
     if (pceReq->iroList != NULL)
     {
-        // TODO
+        // TODO should we instead look at the header in case there is a list of IRO's?
+    	memcpy(messageBuffer + index, pceReq->iroList, ntohs(pceReq->iroList->ero_hdr.header.object_length));
+    	index += ntohs(pceReq->iroList->ero_hdr.header.object_length);
+        free(pceReq->iroList);
     }
 
     /* Load Balancing */
     if (pceReq->loadBalancing != NULL)
     {
-        // TODO
+    	memcpy(messageBuffer + index, pceReq->loadBalancing, ntohs(pceReq->loadBalancing->header.object_length));
+    	index += ntohs(pceReq->loadBalancing->header.object_length);
+        free(pceReq->loadBalancing);
     }
-
-    /* This function only uses rp, endpoints, and bw */
-	struct pcep_header *request = pcep_msg_create_request(rp, endpoints, bw);
-	/*uint32_t reqs_len = ntohs(request->length);*/
 
 	socketCommSessionSendMessage(
 			session->socketCommSession,
-			(const char *) request,
-			ntohs(request->length));
+			(const char *) messageBuffer,
+			ntohs(hdr->length));
 
-    return requestId;
+	PcepPceReply *pceReply = malloc(sizeof(PcepPceReply));
+	pceReply->elapsedTimeMilliSeconds = 0;
+	pceReply->responseError = false;
+	pceReply->timedOut = false;
+	pceReply->responseMsgList = NULL;
+	pceReply->response =
+			registerResponseMessage(session, requestId, maxWaitMilliSeconds);
+
+    return pceReply;
 }
 
 
-PcepPceReply *getAsyncResult(PcepSession *session, int requestId)
+bool getAsyncResult(PcepPceReply *pceReply)
 {
-    /* TODO look up the requestId and try to get the response */
-    return NULL;
+    if (!queryResponseMessage(pceReply->response))
+    {
+        /* Its not ready yet, and nothing happened */
+    	return false;
+    }
+
+    if (pceReply->response->responseStatus == RESPONSE_STATE_TIMED_OUT)
+    {
+    	pceReply->timedOut = true;
+        return false;
+    }
+
+    if (pceReply->response->responseStatus == RESPONSE_STATE_ERROR)
+    {
+    	pceReply->responseError = true;
+        return false;
+    }
+
+    if (pceReply->response->responseStatus == RESPONSE_STATE_READY)
+    {
+    	pceReply->responseMsgList = pceReply->response->responseMsgList;
+    	pceReply->elapsedTimeMilliSeconds =
+    			timespecDiff(&(pceReply->response->timeRequestRegistered),
+    					     &(pceReply->response->timeResponseReceived));
+    	destroyResponseMessage(pceReply->response);
+    	pceReply->response = NULL;
+
+        return true;
+    }
+    else
+    {
+    	return false;
+    }
+
 }

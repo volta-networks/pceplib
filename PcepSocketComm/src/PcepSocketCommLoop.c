@@ -255,8 +255,9 @@ void *socketCommLoop(void *data)
 
 	while (socketCommHandle->active)
 	{
-		timer.tv_sec = 1;
-		timer.tv_usec = 0;
+        /* Check the FD's every 1/4 sec, 250 milliseconds */
+		timer.tv_sec = 0;
+		timer.tv_usec = 250000;
 		maxFd = buildFdSets(socketCommHandle);
 
 		if (select(maxFd,
