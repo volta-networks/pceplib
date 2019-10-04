@@ -51,13 +51,13 @@ void sendKeepAlive(PcepSession *session)
 	if (session->timerIdKeepAlive == TIMER_ID_NOT_SET)
 	{
 		printf("[%ld-%ld] PcepSessionLogic set KeepAlive timer [%d secs] for sessionId [%d]\n",
-				time(NULL), pthread_self(), session->pccConfig->keepAliveSeconds, session->sessionId);
-		session->timerIdKeepAlive = createTimer(session->pccConfig->keepAliveSeconds, session);
+				time(NULL), pthread_self(), session->pceConfig.keepAliveSeconds, session->sessionId);
+		session->timerIdKeepAlive = createTimer(session->pceConfig.keepAliveSeconds, session);
 	}
 	else
 	{
 		printf("[%ld-%ld] PcepSessionLogic reset KeepAlive timer [%d secs] for sessionId [%d]\n",
-				time(NULL), pthread_self(), session->pccConfig->keepAliveSeconds, session->sessionId);
+				time(NULL), pthread_self(), session->pceConfig.keepAliveSeconds, session->sessionId);
 		resetTimer(session->timerIdKeepAlive);
 	}
 }
@@ -223,8 +223,12 @@ void handleSocketCommEvent(PcepSessionEvent *event)
 
         if (session->pcepOpenReceived == false)
         {
-            sendKeepAlive(session);
+        	struct pcep_object_open *openObject =
+        			(struct pcep_object_open *) event->receivedMsgList->list->header;
+            session->pceConfig.deadTimerSeconds = openObject->open_deadtimer;
+            session->pceConfig.keepAliveSeconds = openObject->open_keepalive;
             session->pcepOpenReceived = true;
+            sendKeepAlive(session);
         }
         else
         {
@@ -248,7 +252,7 @@ void handleSocketCommEvent(PcepSessionEvent *event)
         }
         else
         {
-        	session->timerIdDeadTimer = createTimer(session->pccConfig->deadTimerSeconds, session);
+        	session->timerIdDeadTimer = createTimer(session->pceConfig.deadTimerSeconds, session);
         }
     	break;
 

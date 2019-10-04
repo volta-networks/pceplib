@@ -127,7 +127,10 @@ typedef struct PcepSession_
     bool pcepOpenReceived;
     int numErroneousMessages;
     PcepSocketCommSession *socketCommSession;
-    PcepConfiguration *pccConfig;
+    /* Configuration sent from the PCC to the PCE */
+    PcepConfiguration pccConfig;
+    /* Configuration received from the PCE, to be used in the PCC */
+    PcepConfiguration pceConfig;
 
 } PcepSession;
 

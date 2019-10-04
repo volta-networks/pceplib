@@ -11,6 +11,7 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 #include <time.h>
 
 #include "PcepSessionLogic.h"
@@ -167,7 +168,9 @@ PcepSession *createPcepSession(PcepConfiguration *config, struct in_addr *pceIp,
     session->timerIdKeepAlive = TIMER_ID_NOT_SET;
     session->numErroneousMessages = 0;
     session->pcepOpenReceived = false;
-    session->pccConfig = config;
+    memcpy(&(session->pccConfig), config, sizeof(PcepConfiguration));
+    /* Copy the pccConfig to the pceConfig until we receive the Open KeepAlive response */
+    memcpy(&(session->pceConfig), config, sizeof(PcepConfiguration));
 
     session->socketCommSession = socketCommSessionInitialize(
             NULL,
@@ -193,9 +196,11 @@ PcepSession *createPcepSession(PcepConfiguration *config, struct in_addr *pceIp,
     }
     session->sessionState = SESSION_STATE_TCP_CONNECTED;
 
-    /* Create and Send PCEP Open */
+    /* Create and Send PCEP Open
+     * With PCEP, the PCC sends the config the PCE should use in the Open message,
+     * and the PCE will send an Open with the config the PCC should use. */
     struct pcep_header* openMsg =
-    		pcep_msg_create_open(config->keepAliveSeconds, config->deadTimerSeconds, session->sessionId);
+    		pcep_msg_create_open(session->pccConfig.keepAliveSeconds, session->pccConfig.deadTimerSeconds, session->sessionId);
     socketCommSessionSendMessage(session->socketCommSession, (const char *) openMsg, ntohs(openMsg->length));
 
     session->timerIdOpenKeepWait = createTimer(config->keepAliveSeconds, session);
@@ -230,7 +235,7 @@ PcepMessageResponse *registerResponseMessage(
     /* TODO we should periodically check purge the list of timed-out responses */
     pthread_mutex_lock(&(sessionLogicHandle_->sessionLogicMutex));
     session->sessionState = SESSION_STATE_WAIT_PCREQ;
-    session->timerIdPcReqWait = createTimer(session->pccConfig->requestTimeSeconds, session);
+    session->timerIdPcReqWait = createTimer(session->pceConfig.requestTimeSeconds, session);
     orderedListAddNode(sessionLogicHandle_->responseMsgList, msgResponse);
     pthread_mutex_unlock(&(sessionLogicHandle_->sessionLogicMutex));
 
