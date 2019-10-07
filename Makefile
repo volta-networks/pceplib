@@ -10,7 +10,7 @@ endif
 
 TOPTARGETS := all clean
 
-SUBDIRS := PcepUtils PcepMessages PcepTimers PcepSocketComm PcepSessionLogic PcepPcc
+SUBDIRS := pcep_utils pcep_messages pcep_timers pcep_socket_comm pcep_session_logic pcep_pcc
 
 $(TOPTARGETS): $(SUBDIRS)
 $(SUBDIRS):

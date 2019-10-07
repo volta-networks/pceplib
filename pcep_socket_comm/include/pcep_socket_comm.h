@@ -1,0 +1,84 @@
+/*
+ * pcep_socket_comm.h
+ *
+ *  Created on: sep 17, 2019
+ *      Author: brady
+ */
+
+#ifndef INCLUDE_PCEPSOCKETCOMM_H_
+#define INCLUDE_PCEPSOCKETCOMM_H_
+
+#include <arpa/inet.h>  // sockaddr_in
+
+#include "pcep_utils_queue.h"
+
+#define MAX_RECVD_MSG_SIZE 2048
+
+/*
+ * A socket_comm_session can be initialized with 1 of 2 types of mutually exclusive
+ * message callbacks:
+ * - message_received_handler : the socket_comm library reads the message and calls
+ *                            the callback with the message_data and message_length.
+ *                            this callback should be used for smaller/simpler messages.
+ * - message_ready_toRead_handler : the socket_comm library will call this callback
+ *                               when a message is ready to be read on a socket_fd.
+ *                               this callback should be used if the
+ */
+
+/* message received handler that receives the message data and message length */
+typedef void (*message_received_handler)(void *session_data, char *message_data, unsigned int message_length);
+/* message ready received handler that should read the message on socket_fd
+ * and return the number of bytes read */
+typedef int (*message_ready_toRead_handler)(void *session_data, int socket_fd);
+/* callback handler called when the socket is closed */
+typedef void (*connection_except_notifier)(void *session_data, int socket_fd);
+
+typedef struct pcep_socket_comm_session_
+{
+    message_received_handler message_handler;
+    message_ready_toRead_handler message_ready_toRead_handler;
+    connection_except_notifier conn_except_notifier;
+    struct sockaddr_in dest_sock_addr;
+    int socket_fd;
+    void *session_data;
+    queue_handle *message_queue;
+    char received_message[MAX_RECVD_MSG_SIZE];
+    int received_bytes;
+    bool close_after_write;
+
+} pcep_socket_comm_session;
+
+
+/* Need to document that when the msg_rcv_handler is called, the data needs
+ * to be handled in the same function call, else it may be overwritten by
+ * the next read from this socket */
+
+/* The msg_rcv_handler and msg_ready_handler are mutually exclusive, and only
+ * one can be set (as explained above), else NULL will be returned. */
+pcep_socket_comm_session *
+socket_comm_session_initialize(message_received_handler msg_rcv_handler,
+                            message_ready_toRead_handler msg_ready_handler,
+                            connection_except_notifier notifier,
+                            struct in_addr *host_ip,
+                            short port,
+                            void *session_data);
+
+bool socket_comm_session_teardown(pcep_socket_comm_session *socket_comm_session);
+
+bool socket_comm_session_connect_tcp(pcep_socket_comm_session *socket_comm_session);
+
+/* Immediately close the TCP connection, irregardless if there are pending
+ * messages to be sent. */
+bool socket_comm_session_close_tcp(pcep_socket_comm_session *socket_comm_session);
+
+/* Sets a flag to close the TCP connection either after all the pending messages
+ * are written, or if there are no pending messages, the next time the socket is
+ * checked to be writeable. */
+bool socket_comm_session_close_tcp_after_write(pcep_socket_comm_session *socket_comm_session);
+
+void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_session,
+                                  const char *unmarshalled_message,
+                                  unsigned int msg_length);
+
+
+#endif /* INCLUDE_PCEPSOCKETCOMM_H_ */
