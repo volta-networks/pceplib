@@ -30,7 +30,7 @@ pcep_socket_comm_handle *socket_comm_handle_ = NULL;
 
 /* simple compare method callback used by pcep_utils_ordered_list
  * for ordered list insertion. */
-int socket_fdNode_compare(void *list_entry, void *new_entry)
+int socket_fd_node_compare(void *list_entry, void *new_entry)
 {
     return ((pcep_socket_comm_session *) new_entry)->socket_fd - ((pcep_socket_comm_session *) list_entry)->socket_fd;
 }
@@ -48,8 +48,9 @@ bool initialize_socket_comm_loop()
     bzero(socket_comm_handle_, sizeof(pcep_socket_comm_handle));
 
     socket_comm_handle_->active = true;
-    socket_comm_handle_->read_list = ordered_list_initialize(socket_fdNode_compare);
-    socket_comm_handle_->write_list = ordered_list_initialize(socket_fdNode_compare);
+    socket_comm_handle_->num_active_sessions = 0;
+    socket_comm_handle_->read_list = ordered_list_initialize(socket_fd_node_compare);
+    socket_comm_handle_->write_list = ordered_list_initialize(socket_fd_node_compare);
 
     if (pthread_mutex_init(&(socket_comm_handle_->socket_comm_mutex), NULL) != 0)
     {
@@ -67,9 +68,27 @@ bool initialize_socket_comm_loop()
 }
 
 
+/* Only called from socket_comm_session_teardown() when there are no longer
+ * any socket comm sessions */
+bool destroy_socket_comm_loop()
+{
+    socket_comm_handle_->active = false;
+
+    pthread_join(socket_comm_handle_->socket_comm_thread, NULL);
+    ordered_list_destroy(socket_comm_handle_->read_list);
+    ordered_list_destroy(socket_comm_handle_->write_list);
+    pthread_mutex_destroy(&(socket_comm_handle_->socket_comm_mutex));
+
+    free(socket_comm_handle_);
+    socket_comm_handle_ = NULL;
+
+    return true;
+}
+
+
 pcep_socket_comm_session *
 socket_comm_session_initialize(message_received_handler message_handler,
-                            message_ready_toRead_handler message_ready_handler,
+                            message_ready_to_read_handler message_ready_handler,
                             connection_except_notifier notifier,
                             struct in_addr *host_ip,
                             short port,
@@ -79,12 +98,14 @@ socket_comm_session_initialize(message_received_handler message_handler,
     if (message_handler != NULL && message_ready_handler != NULL)
     {
         fprintf(stderr, "Only one of <message_received_handler | message_ready_toRead_handler> can be set.\n");
+        return NULL;
     }
 
     /* check that at least one message handler was set */
     if (message_handler == NULL && message_ready_handler == NULL)
     {
         fprintf(stderr, "At least one of <message_received_handler | message_ready_toRead_handler> must be set.\n");
+        return NULL;
     }
 
     if (!initialize_socket_comm_loop())
@@ -107,6 +128,7 @@ socket_comm_session_initialize(message_received_handler message_handler,
         return NULL;
     }
 
+    socket_comm_handle_->num_active_sessions++;
     socket_comm_session->close_after_write = false;
     socket_comm_session->session_data = session_data;
     socket_comm_session->message_handler = message_handler;
@@ -127,6 +149,12 @@ socket_comm_session_initialize(message_received_handler message_handler,
 
 bool socket_comm_session_connect_tcp(pcep_socket_comm_session *socket_comm_session)
 {
+    if (socket_comm_session == NULL)
+    {
+        printf("WARN socket_comm_session_connect_tcp NULL socket_comm_session.\n");
+        return NULL;
+    }
+
     int retval = connect(socket_comm_session->socket_fd,
                          (struct sockaddr *) &(socket_comm_session->dest_sock_addr),
                          sizeof(struct sockaddr));
@@ -150,6 +178,12 @@ bool socket_comm_session_connect_tcp(pcep_socket_comm_session *socket_comm_sessi
 
 bool socket_comm_session_close_tcp(pcep_socket_comm_session *socket_comm_session)
 {
+    if (socket_comm_session == NULL)
+    {
+        printf("WARN socket_comm_session_close_tcp NULL socket_comm_session.\n");
+        return false;
+    }
+
     pthread_mutex_lock(&(socket_comm_handle_->socket_comm_mutex));
     ordered_list_remove_first_node_equals(socket_comm_handle_->read_list, socket_comm_session);
     ordered_list_remove_first_node_equals(socket_comm_handle_->write_list, socket_comm_session);
@@ -160,8 +194,15 @@ bool socket_comm_session_close_tcp(pcep_socket_comm_session *socket_comm_session
     return true;
 }
 
+
 bool socket_comm_session_close_tcp_after_write(pcep_socket_comm_session *socket_comm_session)
 {
+    if (socket_comm_session == NULL)
+    {
+        printf("WARN socket_comm_session_close_tcp_after_write NULL socket_comm_session.\n");
+        return false;
+    }
+
     pthread_mutex_lock(&(socket_comm_handle_->socket_comm_mutex));
     socket_comm_session->close_after_write = true;
     pthread_mutex_unlock(&(socket_comm_handle_->socket_comm_mutex));
@@ -169,11 +210,20 @@ bool socket_comm_session_close_tcp_after_write(pcep_socket_comm_session *socket_
     return true;
 }
 
+
 bool socket_comm_session_teardown(pcep_socket_comm_session *socket_comm_session)
 {
-    /* TODO when should we teardown the socket_comm_handle_ ??
-     *      should we keep a pcep_socket_comm_session ref counter and free it when
-     *      the ref count reaches 0? */
+    if (socket_comm_handle_ == NULL)
+    {
+        printf("WARN: cannot teardown NULL socket_comm_handle\n");
+        return false;
+    }
+
+    if (socket_comm_session == NULL)
+    {
+        printf("WARN: cannot teardown NULL session\n");
+        return false;
+    }
 
     if (socket_comm_session->socket_fd > 0)
     {
@@ -182,18 +232,31 @@ bool socket_comm_session_teardown(pcep_socket_comm_session *socket_comm_session)
     }
 
     pthread_mutex_lock(&(socket_comm_handle_->socket_comm_mutex));
+    queue_destroy(socket_comm_session->message_queue);
     ordered_list_remove_first_node_equals(socket_comm_handle_->read_list, socket_comm_session);
     ordered_list_remove_first_node_equals(socket_comm_handle_->write_list, socket_comm_session);
     pthread_mutex_unlock(&(socket_comm_handle_->socket_comm_mutex));
 
     free(socket_comm_session);
 
-    return false;
+    socket_comm_handle_->num_active_sessions--;
+    if (socket_comm_handle_->num_active_sessions == 0)
+    {
+        destroy_socket_comm_loop();
+    }
+
+    return true;
 }
 
 
 void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_session, const char *message, unsigned int msg_length)
 {
+    if (socket_comm_session == NULL)
+    {
+        printf("WARN socket_comm_session_send_message NULL socket_comm_session.\n");
+        return;
+    }
+
     pcep_socket_comm_queued_message *queued_message = malloc(sizeof(pcep_socket_comm_queued_message));
     queued_message->unmarshalled_message = message;
     queued_message->msg_length = msg_length;

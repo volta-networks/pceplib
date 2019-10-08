@@ -9,6 +9,7 @@
 #define INCLUDE_PCEPSOCKETCOMM_H_
 
 #include <arpa/inet.h>  // sockaddr_in
+#include <stdbool.h>
 
 #include "pcep_utils_queue.h"
 
@@ -29,14 +30,14 @@
 typedef void (*message_received_handler)(void *session_data, char *message_data, unsigned int message_length);
 /* message ready received handler that should read the message on socket_fd
  * and return the number of bytes read */
-typedef int (*message_ready_toRead_handler)(void *session_data, int socket_fd);
+typedef int (*message_ready_to_read_handler)(void *session_data, int socket_fd);
 /* callback handler called when the socket is closed */
 typedef void (*connection_except_notifier)(void *session_data, int socket_fd);
 
 typedef struct pcep_socket_comm_session_
 {
     message_received_handler message_handler;
-    message_ready_toRead_handler message_ready_toRead_handler;
+    message_ready_to_read_handler message_ready_toRead_handler;
     connection_except_notifier conn_except_notifier;
     struct sockaddr_in dest_sock_addr;
     int socket_fd;
@@ -57,7 +58,7 @@ typedef struct pcep_socket_comm_session_
  * one can be set (as explained above), else NULL will be returned. */
 pcep_socket_comm_session *
 socket_comm_session_initialize(message_received_handler msg_rcv_handler,
-                            message_ready_toRead_handler msg_ready_handler,
+                            message_ready_to_read_handler msg_ready_handler,
                             connection_except_notifier notifier,
                             struct in_addr *host_ip,
                             short port,

@@ -82,5 +82,7 @@ void *event_loop(void *context)
         walk_and_process_timers(timers_context);
     }
 
+    printf("[%ld-%ld] Finished timers_event_loop thread\n", time(NULL), pthread_self());
+
     return NULL;
 }

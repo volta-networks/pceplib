@@ -39,7 +39,7 @@ int timer_list_node_compare(void *list_entry, void *new_entry)
 /* simple compare method callback used by pcep_utils_ordered_list
  * ordered_list_remove_first_node_equals2 to remove a timer based on
  * its timer_id. */
-int timer_list_node_timer_idCompare(void *list_entry, void *new_entry)
+int timer_list_node_timer_id_compare(void *list_entry, void *new_entry)
 {
     return ((pcep_timer *) new_entry)->timer_id - ((pcep_timer *) list_entry)->timer_id;
 }
@@ -61,6 +61,12 @@ static pcep_timers_context *create_timers_context_()
 
 bool initialize_timers(timer_expire_handler expire_handler)
 {
+    if (expire_handler == NULL)
+    {
+        /* Cannot have a NULL handler function */
+        return false;
+    }
+
     timers_context_ = create_timers_context_();
 
     if (timers_context_->active == true)
@@ -90,8 +96,8 @@ bool initialize_timers(timer_expire_handler expire_handler)
 
 
 /*
- * this function is only used to tear_down the timer data.
- * only the timer data is deleted, not the list itself,
+ * This function is only used to tear_down the timer data.
+ * Only the timer data is deleted, not the list itself,
  * which is deleted by ordered_list_destroy().
  */
 void free_all_timers(pcep_timers_context *timers_context)
@@ -102,7 +108,10 @@ void free_all_timers(pcep_timers_context *timers_context)
 
     while (timer_node != NULL)
     {
-        free(timer_node->data);
+        if (timer_node->data != NULL)
+        {
+            free(timer_node->data);
+        }
         timer_node = timer_node->next_node;
     }
 
@@ -114,27 +123,38 @@ bool teardown_timers()
 {
     if (timers_context_ == NULL)
     {
-        fprintf(stderr, "Trying to teardown the timers, but they are not initialized\n");
+        fprintf(stderr, "WARN Trying to teardown the timers, but they are not initialized\n");
         return false;
     }
 
     if (timers_context_->active == false)
     {
-        fprintf(stderr, "Trying to teardown the timers, but they are not active\n");
+        fprintf(stderr, "WARN Trying to teardown the timers, but they are not active\n");
         return false;
     }
 
     timers_context_->active = false;
-
-    /* TODO should we call phtread_join() here ?? */
     pthread_join(timers_context_->event_loop_thread, NULL);
+
+    /* TODO this doesnt buld
+     * Instead of calling pthread_join() which could block if the thread
+     * is blocked, try joining for at most 1 second.
+    struct timespec ts;
+    clock_gettime(CLOCK_REALTIME, &ts);
+    ts.tv_sec += 1;
+    int retval = pthread_timedjoin_np(timers_context_->event_loop_thread, NULL, &ts);
+    if (retval != 0)
+    {
+        printf("WARN, thread did not stop after 1 second waiting on it.\n");
+    }
+    */
 
     free_all_timers(timers_context_);
     ordered_list_destroy(timers_context_->timer_list);
 
     if (pthread_mutex_destroy(&(timers_context_->timer_list_lock)) != 0)
     {
-        fprintf(stderr, "Trying to teardown the timers, cannot destroy the mutex\n");
+        fprintf(stderr, "WARN Trying to teardown the timers, cannot destroy the mutex\n");
     }
 
     free(timers_context_);
@@ -142,6 +162,7 @@ bool teardown_timers()
 
     return true;
 }
+
 
 int get_next_timer_id()
 {
@@ -199,9 +220,10 @@ bool cancel_timer(int timer_id)
 
     compare_timer.timer_id = timer_id;
     pcep_timer *timer_toRemove = ordered_list_remove_first_node_equals2(
-            timers_context_->timer_list, &compare_timer, timer_list_node_timer_idCompare);
+            timers_context_->timer_list, &compare_timer, timer_list_node_timer_id_compare);
     if (timer_toRemove == NULL)
     {
+        pthread_mutex_unlock(&timers_context_->timer_list_lock);
         fprintf(stderr, "WARN trying to cancel a timer [%d] that does not exist\n", timer_id);
         return false;
     }
@@ -227,11 +249,11 @@ bool reset_timer(int timer_id)
 
     compare_timer.timer_id = timer_id;
     pcep_timer *timer_toReset = ordered_list_remove_first_node_equals2(
-            timers_context_->timer_list, &compare_timer, timer_list_node_timer_idCompare);
+            timers_context_->timer_list, &compare_timer, timer_list_node_timer_id_compare);
     if (timer_toReset == NULL)
     {
         pthread_mutex_unlock(&timers_context_->timer_list_lock);
-        fprintf(stderr, "ERROR trying to reset a timer that does not exist\n");
+        fprintf(stderr, "WARN trying to reset a timer that does not exist\n");
 
         return false;
     }

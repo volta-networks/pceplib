@@ -4,4 +4,4 @@
 .settings/
 **/*.o
 **/lib*.a
-build/pcep_pcc
+build/*

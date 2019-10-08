@@ -57,7 +57,7 @@ unsigned int read_message(int socket_fd, char *received_message, unsigned int ma
 }
 
 
-int build_fdSets(pcep_socket_comm_handle *socket_comm_handle)
+int build_fd_sets(pcep_socket_comm_handle *socket_comm_handle)
 {
     int max_fd = 0;
 
@@ -242,11 +242,11 @@ void *socket_comm_loop(void *data)
 {
     if (data == NULL)
     {
-        fprintf(stderr, "Cannot start socket_comm_loop with NULL pcep_socketcomm_handle");
+        fprintf(stderr, "Cannot start socket_comm_loop with NULL pcep_socketcomm_handle\n");
         return NULL;
     }
 
-    printf("[%ld-%ld] starting socket_comm_loop thread\n", time(NULL), pthread_self());
+    printf("[%ld-%ld] Starting socket_comm_loop thread\n", time(NULL), pthread_self());
 
     pcep_socket_comm_handle *socket_comm_handle = (pcep_socket_comm_handle *) data;
     struct timeval timer;
@@ -257,7 +257,7 @@ void *socket_comm_loop(void *data)
         /* check the FD's every 1/4 sec, 250 milliseconds */
         timer.tv_sec = 0;
         timer.tv_usec = 250000;
-        max_fd = build_fdSets(socket_comm_handle);
+        max_fd = build_fd_sets(socket_comm_handle);
 
         if (select(max_fd,
                 &(socket_comm_handle->read_master_set),
@@ -273,6 +273,8 @@ void *socket_comm_loop(void *data)
         handle_writes(socket_comm_handle);
         handle_excepts(socket_comm_handle);
     }
+
+    printf("[%ld-%ld] Finished socket_comm_loop thread\n", time(NULL), pthread_self());
 
     return NULL;
 }
