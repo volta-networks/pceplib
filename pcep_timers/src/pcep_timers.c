@@ -178,7 +178,7 @@ int create_timer(int sleep_seconds, void *data)
 {
     if (timers_context_ == NULL)
     {
-        fprintf(stderr, "ERROR trying to create a timer, but the timers have not been initialized\n");
+        fprintf(stderr, "ERROR trying to create a timer: the timers have not been initialized\n");
         return -1;
     }
 
@@ -212,7 +212,7 @@ bool cancel_timer(int timer_id)
 
     if (timers_context_ == NULL)
     {
-        fprintf(stderr, "ERROR trying to cancel a timer, but the timers have not been initialized\n");
+        fprintf(stderr, "ERROR trying to cancel a timer: the timers have not been initialized\n");
         return false;
     }
 
@@ -240,7 +240,7 @@ bool reset_timer(int timer_id)
 
     if (timers_context_ == NULL)
     {
-        fprintf(stderr, "ERROR trying to reset a timer, but the timers have not been initialized\n");
+        fprintf(stderr, "ERROR trying to reset a timer: the timers have not been initialized\n");
 
         return false;
     }

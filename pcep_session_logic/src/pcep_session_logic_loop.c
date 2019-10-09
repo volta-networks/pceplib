@@ -39,6 +39,12 @@ static pcep_session_event *create_session_event(pcep_session *session)
  * state machine. */
 int session_logic_msg_ready_handler(void *data, int socket_fd)
 {
+    if (data == NULL)
+    {
+        fprintf(stderr, "Cannot handle msg_ready with NULL data\n");
+        return -1;
+    }
+
     pcep_session *session = (pcep_session *) data;
 
     pthread_mutex_lock(&(session_logic_handle_->session_logic_mutex));
@@ -73,6 +79,12 @@ int session_logic_msg_ready_handler(void *data, int socket_fd)
  * will be called by the socket_comm thread. */
 void session_logic_conn_except_notifier(void *data, int socket_fd)
 {
+    if (data == NULL)
+    {
+        fprintf(stderr, "Cannot handle conn_except with NULL data\n");
+        return;
+    }
+
     pcep_session *session = (pcep_session *) data;
     printf("[%ld-%ld] pcep_session_logic session_logic_conn_except_notifier socket closed [%d], session_id [%d]\n",
             time(NULL), pthread_self(), socket_fd, session->session_id);
@@ -128,7 +140,7 @@ void *session_logic_loop(void *data)
         return NULL;
     }
 
-    printf("[%ld-%ld] starting session_logic_loop thread\n", time(NULL), pthread_self());
+    printf("[%ld-%ld] Starting session_logic_loop thread\n", time(NULL), pthread_self());
 
     pcep_session_logic_handle *session_logic_handle = (pcep_session_logic_handle *) data;
 
@@ -167,6 +179,8 @@ void *session_logic_loop(void *data)
         session_logic_handle->session_logic_condition = false;
         pthread_mutex_unlock(&(session_logic_handle->session_logic_mutex));
     }
+
+    printf("[%ld-%ld] Finished session_logic_loop thread\n", time(NULL), pthread_self());
 
     return NULL;
 }

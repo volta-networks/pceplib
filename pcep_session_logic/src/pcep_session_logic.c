@@ -27,7 +27,7 @@ pcep_session_logic_handle *session_logic_handle_ = NULL;
 int session_id_ = 0;
 
 
-int session_idCompare_function(void *list_entry, void *new_entry)
+int session_id_compare_function(void *list_entry, void *new_entry)
 {
     /* return:
      *   < 0  if new_entry  < list_entry
@@ -39,7 +39,7 @@ int session_idCompare_function(void *list_entry, void *new_entry)
 }
 
 
-int request_idCompare_function(void *list_entry, void *new_entry)
+int request_id_compare_function(void *list_entry, void *new_entry)
 {
     return ((pcep_message_response *) new_entry)->request_id - ((pcep_message_response *) list_entry)->request_id;
 }
@@ -47,12 +47,18 @@ int request_idCompare_function(void *list_entry, void *new_entry)
 
 bool run_session_logic()
 {
+    if (session_logic_handle_ != NULL)
+    {
+        printf("WARN Session Logic is already initialized.\n");
+        return false;
+    }
+
     session_logic_handle_ = malloc(sizeof(pcep_session_logic_handle));
 
     session_logic_handle_->active = true;
     session_logic_handle_->session_logic_condition = false;
-    session_logic_handle_->session_list = ordered_list_initialize(session_idCompare_function);
-    session_logic_handle_->response_msg_list = ordered_list_initialize(request_idCompare_function);
+    session_logic_handle_->session_list = ordered_list_initialize(session_id_compare_function);
+    session_logic_handle_->response_msg_list = ordered_list_initialize(request_id_compare_function);
     session_logic_handle_->session_event_queue = queue_initialize();
 
     if (!initialize_timers(session_logic_timer_expire_handler))
@@ -86,6 +92,7 @@ bool run_session_logic_wait_for_completion()
         return false;
     }
 
+    /* Blocking call, waits for session logic thread to complete */
     pthread_join(session_logic_handle_->session_logic_thread, NULL);
 
     return true;
@@ -96,10 +103,12 @@ bool stop_session_logic()
 {
     if (session_logic_handle_ == NULL)
     {
+        printf("WARN Session logic already stopped\n");
         return false;
     }
 
     session_logic_handle_->active = false;
+    teardown_timers();
 
     pthread_mutex_lock(&(session_logic_handle_->session_logic_mutex));
     session_logic_handle_->session_logic_condition = true;
@@ -120,6 +129,12 @@ bool stop_session_logic()
 
 void destroy_pcep_session(pcep_session *session)
 {
+    if (session == NULL)
+    {
+        printf("WARN cannot destroy NULL session\n");
+        return;
+    }
+
     if (session->timer_idDead_timer != TIMER_ID_NOT_SET)
     {
         cancel_timer(session->timer_idDead_timer);
@@ -146,7 +161,8 @@ void destroy_pcep_session(pcep_session *session)
 }
 
 
-int get_next_session_id()
+/* Internal util function */
+static int get_next_session_id()
 {
     if (session_id_ == INT_MAX)
     {
@@ -159,6 +175,18 @@ int get_next_session_id()
 
 pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pce_ip, short port)
 {
+    if (config == NULL)
+    {
+        printf("WARN cannot create pcep session with NULL config\n");
+        return NULL;
+    }
+
+    if (pce_ip == NULL)
+    {
+        printf("WARN cannot create pcep session with NULL pce_ip\n");
+        return NULL;
+    }
+
     pcep_session *session = malloc(sizeof(pcep_session));
     session->session_id = get_next_session_id();
     session->session_state = SESSION_STATE_INITIALIZED;
@@ -215,6 +243,18 @@ pcep_message_response *register_response_message(
 {
     /* the response will be updated in pcep_session_logic_states.c */
 
+    if (session == NULL)
+    {
+        printf("WARN cannot register with a NULL session\n");
+        return NULL;
+    }
+
+    if (session_logic_handle_ == NULL)
+    {
+        printf("WARN cannot register without first running the session logic\n");
+        return NULL;
+    }
+
     printf("[%ld-%ld] register_response_message session [%d] request_id [%d] max_wait [%d]\n",
             time(NULL), pthread_self(), session->session_id, request_id, max_wait_time_milli_seconds);
 
@@ -247,6 +287,13 @@ void destroy_response_message(pcep_message_response *msg_response)
 {
     if (msg_response == NULL)
     {
+        printf("WARN cannot destroy a NULL message response\n");
+        return;
+    }
+
+    if (session_logic_handle_ == NULL)
+    {
+        printf("WARN cannot destroy a message response without first running the session logic\n");
         return;
     }
 
@@ -312,7 +359,7 @@ bool query_response_message(pcep_message_response *msg_response)
 {
     if (msg_response == NULL)
     {
-        fprintf(stderr, "ERROR query_response_message cannot query with NULL pcep_message_response\n");
+        printf("WARN query_response_message cannot query with NULL pcep_message_response\n");
         return false;
     }
 
@@ -358,7 +405,7 @@ bool wait_for_response_message(pcep_message_response *msg_response)
 {
     if (msg_response == NULL)
     {
-        fprintf(stderr, "ERROR wait_for_response_message cannot query with NULL pcep_message_response\n");
+        printf("ERROR wait_for_response_message cannot query with NULL pcep_message_response\n");
         return false;
     }
 
@@ -405,7 +452,6 @@ bool wait_for_response_message(pcep_message_response *msg_response)
         }
     }
 
-    clock_gettime(CLOCK_REALTIME, &ts);
     pthread_mutex_unlock(&msg_response->response_mutex);
 
     return false;

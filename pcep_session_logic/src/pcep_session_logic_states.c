@@ -65,6 +65,18 @@ void send_keep_alive(pcep_session *session)
 
 void update_response_message(pcep_session *session, struct pcep_messages_list *received_msg_list)
 {
+    if (session == NULL)
+    {
+        printf("WARN update_response_message NULL session\n");
+        return;
+    }
+
+    if (received_msg_list == NULL)
+    {
+        printf("WARN update_response_message NULL received_msg_list\n");
+        return;
+    }
+
     /* iterate the message objects to get the RP object */
     bool found_rpObject = false;
     struct pcep_obj_list *list_entry = received_msg_list->list;
@@ -190,6 +202,12 @@ void handle_timer_event(pcep_session_event *event)
 /* state machine handling for received messages */
 void handle_socket_comm_event(pcep_session_event *event)
 {
+    if (event == NULL)
+    {
+        printf("WARN handle_socket_comm_event NULL event\n");
+        return;
+    }
+
     pcep_session *session = event->session;
 
     printf("[%ld-%ld] pcep_session_logic handle_socket_comm_event: session_id [%d] msg_type [%d] socket_closed [%d]\n",
