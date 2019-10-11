@@ -32,6 +32,7 @@ queue_handle *queue_initialize_with_size(unsigned int max_entries)
 void queue_destroy(queue_handle *handle)
 {
     while (queue_dequeue(handle) != NULL) {}
+    free(handle);
 }
 
 
@@ -45,7 +46,7 @@ queue_node *queue_enqueue(queue_handle *handle, void *data)
 
     if (handle->max_entries > 0 && handle->num_entries >= handle->max_entries)
     {
-        fprintf(stderr, "WARN queue_enqueue, cannot enqueue: max entries hit [%d]\n",
+        fprintf(stderr, "WARN queue_enqueue, cannot enqueue: max entries hit [%u]\n",
                 handle->num_entries);
         return NULL;
     }

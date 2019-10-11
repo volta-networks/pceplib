@@ -26,6 +26,8 @@ extern pcep_session_logic_handle *session_logic_handle_;
 
 static pcep_session_event event;
 static pcep_session session;
+static struct pcep_messages_list *msg_list;
+static struct pcep_obj_list *obj_list;
 
 /*
  * Test case setup and teardown called before AND after each test.
@@ -42,6 +44,14 @@ void pcep_session_logic_states_test_setup()
     bzero(&session, sizeof(pcep_session));
     event.socket_closed = false;
     event.session = &session;
+
+    msg_list = malloc(sizeof(struct pcep_messages_list));
+    obj_list = malloc(sizeof(struct pcep_obj_list));
+    bzero(msg_list, sizeof(struct pcep_messages_list));
+    bzero(obj_list, sizeof(struct pcep_obj_list));
+    obj_list->next = obj_list;
+    DL_APPEND(msg_list->list, obj_list);
+    msg_list->prev = msg_list;
 
     reset_mock_socket_comm_info();
 }
@@ -245,37 +255,27 @@ void test_handle_socket_comm_event_close()
 void test_handle_socket_comm_event_open()
 {
     pcep_message_response registered_msg_response;
-    struct pcep_messages_list msg_list;
-    struct pcep_obj_list obj_list;
-
     bzero(&registered_msg_response, sizeof(pcep_message_response));
-    bzero(&msg_list, sizeof(struct pcep_messages_list));
-    bzero(&obj_list, sizeof(struct pcep_obj_list));
 
-    obj_list.header = (struct pcep_object_header *) pcep_obj_create_open(1, 1, 1);
-    msg_list.list = &obj_list;
-    msg_list.header.type = PCEP_TYPE_OPEN;
-    event.received_msg_list = &msg_list;
+    obj_list->header = (struct pcep_object_header *) pcep_obj_create_open(1, 1, 1);
+    msg_list->header.type = PCEP_TYPE_OPEN;
+    event.received_msg_list = msg_list;
     session.pcep_open_received = false;
 
     handle_socket_comm_event(&event);
 
     CU_ASSERT_TRUE(session.pcep_open_received);
     verify_socket_comm_times_called(0, 0, 0, 1, 0, 0);
-    free(obj_list.header);
 }
 
 
 void test_handle_socket_comm_event_keep_alive()
 {
     pcep_message_response registered_msg_response;
-    struct pcep_messages_list msg_list;
-
     bzero(&registered_msg_response, sizeof(pcep_message_response));
-    bzero(&msg_list, sizeof(struct pcep_messages_list));
 
-    msg_list.header.type = PCEP_TYPE_KEEPALIVE;
-    event.received_msg_list = &msg_list;
+    msg_list->header.type = PCEP_TYPE_KEEPALIVE;
+    event.received_msg_list = msg_list;
     session.session_state = SESSION_STATE_TCP_CONNECTED;
     session.timer_idDead_timer = 100;
 
@@ -291,17 +291,11 @@ void test_handle_socket_comm_event_keep_alive()
 void test_handle_socket_comm_event_pcrep()
 {
     pcep_message_response registered_msg_response;
-    struct pcep_messages_list msg_list;
-    struct pcep_obj_list obj_list;
-
     bzero(&registered_msg_response, sizeof(pcep_message_response));
-    bzero(&msg_list, sizeof(struct pcep_messages_list));
-    bzero(&obj_list, sizeof(struct pcep_obj_list));
 
-    obj_list.header = (struct pcep_object_header *) pcep_obj_create_rp(1, 1, 1);
-    msg_list.list = &obj_list;
-    msg_list.header.type = PCEP_TYPE_PCREP;
-    event.received_msg_list = &msg_list;
+    obj_list->header = (struct pcep_object_header *) pcep_obj_create_rp(1, 1, 1);
+    msg_list->header.type = PCEP_TYPE_PCREP;
+    event.received_msg_list = msg_list;
     session.session_state = SESSION_STATE_WAIT_PCREQ;
 
     handle_socket_comm_event(&event);
@@ -309,5 +303,4 @@ void test_handle_socket_comm_event_pcrep()
     CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_IDLE);
     CU_ASSERT_EQUAL(session.timer_idPc_req_wait, TIMER_ID_NOT_SET);
     verify_socket_comm_times_called(0, 0, 0, 0, 0, 0);
-    free(obj_list.header);
 }

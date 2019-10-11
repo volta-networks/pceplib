@@ -35,6 +35,7 @@ void handle_signal_action(int sig_number)
 int setup_signals()
 {
     struct sigaction sa;
+    bzero(&sa, sizeof(struct sigaction));
     sa.sa_handler = handle_signal_action;
     if (sigaction(SIGINT, &sa, 0) != 0)
     {
@@ -75,6 +76,9 @@ void send_pce_req_message_sync(pcep_session *session)
         printf("pcep_pcc send_pce_req_message_sync got a response, elapsed time [%d ms]\n",
                 pce_reply->elapsed_time_milli_seconds);
     }
+
+    free(pce_req);
+    free(pce_reply);
 }
 
 void send_pce_req_message_async(pcep_session *session)
@@ -124,14 +128,16 @@ void send_pce_req_message_async(pcep_session *session)
     }
 
     free(pce_req);
+    free(pce_reply);
 }
 
 
 int main(int argc, char **argv)
 {
-
     printf("[%ld-%ld] starting pcc_pcep example client\n",
             time(NULL), pthread_self());
+
+    setup_signals();
 
     /* blocking call:
      * if (!run_session_logic_wait_for_completion()) */
@@ -153,6 +159,7 @@ int main(int argc, char **argv)
 
     pcep_configuration *config = create_default_pcep_configuration();
     pcep_session *session = connect_pce(config, &host_address);
+    free(config);
     if (session == NULL)
     {
         fprintf(stderr, "Error in create_nbi_pcep_session.\n");

@@ -26,8 +26,9 @@ void close_pcep_session(pcep_session * session, enum pcep_close_reasons reason)
     struct pcep_header* close_msg = pcep_msg_create_close(0, reason);
     socket_comm_session_send_message(
             session->socket_comm_session,
-            (const char *) close_msg,
-            ntohs(close_msg->length));
+            (char *) close_msg,
+            ntohs(close_msg->length),
+            true);
 
     printf("[%ld-%ld] pcep_session_logic send pcep_close message len [%d] for session_id [%d]\n",
             time(NULL), pthread_self(), ntohs(close_msg->length), session->session_id);
@@ -42,8 +43,9 @@ void send_keep_alive(pcep_session *session)
     struct pcep_header* keep_alive_msg = pcep_msg_create_keepalive();
     socket_comm_session_send_message(
             session->socket_comm_session,
-            (const char *) keep_alive_msg,
-            ntohs(keep_alive_msg->length));
+            (char *) keep_alive_msg,
+            ntohs(keep_alive_msg->length),
+            true);
 
     printf("[%ld-%ld] pcep_session_logic send keep_alive message len [%d] for session_id [%d]\n",
             time(NULL), pthread_self(), ntohs(keep_alive_msg->length), session->session_id);
@@ -107,7 +109,7 @@ void update_response_message(pcep_session *session, struct pcep_messages_list *r
             ordered_list_find(session_logic_handle_->response_msg_list, &msg_response_search);
     if (node == NULL)
     {
-        fprintf(stderr, "WARN received a messages response id [%d] len [%d] class [%c] type [%c] that was not registered\n",
+        fprintf(stderr, "WARN received a messages response id [%u] len [%d] class [%c] type [%c] that was not registered\n",
                 rp_object->rp_reqidnumb, ntohs(rp_object->header.object_length),
                 rp_object->header.object_class, rp_object->header.object_type);
         return;
@@ -314,4 +316,7 @@ void handle_socket_comm_event(pcep_session_event *event)
     default:
         break;
     }
+
+    /* Traverse the msg_list and free everything */
+    pcep_msg_free(event->received_msg_list);
 }
