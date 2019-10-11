@@ -32,7 +32,7 @@ extern "C" {
 #endif
 
 #ifndef TRUE
-    #define TRUE 1 
+    #define TRUE 1
     #define FALSE 0
 #endif
 
@@ -57,42 +57,54 @@ enum pcep_object_class
 enum pcep_object_types
 {
     PCEP_OBJ_TYPE_OPEN = 1,
-    
+
     PCEP_OBJ_TYPE_RP = 1,
-    
+
     PCEP_OBJ_TYPE_NOPATH = 1,
-    
+
     PCEP_OBJ_TYPE_ENDPOINT_IPV4 = 1,
     PCEP_OBJ_TYPE_ENDPOINT_IPV6 = 2,
-    
+
     PCEP_OBJ_TYPE_BANDWIDTH_REQ = 1,
     PCEP_OBJ_TYPE_BANDWIDTH_TELSP = 2,
-    
+
     PCEP_OBJ_TYPE_METRIC = 1,
-    
+
     PCEP_OBJ_TYPE_ERO = 1,
-    
+
     PCEP_OBJ_TYPE_RRO = 1,
-    
+
     PCEP_OBJ_TYPE_LSPA = 1,
-    
+
     PCEP_OBJ_TYPE_IRO = 1,
-    
+
     PCEP_OBJ_TYPE_SVEC = 1,
-    
+
     PCEP_OBJ_TYPE_NOTF = 1,
-    
+
     PCEP_OBJ_TYPE_ERROR = 1,
-    
+
     PCEP_OBJ_TYPE_CLOSE = 1
 };
 
+/* PCEP Message Common Object Header, According to RFC 5440
+ *
+ *    0                   1                   2                   3
+ *    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *   | Object-Class  |   OT  |Res|P|I|   Object Length (bytes)       |
+ *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ *   |                                                               |
+ *   //                        (Object body)                        //
+ *   |                                                               |
+ *   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
 
 struct pcep_object_header
 {
     uint8_t object_class;       //Identifies the PCEP object class.
     uint8_t object_flags:4;     //Identifies the PCEP object flags.
-    uint8_t object_type:4;      //Identifies the PCEP object type.    
+    uint8_t object_type:4;      //Identifies the PCEP object type.
     uint16_t object_length;     //Specifies the total object length including the header.
 }__attribute__((packed));
 
@@ -102,7 +114,7 @@ struct pcep_object_open
     uint8_t open_ver_flags; //PCEP version. Current version is 1 /No flags are currently defined.
     uint8_t open_keepalive; //Maximum period of time between two consecutive PCEP messages sent by the sender.
     uint8_t open_deadtimer; //Specifies the amount of time before closing the session down.
-    uint8_t open_sid;       //PCEP session number that identifies the current session.   
+    uint8_t open_sid;       //PCEP session number that identifies the current session.
 }__attribute__((packed));
 
 struct pcep_object_rp
@@ -152,7 +164,7 @@ struct pcep_object_endpoints_ipv6
 struct pcep_object_bandwidth
 {
     struct pcep_object_header header;
-    float bandwidth;  
+    float bandwidth;
 }__attribute__((packed));
 
 enum pcep_metric_types
@@ -189,7 +201,7 @@ enum pcep_ero_subobj_types
 struct pcep_ero_subobj_hdr
 {
     uint8_t type;         /* loose bit and sub-object type (0x01 = strict IPv4 hop) */
-    uint8_t length;        /* sub-object length (in bytes) */    
+    uint8_t length;        /* sub-object length (in bytes) */
 }__attribute__((packed));
 
 struct pcep_ero_subobj_ipv4
@@ -213,8 +225,8 @@ struct pcep_ero_subobj_32label
 {
     struct pcep_ero_subobj_hdr header;
     uint8_t upstream:1; // upstream(1)/downstream(0) bit indication
-    uint8_t resvd:7;            
-    uint8_t class_type; // label class-type (generalized label = 2) 
+    uint8_t resvd:7;
+    uint8_t class_type; // label class-type (generalized label = 2)
     uint32_t label;     // label supported */
 }__attribute__((packed));
 
@@ -235,20 +247,20 @@ struct pcep_object_eros_list
 {
     struct pcep_object_ero ero_hdr;
     struct pcep_object_ero_list *ero_list;
-    
+
     struct pcep_object_eros_list *prev;
     struct pcep_object_eros_list *next;
 };
 
 struct pcep_object_ero_list
-{    
+{
     union subobj {
         struct pcep_ero_subobj_ipv4 ipv4;
         struct pcep_ero_subobj_unnum unnum;
         struct pcep_ero_subobj_32label label;
         struct pcep_ero_subobj_border border;
     } subobj;
-    
+
     struct pcep_object_ero_list *prev; /* needed for a doubly-linked list only */
     struct pcep_object_ero_list *next; /* needed for singly- or doubly-linked lists */
 };
@@ -262,19 +274,19 @@ struct pcep_object_lspa
     uint8_t lspa_prio;     //The priority of the TE LSP with respect to taking resources.
     uint8_t lspa_holdprio; //The priority of the TE LSP with respect to holding resources.
     uint8_t lspa_flags;    //Flags
-    uint8_t lspa_resv;     //This field must be set to 0    
+    uint8_t lspa_resv;     //This field must be set to 0
 }__attribute__((packed));
 
 // The SVEC object with some custom extensions.
 struct pcep_object_svec
 {
     struct pcep_object_header header;
-    uint8_t reserved_disjointness;   
+    uint8_t reserved_disjointness;
     uint16_t flags_reserved;
     uint8_t flag_srlg:1;
     uint8_t flag_node:1;
-    uint8_t flag_link:1;    
-    uint8_t flag_reserved:5;    
+    uint8_t flag_link:1;
+    uint8_t flag_reserved:5;
 }__attribute__((packed));
 
 enum pcep_error_type
@@ -292,7 +304,7 @@ enum pcep_error_type
 };
 
 enum pcep_error_value
-{  
+{
   PCEP_ERRV_RECVD_INVALID_OPEN_MSG = 1,
   PCEP_ERRV_OPENWAIT_TIMED_OUT = 2,
   PCEP_ERRV_UNACCEPTABLE_OPEN_MSG_NO_NEG = 3,
@@ -300,30 +312,30 @@ enum pcep_error_value
   PCEP_ERRV_RECVD_SECOND_OPEN_MSG_UNACCEPTABLE = 5,
   PCEP_ERRV_RECVD_PCERR = 6,
   PCEP_ERRV_KEEPALIVEWAIT_TIMED_OUT = 7,
-  
+
   PCEP_ERRV_UNREC_OBJECT_CLASS = 1,
   PCEP_ERRV_UNREC_OBJECT_TYPE = 2,
-  
+
   PCEP_ERRV_NOT_SUPPORTED_OBJECT_CLASS = 1,
   PCEP_ERRV_NOT_SUPPORTED_OBJECT_TYPE = 2,
-  
+
   PCEP_ERRV_C_BIT_SET_IN_METRIC_OBJECT = 1,
   PCEP_ERRV_O_BIt_CLEARD_IN_RP_OBJECT = 2,
-  
+
   PCEP_ERRV_RP_OBJECT_MISSING = 1,
   PCEP_ERRV_RRO_OBJECT_MISSING_FOR_REOP = 2,
   PCEP_ERRV_EP_OBJECT_MISSING = 3,
-  
+
   PCEP_ERRV_P_FLAG_NOT_CORRECT_IN_OBJECT = 1,
-}; 
+};
 
 struct pcep_object_error
 {
     struct pcep_object_header header;
-    uint8_t reserved; 
-    uint8_t flags; 
-    uint8_t error_type; 
-    uint8_t error_value;       
+    uint8_t reserved;
+    uint8_t flags;
+    uint8_t error_type;
+    uint8_t error_value;
 }__attribute__((packed));
 
 struct pcep_object_load_balancing
@@ -347,9 +359,9 @@ enum pcep_close_reasons
 struct pcep_object_close
 {
     struct pcep_object_header header;
-    uint16_t reserved; 
-    uint8_t flags; 
-    uint8_t reason;  
+    uint16_t reserved;
+    uint8_t flags;
+    uint8_t reason;
 }__attribute__((packed));
 
 struct pcep_object_open*                pcep_obj_create_open        (uint8_t keepalive, uint8_t deadtimer, uint8_t sid);
@@ -368,8 +380,8 @@ struct pcep_object_svec*                pcep_obj_create_svec        (uint8_t srl
 struct pcep_object_error*               pcep_obj_create_error       (uint8_t error_type, uint8_t error_value);
 struct pcep_object_close*               pcep_obj_create_close       (uint8_t flags, uint8_t reason);
 
-uint32_t*       pcep_obj_svec_get       (struct pcep_object_svec* obj, uint16_t *length);      
-void            pcep_obj_svec_print     (struct pcep_object_svec* obj);      
+uint32_t*       pcep_obj_svec_get       (struct pcep_object_svec* obj, uint16_t *length);
+void            pcep_obj_svec_print     (struct pcep_object_svec* obj);
 
 void pcep_unpack_obj_header(struct pcep_object_header* hdr);
 void pcep_unpack_obj_open(struct pcep_object_open *open);
