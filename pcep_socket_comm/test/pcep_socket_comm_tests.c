@@ -87,5 +87,9 @@ int main(int argc, char **argv)
      */
     CU_basic_set_mode(CU_BRM_VERBOSE);
     CU_basic_run_tests();
+    CU_pRunSummary run_summary = CU_get_run_summary();
+    int result = run_summary->nTestsFailed;
     CU_cleanup_registry();
+
+    return result;
 }

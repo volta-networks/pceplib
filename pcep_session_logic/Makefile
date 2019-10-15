@@ -22,7 +22,7 @@ TEST_LIBS = -l$(LIB_NAME) -lpcep_messages -lpcep_utils -lpcep_timers -lpcep_sock
 
 LIB_NAME = pcep_session_logic
 LIB = $(BUILD_DIR)/lib$(LIB_NAME).a
-TEST = $(BUILD_DIR)/pcep_session_logic_tests
+TEST_BIN = $(BUILD_DIR)/pcep_session_logic_tests
 
 _DEPS = *.h
 DEPS = $(patsubst %,$(INC_DIR)/%,$(_DEPS)) $(patsubst %,$(SRC_DIR)/%,$(_DEPS))
@@ -37,23 +37,28 @@ OBJ = $(patsubst %,$(OBJ_DIR)/%,$(_OBJ))
 _TEST_OBJ = mock_socket_comm.o pcep_session_logic_tests.o pcep_session_logic_test.o pcep_session_logic_loop_test.o pcep_session_logic_states_test.o
 TEST_OBJ = $(patsubst %,$(TEST_DIR)/%,$(_TEST_OBJ))
 
-all: $(LIB) $(TEST)
+all: $(LIB) $(TEST_BIN)
 
 $(LIB): $(OBJ)
+	$(shell [ ! -d $(@D) ] && mkdir -p $(@D))
 	$(AR) $(ARFLAGS) $@ $^ 
 	$(RANLIB) $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(DEPS) $(EXTERNAL_DEPS)
+	$(shell [ ! -d $(@D) ] && mkdir -p $(@D))
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-$(TEST): $(TEST_OBJ) $(LIB)
+$(TEST_BIN): $(TEST_OBJ) $(LIB)
 	$(CC) -o $@ $(TEST_OBJ) $(CFLAGS) -static $(TEST_LIB_DIRS) $(TEST_LIBS)
 
 $(TEST_DIR)/%.o: $(TEST_DIR)/%.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS) -I$(SRC_DIR)
 
-.PHONY: clean
+.PHONY: all clean test
+
+test: $(TEST_BIN)
+	$(TEST_BIN)
 
 clean:
-	rm -f $(LIB) $(TEST) $(OBJ_DIR)/*.o $(TEST_DIR)/*.o *~ core $(INC_DIR)/*~ $(SRC_DIR)/*~
+	rm -f $(LIB) $(TEST_BIN) $(OBJ_DIR)/*.o $(TEST_DIR)/*.o *~ core $(INC_DIR)/*~ $(SRC_DIR)/*~
 

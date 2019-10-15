@@ -1,0 +1,30 @@
+default:
+  image: registry.voltanet.io:4567/volta-common/docker-base:debian-stretch-ci-latest
+
+stages:
+  - build
+  - unittest
+
+# Allow core filed to be generated
+before_script:
+  - ulimit -c unlimited
+
+compile_debian:
+  stage: build
+  script: make clean all
+
+unittest_debian:
+  stage: unittest
+  script: make all test
+# Copy a core file, if there is one. (there will only be one)
+  artifacts:
+    paths:
+      - build/pcep*tests
+      - core
+      - pcep_messages/core
+      - pcep_session_logic/core
+      - pcep_socket_comm/core
+      - pcep_timers/core
+      - pcep_utils/core
+    when: on_failure
+    expire_in: 24 hours
