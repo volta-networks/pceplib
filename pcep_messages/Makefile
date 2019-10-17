@@ -7,9 +7,14 @@ RANLIB = ranlib
 INC_DIR = include
 OBJ_DIR = ./obj
 SRC_DIR = ./src
-LIB_DIR = ../build
+BUILD_DIR = ../build
+TEST_DIR = ./test
+TEST_LIB_DIRS = -L$(BUILD_DIR) -L/usr/local/lib
+TEST_LIBS = -l$(LIB_NAME) -lcunit
 
-LIB = $(LIB_DIR)/libpcep_messages.a
+LIB_NAME = pcep_messages
+LIB = $(BUILD_DIR)/lib$(LIB_NAME).a
+TEST_BIN = $(BUILD_DIR)/pcep_messages_tests
 
 _DEPS = *.h
 DEPS = $(patsubst %,$(INC_DIR)/%,$(_DEPS))
@@ -17,7 +22,10 @@ DEPS = $(patsubst %,$(INC_DIR)/%,$(_DEPS))
 _OBJ = pcep-messages.o pcep-objects.o pcep-tools.o
 OBJ = $(patsubst %,$(OBJ_DIR)/%,$(_OBJ))
 
-all: $(LIB)
+_TEST_OBJ = pcep-messages-tests.o pcep-messages-test.o
+TEST_OBJ = $(patsubst %,$(TEST_DIR)/%,$(_TEST_OBJ))
+
+all: $(LIB) $(TEST_BIN)
 
 $(LIB): $(OBJ)
 	$(AR) $(ARFLAGS) $@ $^ 
@@ -26,8 +34,17 @@ $(LIB): $(OBJ)
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-.PHONY: clean
+$(TEST_BIN): $(TEST_OBJ) $(LIB)
+	$(CC) -o $@ $(TEST_OBJ) $(CFLAGS) -static $(TEST_LIB_DIRS) $(TEST_LIBS)
+
+$(TEST_DIR)/%.o: $(TEST_DIR)/%.c $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS)
+
+.PHONY: all clean test
+
+test: $(TEST_BIN)
+	$(TEST_BIN)
 
 clean:
-	rm -f $(LIB) $(OBJ_DIR)/*.o *~ core $(INC_DIR)/*~ $(SRC_DIR)/*~
+	rm -f $(LIB) $(TEST_BIN) $(OBJ_DIR)/*.o *~ core $(INC_DIR)/*~ $(SRC_DIR)/*~
 
