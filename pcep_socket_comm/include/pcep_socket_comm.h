@@ -78,8 +78,9 @@ bool socket_comm_session_close_tcp(pcep_socket_comm_session *socket_comm_session
 bool socket_comm_session_close_tcp_after_write(pcep_socket_comm_session *socket_comm_session);
 
 void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_session,
-                                  const char *unmarshalled_message,
-                                  unsigned int msg_length);
+                                  char *unmarshalled_message,
+                                  unsigned int msg_length,
+                                  bool delete_after_send);
 
 
 #endif /* INCLUDE_PCEPSOCKETCOMM_H_ */

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="1">
+    <builddir>pceplib-cppcheck-build-dir</builddir>
+    <platform>Unspecified</platform>
+    <analyze-all-vs-configs>true</analyze-all-vs-configs>
+    <includedir>
+        <dir name="pcep_messages/include/"/>
+        <dir name="pcep_pcc/include/"/>
+        <dir name="pcep_session_logic/include/"/>
+        <dir name="pcep_socket_comm/include/"/>
+        <dir name="pcep_timers/include/"/>
+        <dir name="pcep_utils/include/"/>
+    </includedir>
+    <paths>
+        <dir name="pcep_messages/src"/>
+        <dir name="pcep_pcc/src"/>
+        <dir name="pcep_session_logic/src"/>
+        <dir name="pcep_socket_comm/src"/>
+        <dir name="pcep_timers/src"/>
+        <dir name="pcep_utils/src"/>
+    </paths>
+</project>

@@ -264,7 +264,7 @@ bool reset_timer(int timer_id)
         pthread_mutex_unlock(&timers_context_->timer_list_lock);
         fprintf(stderr, "ERROR trying to reset a timer, cannot add the timer to the timer list\n");
 
-        return -1;
+        return false;
     }
 
     pthread_mutex_unlock(&timers_context_->timer_list_lock);

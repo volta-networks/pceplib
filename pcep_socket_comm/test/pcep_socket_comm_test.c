@@ -107,7 +107,7 @@ void test_pcep_socket_comm_session_not_initialized()
     CU_ASSERT_FALSE(socket_comm_session_connect_tcp(NULL));
     CU_ASSERT_FALSE(socket_comm_session_close_tcp(NULL));
     CU_ASSERT_FALSE(socket_comm_session_close_tcp_after_write(NULL));
-    socket_comm_session_send_message(NULL, NULL, 0);
+    socket_comm_session_send_message(NULL, NULL, 0, true);
     CU_ASSERT_FALSE(socket_comm_session_teardown(NULL));
 }
 

@@ -249,7 +249,10 @@ bool socket_comm_session_teardown(pcep_socket_comm_session *socket_comm_session)
 }
 
 
-void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_session, const char *message, unsigned int msg_length)
+void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_session,
+                                      char *message,
+                                      unsigned int msg_length,
+                                      bool delete_after_send)
 {
     if (socket_comm_session == NULL)
     {
@@ -260,6 +263,7 @@ void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_sess
     pcep_socket_comm_queued_message *queued_message = malloc(sizeof(pcep_socket_comm_queued_message));
     queued_message->unmarshalled_message = message;
     queued_message->msg_length = msg_length;
+    queued_message->delete_after_send = delete_after_send;
 
     pthread_mutex_lock(&(socket_comm_handle_->socket_comm_mutex));
     queue_enqueue(socket_comm_session->message_queue, queued_message);

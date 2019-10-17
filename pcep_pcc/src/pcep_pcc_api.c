@@ -255,8 +255,9 @@ pcep_pce_reply *request_path_computation_async(pcep_session *session, pcep_pce_r
 
     socket_comm_session_send_message(
             session->socket_comm_session,
-            (const char *) message_buffer,
-            ntohs(hdr->length));
+            (char *) message_buffer,
+            ntohs(hdr->length),
+            true);
 
     pcep_pce_reply *pce_reply = malloc(sizeof(pcep_pce_reply));
     pce_reply->elapsed_time_milli_seconds = 0;

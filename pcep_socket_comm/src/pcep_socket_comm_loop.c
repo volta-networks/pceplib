@@ -19,14 +19,14 @@
 
 void write_message(int socket_fd, const char *message, unsigned int msg_length)
 {
-    unsigned int bytes_sent = 0;
+    int bytes_sent = 0;
     unsigned int total_bytes_sent = 0;
 
     while (bytes_sent < msg_length)
     {
         bytes_sent = write(socket_fd, message + total_bytes_sent, msg_length);
 
-        printf("[%ld-%ld] socket_comm writing on socket [%d] msg_lenth [%d] bytes sent [%d]\n",
+        printf("[%ld-%ld] socket_comm writing on socket [%d] msg_lenth [%u] bytes sent [%d]\n",
                 time(NULL), pthread_self(), socket_fd, msg_length, bytes_sent);
 
         if (bytes_sent < 0)
@@ -50,7 +50,7 @@ unsigned int read_message(int socket_fd, char *received_message, unsigned int ma
 {
     /* TODO what if bytes_read == max_message_size? there could be more to read */
     unsigned int bytes_read = read(socket_fd, received_message, max_message_size);
-    printf("[%ld-%ld] socket_comm read message bytes_read [%d] on socket [%d]\n",
+    printf("[%ld-%ld] socket_comm read message bytes_read [%u] on socket [%d]\n",
             time(NULL), pthread_self(), bytes_read, socket_fd);
 
     return bytes_read;
@@ -207,6 +207,10 @@ void handle_writes(pcep_socket_comm_handle *socket_comm_handle)
                         comm_session->socket_fd,
                         queued_message->unmarshalled_message,
                         queued_message->msg_length);
+                if (queued_message->delete_after_send)
+                {
+                    free(queued_message->unmarshalled_message);
+                }
                 free(queued_message);
                 queued_message = queue_dequeue(comm_session->message_queue);
             }

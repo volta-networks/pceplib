@@ -114,6 +114,7 @@ bool stop_session_logic()
     session_logic_handle_->session_logic_condition = true;
     pthread_cond_signal(&(session_logic_handle_->session_logic_cond_var));
     pthread_mutex_unlock(&(session_logic_handle_->session_logic_mutex));
+    pthread_join(session_logic_handle_->session_logic_thread, NULL);
 
     pthread_mutex_destroy(&(session_logic_handle_->session_logic_mutex));
     ordered_list_destroy(session_logic_handle_->session_list);
@@ -228,8 +229,13 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
      * with PCEP, the PCC sends the config the PCE should use in the open message,
      * and the PCE will send an open with the config the PCC should use. */
     struct pcep_header* open_msg =
-            pcep_msg_create_open(session->pcc_config.keep_alive_seconds, session->pcc_config.dead_timer_seconds, session->session_id);
-    socket_comm_session_send_message(session->socket_comm_session, (const char *) open_msg, ntohs(open_msg->length));
+            pcep_msg_create_open(session->pcc_config.keep_alive_seconds,
+                                 session->pcc_config.dead_timer_seconds,
+                                 session->session_id);
+    socket_comm_session_send_message(session->socket_comm_session,
+                                     (char *) open_msg,
+                                     ntohs(open_msg->length),
+                                     true);
 
     session->timer_idOpen_keep_wait = create_timer(config->keep_alive_seconds, session);
     //session->session_state = SESSION_STATE_OPENED;
@@ -255,7 +261,7 @@ pcep_message_response *register_response_message(
         return NULL;
     }
 
-    printf("[%ld-%ld] register_response_message session [%d] request_id [%d] max_wait [%d]\n",
+    printf("[%ld-%ld] register_response_message session [%d] request_id [%d] max_wait [%u]\n",
             time(NULL), pthread_self(), session->session_id, request_id, max_wait_time_milli_seconds);
 
     pcep_message_response *msg_response = malloc(sizeof(pcep_message_response));

@@ -45,6 +45,12 @@ int session_logic_msg_ready_handler(void *data, int socket_fd)
         return -1;
     }
 
+    if (session_logic_handle_->active == false)
+    {
+        fprintf(stderr, "Received a message ready notification while the session logic is not active\n");
+        return -1;
+    }
+
     pcep_session *session = (pcep_session *) data;
 
     pthread_mutex_lock(&(session_logic_handle_->session_logic_mutex));
@@ -85,6 +91,12 @@ void session_logic_conn_except_notifier(void *data, int socket_fd)
         return;
     }
 
+    if (session_logic_handle_->active == false)
+    {
+        fprintf(stderr, "Received a connection exception notification while the session logic is not active\n");
+        return;
+    }
+
     pcep_session *session = (pcep_session *) data;
     printf("[%ld-%ld] pcep_session_logic session_logic_conn_except_notifier socket closed [%d], session_id [%d]\n",
             time(NULL), pthread_self(), socket_fd, session->session_id);
@@ -111,6 +123,12 @@ void session_logic_timer_expire_handler(void *data, int timer_id)
     if (data == NULL)
     {
         fprintf(stderr, "Cannot handle timer with NULL data\n");
+        return;
+    }
+
+    if (session_logic_handle_->active == false)
+    {
+        fprintf(stderr, "Received a timer expiration while the session logic is not active\n");
         return;
     }
 

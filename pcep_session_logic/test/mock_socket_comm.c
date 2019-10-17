@@ -102,8 +102,9 @@ bool socket_comm_session_connect_tcp(pcep_socket_comm_session *socket_comm_sessi
 
 
 void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_session,
-                                  const char *unmarshalled_message,
-                                  unsigned int msg_length)
+                                  char *unmarshalled_message,
+                                  unsigned int msg_length,
+                                  bool delete_after_send)
 {
     mock_socket_metadata.socket_comm_session_send_message_times_called++;
 
