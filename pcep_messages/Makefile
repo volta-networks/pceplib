@@ -28,10 +28,12 @@ TEST_OBJ = $(patsubst %,$(TEST_DIR)/%,$(_TEST_OBJ))
 all: $(LIB) $(TEST_BIN)
 
 $(LIB): $(OBJ)
+	$(shell [ ! -d $(@D) ] && mkdir -p $(@D))
 	$(AR) $(ARFLAGS) $@ $^ 
 	$(RANLIB) $@
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(DEPS)
+	$(shell [ ! -d $(@D) ] && mkdir -p $(@D))
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(TEST_BIN): $(TEST_OBJ) $(LIB)

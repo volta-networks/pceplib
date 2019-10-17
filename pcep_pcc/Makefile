@@ -44,16 +44,21 @@ LIB_OBJ = $(OBJ_DIR)/pcep_pcc_api.o
 all: $(LIB) $(BIN)
 
 $(LIB): $(LIB_OBJ)
+	$(shell [ ! -d $(@D) ] && mkdir -p $(@D))
 	$(AR) $(ARFLAGS) $@ $^ 
 	$(RANLIB) $@
 
 $(BIN): $(BIN_OBJ) $(LIB_DEPS)
+	$(shell [ ! -d $(@D) ] && mkdir -p $(@D))
 	$(CC) -o $@ $(BIN_OBJ) -L$(BUILD_DIR) $(LIBS) 
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(DEPS) $(EXTERNAL_DEPS)
+	$(shell [ ! -d $(@D) ] && mkdir -p $(@D))
 	$(CC) -c -o $@ $< $(CFLAGS)
 
-.PHONY: clean
+.PHONY: all clean test
+
+test:
 
 clean:
 	rm -f $(LIB) $(BIN) $(OBJ_DIR)/*.o *~ core $(SRC_DIR)/*~

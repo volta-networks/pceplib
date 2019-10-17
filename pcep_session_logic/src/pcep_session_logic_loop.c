@@ -135,7 +135,7 @@ void *session_logic_loop(void *data)
 {
     if (data == NULL)
     {
-        fprintf(stderr, "Cannot start session_logic_loop with NULL data");
+        fprintf(stderr, "Cannot start session_logic_loop with NULL data\n");
 
         return NULL;
     }
