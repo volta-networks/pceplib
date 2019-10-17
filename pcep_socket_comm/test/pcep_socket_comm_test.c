@@ -37,6 +37,11 @@ static int test_message_ready_to_read_handler(void *session_data, int socket_fd)
     return 1;
 }
 
+static void test_message_sent_handler(void *session_data, int socket_fd)
+{
+    return;
+}
+
 static void test_connection_except_notifier(void *session_data, int socket_fd)
 {
 }
@@ -66,6 +71,7 @@ void test_pcep_socket_comm_initialize()
     test_session = socket_comm_session_initialize(
             test_message_received_handler,
             NULL,
+            NULL,
             test_connection_except_notifier,
             &test_host_ip, test_port, NULL);
     CU_ASSERT_PTR_NOT_NULL(test_session);
@@ -80,6 +86,7 @@ void test_pcep_socket_comm_initialize_handlers()
     test_session = socket_comm_session_initialize(
             NULL,
             NULL,
+            NULL,
             test_connection_except_notifier,
             &test_host_ip, test_port, NULL);
     CU_ASSERT_PTR_NULL(test_session);
@@ -88,6 +95,7 @@ void test_pcep_socket_comm_initialize_handlers()
     test_session = socket_comm_session_initialize(
             test_message_received_handler,
             test_message_ready_to_read_handler,
+            test_message_sent_handler,
             test_connection_except_notifier,
             &test_host_ip, test_port, NULL);
     CU_ASSERT_PTR_NULL(test_session);
@@ -96,6 +104,7 @@ void test_pcep_socket_comm_initialize_handlers()
     test_session = socket_comm_session_initialize(
             NULL,
             test_message_ready_to_read_handler,
+            test_message_sent_handler,
             test_connection_except_notifier,
             &test_host_ip, test_port, NULL);
     CU_ASSERT_PTR_NOT_NULL(test_session);
@@ -116,6 +125,7 @@ void test_pcep_socket_comm_session_destroy()
     test_session = socket_comm_session_initialize(
             test_message_received_handler,
             NULL,
+            test_message_sent_handler,
             test_connection_except_notifier,
             &test_host_ip, test_port, NULL);
     CU_ASSERT_PTR_NOT_NULL(test_session);
@@ -123,5 +133,9 @@ void test_pcep_socket_comm_session_destroy()
     CU_ASSERT_EQUAL(socket_comm_handle_->num_active_sessions, 1);
 
     CU_ASSERT_TRUE(socket_comm_session_teardown(test_session));
+    test_session = NULL;
+    CU_ASSERT_PTR_NOT_NULL(socket_comm_handle_);
+
+    CU_ASSERT_TRUE(destroy_socket_comm_loop());
     CU_ASSERT_PTR_NULL(socket_comm_handle_);
 }

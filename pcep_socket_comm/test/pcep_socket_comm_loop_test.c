@@ -63,7 +63,7 @@ void pcep_socket_comm_loop_test_setup()
 
     test_comm_session = malloc(sizeof(pcep_socket_comm_session));
     bzero(test_comm_session, sizeof(pcep_socket_comm_session));
-    test_comm_session->message_ready_toRead_handler = test_loop_message_ready_to_read_handler;
+    test_comm_session->message_ready_to_read_handler = test_loop_message_ready_to_read_handler;
 
     read_handler_info.handler_called = false;
     read_handler_info.except_handler_called = false;

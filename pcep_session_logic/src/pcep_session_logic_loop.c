@@ -81,6 +81,48 @@ int session_logic_msg_ready_handler(void *data, int socket_fd)
 
 
 /* A function pointer to this function was passed to pcep_socket_comm,
+ * so it will be called when a message is sent. This is useful since
+ * message sending is asynchronous, and there are times that actions
+ * need to be performed only after a message has been sent. */
+void session_logic_message_sent_handler(void *data, int socket_fd)
+{
+    if (data == NULL)
+    {
+        fprintf(stderr, "Cannot handle msg_sent with NULL data\n");
+        return;
+    }
+
+    pcep_session *session = (pcep_session *) data;
+    if (session->destroy_session_after_write == true)
+    {
+        /* Do not call destroy until all of the queued messages are written */
+        if (session->socket_comm_session->message_queue->num_entries == 0)
+        {
+            destroy_pcep_session(session);
+        }
+    }
+    else
+    {
+        /* Reset the keep alive timer for every message sent on
+         * the session, only if the session is not destroyed */
+        if (session->timer_id_keep_alive == TIMER_ID_NOT_SET)
+        {
+            printf("[%ld-%ld] pcep_session_logic set keep alive timer [%d secs] for session_id [%d]\n",
+                    time(NULL), pthread_self(), session->pce_config.keep_alive_seconds, session->session_id);
+            session->timer_id_keep_alive = create_timer(session->pce_config.keep_alive_seconds, session);
+        }
+        else
+        {
+            printf("[%ld-%ld] pcep_session_logic reset keep alive timer [%d secs] for session_id [%d]\n",
+                    time(NULL), pthread_self(), session->pce_config.keep_alive_seconds, session->session_id);
+            reset_timer(session->timer_id_keep_alive);
+        }
+    }
+
+}
+
+
+/* A function pointer to this function was passed to pcep_socket_comm,
  * so it will be called whenever the socket is closed. this function
  * will be called by the socket_comm thread. */
 void session_logic_conn_except_notifier(void *data, int socket_fd)

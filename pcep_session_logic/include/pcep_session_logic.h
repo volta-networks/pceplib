@@ -118,12 +118,13 @@ typedef struct pcep_session_
 {
     int session_id;
     pcep_session_state session_state;
-    int timer_idOpen_keep_wait;
-    int timer_idPc_req_wait;
-    int timer_idDead_timer;
-    int timer_idKeep_alive;
+    int timer_id_open_keep_wait;
+    int timer_id_pc_req_wait;
+    int timer_id_dead_timer;
+    int timer_id_keep_alive;
     bool pcep_open_received;
     int num_erroneous_messages;
+    bool destroy_session_after_write;
     pcep_socket_comm_session *socket_comm_session;
     /* Configuration sent from the PCC to the PCE */
     pcep_configuration pcc_config;
@@ -169,6 +170,12 @@ bool stop_session_logic();
 
 pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pce_ip, short port);
 
+/* Send a PCEP close for this pcep_session */
+void close_pcep_session(pcep_session *session);
+void close_pcep_session_with_reason(pcep_session *session, enum pcep_close_reasons);
+
+/* Destroy the PCEP session, a PCEP close should have
+ * already been sent with close_pcep_session() */
 void destroy_pcep_session(pcep_session *session);
 
 /* Register a Request Message request_id as having been sent, and internally

@@ -21,7 +21,7 @@
  * - message_received_handler : the socket_comm library reads the message and calls
  *                            the callback with the message_data and message_length.
  *                            this callback should be used for smaller/simpler messages.
- * - message_ready_toRead_handler : the socket_comm library will call this callback
+ * - message_ready_to_read_handler : the socket_comm library will call this callback
  *                               when a message is ready to be read on a socket_fd.
  *                               this callback should be used if the
  */
@@ -31,13 +31,16 @@ typedef void (*message_received_handler)(void *session_data, char *message_data,
 /* message ready received handler that should read the message on socket_fd
  * and return the number of bytes read */
 typedef int (*message_ready_to_read_handler)(void *session_data, int socket_fd);
+/* callback handler called when a messages is sent */
+typedef void (*message_sent_notifier)(void *session_data, int socket_fd);
 /* callback handler called when the socket is closed */
 typedef void (*connection_except_notifier)(void *session_data, int socket_fd);
 
 typedef struct pcep_socket_comm_session_
 {
     message_received_handler message_handler;
-    message_ready_to_read_handler message_ready_toRead_handler;
+    message_ready_to_read_handler message_ready_to_read_handler;
+    message_sent_notifier message_sent_handler;
     connection_except_notifier conn_except_notifier;
     struct sockaddr_in dest_sock_addr;
     int socket_fd;
@@ -59,6 +62,7 @@ typedef struct pcep_socket_comm_session_
 pcep_socket_comm_session *
 socket_comm_session_initialize(message_received_handler msg_rcv_handler,
                             message_ready_to_read_handler msg_ready_handler,
+                            message_sent_notifier msg_sent_notifier,
                             connection_except_notifier notifier,
                             struct in_addr *host_ip,
                             short port,
@@ -82,5 +86,8 @@ void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_sess
                                   unsigned int msg_length,
                                   bool delete_after_send);
 
+/* the socket comm loop is started internally by socket_comm_session_initialize()
+ * but needs to be explicitly stopped with this call. */
+bool destroy_socket_comm_loop();
 
 #endif /* INCLUDE_PCEPSOCKETCOMM_H_ */

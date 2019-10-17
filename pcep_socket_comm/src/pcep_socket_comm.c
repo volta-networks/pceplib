@@ -68,8 +68,6 @@ bool initialize_socket_comm_loop()
 }
 
 
-/* Only called from socket_comm_session_teardown() when there are no longer
- * any socket comm sessions */
 bool destroy_socket_comm_loop()
 {
     socket_comm_handle_->active = false;
@@ -89,6 +87,7 @@ bool destroy_socket_comm_loop()
 pcep_socket_comm_session *
 socket_comm_session_initialize(message_received_handler message_handler,
                             message_ready_to_read_handler message_ready_handler,
+                            message_sent_notifier msg_sent_notifier,
                             connection_except_notifier notifier,
                             struct in_addr *host_ip,
                             short port,
@@ -97,14 +96,14 @@ socket_comm_session_initialize(message_received_handler message_handler,
     /* check that not both message handlers were set */
     if (message_handler != NULL && message_ready_handler != NULL)
     {
-        fprintf(stderr, "Only one of <message_received_handler | message_ready_toRead_handler> can be set.\n");
+        fprintf(stderr, "Only one of <message_received_handler | message_ready_to_read_handler> can be set.\n");
         return NULL;
     }
 
     /* check that at least one message handler was set */
     if (message_handler == NULL && message_ready_handler == NULL)
     {
-        fprintf(stderr, "At least one of <message_received_handler | message_ready_toRead_handler> must be set.\n");
+        fprintf(stderr, "At least one of <message_received_handler | message_ready_to_read_handler> must be set.\n");
         return NULL;
     }
 
@@ -132,7 +131,8 @@ socket_comm_session_initialize(message_received_handler message_handler,
     socket_comm_session->close_after_write = false;
     socket_comm_session->session_data = session_data;
     socket_comm_session->message_handler = message_handler;
-    socket_comm_session->message_ready_toRead_handler = message_ready_handler;
+    socket_comm_session->message_ready_to_read_handler = message_ready_handler;
+    socket_comm_session->message_sent_handler = msg_sent_notifier;
     socket_comm_session->conn_except_notifier = notifier;
     socket_comm_session->message_queue = queue_initialize();
     socket_comm_session->dest_sock_addr.sin_family = AF_INET;
@@ -235,15 +235,22 @@ bool socket_comm_session_teardown(pcep_socket_comm_session *socket_comm_session)
     queue_destroy(socket_comm_session->message_queue);
     ordered_list_remove_first_node_equals(socket_comm_handle_->read_list, socket_comm_session);
     ordered_list_remove_first_node_equals(socket_comm_handle_->write_list, socket_comm_session);
+    socket_comm_handle_->num_active_sessions--;
     pthread_mutex_unlock(&(socket_comm_handle_->socket_comm_mutex));
+
+    printf("[%ld-%ld] socket_comm_session [%d] destroyed, [%d] sessions remaining\n",
+            time(NULL), pthread_self(),
+            socket_comm_session->socket_fd,
+            socket_comm_handle_->num_active_sessions);
 
     free(socket_comm_session);
 
-    socket_comm_handle_->num_active_sessions--;
-    if (socket_comm_handle_->num_active_sessions == 0)
-    {
-        destroy_socket_comm_loop();
-    }
+    /* It would be nice to call destroy_socket_comm_loop() here if
+     * socket_comm_handle_->num_active_sessions == 0, but this function
+     * will usually be called from the message_sent_notifier callback,
+     * which gets called in the middle of the socket_comm_loop, and that
+     * is dangerous, so destroy_socket_comm_loop() must be called upon
+     * application exit. */
 
     return true;
 }
