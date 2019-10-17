@@ -46,6 +46,7 @@ typedef struct pcep_session_event_
 /* functions implemented in pcep_session_logic_loop.c */
 void *session_logic_loop(void *data);
 int session_logic_msg_ready_handler(void *data, int socket_fd);
+void session_logic_message_sent_handler(void *data, int socket_fd);
 void session_logic_conn_except_notifier(void *data, int socket_fd);
 void session_logic_timer_expire_handler(void *data, int timer_id);
 

@@ -161,71 +161,71 @@ void test_update_response_message()
 void test_handle_timer_event_dead_timer()
 {
     /* Dead Timer expired */
-    event.expired_timer_id = session.timer_idDead_timer = 100;
+    event.expired_timer_id = session.timer_id_dead_timer = 100;
     handle_timer_event(&event);
 
-    CU_ASSERT_EQUAL(session.timer_idDead_timer, TIMER_ID_NOT_SET);
+    CU_ASSERT_EQUAL(session.timer_id_dead_timer, TIMER_ID_NOT_SET);
     CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_INITIALIZED);
     /* verify_socket_comm_times_called(
-     *     int initialized, int teardown, int connect, int send_message, int close_after_write, int close); */
-    verify_socket_comm_times_called(0, 0, 0, 1, 1, 0);
+     *     int initialized, int teardown, int connect, int send_message, int close_after_write, int close, int destroy); */
+    verify_socket_comm_times_called(0, 0, 0, 1, 1, 0, 0);
 }
 
 
 void test_handle_timer_event_keep_alive()
 {
     /* Keep Alive timer expired */
-    event.expired_timer_id = session.timer_idKeep_alive = 200;
+    event.expired_timer_id = session.timer_id_keep_alive = 200;
     handle_timer_event(&event);
 
-    CU_ASSERT_EQUAL(session.timer_idKeep_alive, TIMER_ID_NOT_SET);
-    verify_socket_comm_times_called(0, 0, 0, 1, 0, 0);
+    CU_ASSERT_EQUAL(session.timer_id_keep_alive, TIMER_ID_NOT_SET);
+    verify_socket_comm_times_called(0, 0, 0, 1, 0, 0, 0);
 }
 
 
 void test_handle_timer_event_open_keep_wait()
 {
     /* Open Keep Wait timer expired */
-    event.expired_timer_id = session.timer_idOpen_keep_wait = 300;
+    event.expired_timer_id = session.timer_id_open_keep_wait = 300;
     session.session_state = SESSION_STATE_TCP_CONNECTED;
     handle_timer_event(&event);
 
-    CU_ASSERT_EQUAL(session.timer_idOpen_keep_wait, TIMER_ID_NOT_SET);
+    CU_ASSERT_EQUAL(session.timer_id_open_keep_wait, TIMER_ID_NOT_SET);
     CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_INITIALIZED);
-    verify_socket_comm_times_called(0, 0, 0, 0, 1, 0);
+    verify_socket_comm_times_called(0, 0, 0, 0, 1, 0, 0);
 
     /* If the state is not SESSION_STATE_TCP_CONNECTED, then nothing should happen */
     reset_mock_socket_comm_info();
     session.session_state = SESSION_STATE_WAIT_PCREQ;
-    event.expired_timer_id = session.timer_idOpen_keep_wait = 300;
+    event.expired_timer_id = session.timer_id_open_keep_wait = 300;
     handle_timer_event(&event);
 
-    CU_ASSERT_EQUAL(session.timer_idOpen_keep_wait, 300);
+    CU_ASSERT_EQUAL(session.timer_id_open_keep_wait, 300);
     CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_WAIT_PCREQ);
-    verify_socket_comm_times_called(0, 0, 0, 0, 0, 0);
+    verify_socket_comm_times_called(0, 0, 0, 0, 0, 0, 0);
 }
 
 
 void test_handle_timer_event_pc_req_wait()
 {
     /* Pc Req Wait timer expired */
-    event.expired_timer_id = session.timer_idPc_req_wait = 400;
+    event.expired_timer_id = session.timer_id_pc_req_wait = 400;
     session.session_state = SESSION_STATE_WAIT_PCREQ;
     handle_timer_event(&event);
 
-    CU_ASSERT_EQUAL(session.timer_idPc_req_wait, TIMER_ID_NOT_SET);
+    CU_ASSERT_EQUAL(session.timer_id_pc_req_wait, TIMER_ID_NOT_SET);
     CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_INITIALIZED);
-    verify_socket_comm_times_called(0, 0, 0, 1, 1, 0);
+    verify_socket_comm_times_called(0, 0, 0, 1, 1, 0, 0);
 
     /* If the state is not SESSION_STATE_TCP_CONNECTED, then nothing should happen */
     reset_mock_socket_comm_info();
     session.session_state = SESSION_STATE_TCP_CONNECTED;
-    event.expired_timer_id = session.timer_idPc_req_wait = 400;
+    event.expired_timer_id = session.timer_id_pc_req_wait = 400;
     handle_timer_event(&event);
 
-    CU_ASSERT_EQUAL(session.timer_idPc_req_wait, 400);
+    CU_ASSERT_EQUAL(session.timer_id_pc_req_wait, 400);
     CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_TCP_CONNECTED);
-    verify_socket_comm_times_called(0, 0, 0, 0, 0, 0);
+    verify_socket_comm_times_called(0, 0, 0, 0, 0, 0, 0);
 }
 
 
@@ -233,12 +233,12 @@ void test_handle_socket_comm_event_null_params()
 {
     /* Verify it doesnt core dump */
     handle_socket_comm_event(NULL);
-    verify_socket_comm_times_called(0, 0, 0, 0, 0, 0);
+    verify_socket_comm_times_called(0, 0, 0, 0, 0, 0, 0);
     reset_mock_socket_comm_info();
 
     event.received_msg_list = NULL;
     handle_socket_comm_event(&event);
-    verify_socket_comm_times_called(0, 0, 0, 0, 0, 0);
+    verify_socket_comm_times_called(0, 0, 0, 0, 0, 0, 0);
 }
 
 
@@ -248,7 +248,7 @@ void test_handle_socket_comm_event_close()
     handle_socket_comm_event(&event);
 
     CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_INITIALIZED);
-    verify_socket_comm_times_called(0, 0, 0, 0, 0, 1);
+    verify_socket_comm_times_called(0, 0, 0, 0, 0, 1, 0);
 }
 
 
@@ -265,7 +265,7 @@ void test_handle_socket_comm_event_open()
     handle_socket_comm_event(&event);
 
     CU_ASSERT_TRUE(session.pcep_open_received);
-    verify_socket_comm_times_called(0, 0, 0, 1, 0, 0);
+    verify_socket_comm_times_called(0, 0, 0, 1, 0, 0, 0);
 }
 
 
@@ -277,14 +277,14 @@ void test_handle_socket_comm_event_keep_alive()
     msg_list->header.type = PCEP_TYPE_KEEPALIVE;
     event.received_msg_list = msg_list;
     session.session_state = SESSION_STATE_TCP_CONNECTED;
-    session.timer_idDead_timer = 100;
+    session.timer_id_dead_timer = 100;
 
     handle_socket_comm_event(&event);
 
     CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_OPENED);
-    CU_ASSERT_EQUAL(session.timer_idOpen_keep_wait, TIMER_ID_NOT_SET);
-    CU_ASSERT_EQUAL(session.timer_idDead_timer, 100);
-    verify_socket_comm_times_called(0, 0, 0, 0, 0, 0);
+    CU_ASSERT_EQUAL(session.timer_id_open_keep_wait, TIMER_ID_NOT_SET);
+    CU_ASSERT_EQUAL(session.timer_id_dead_timer, 100);
+    verify_socket_comm_times_called(0, 0, 0, 0, 0, 0, 0);
 }
 
 
@@ -301,6 +301,6 @@ void test_handle_socket_comm_event_pcrep()
     handle_socket_comm_event(&event);
 
     CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_IDLE);
-    CU_ASSERT_EQUAL(session.timer_idPc_req_wait, TIMER_ID_NOT_SET);
-    verify_socket_comm_times_called(0, 0, 0, 0, 0, 0);
+    CU_ASSERT_EQUAL(session.timer_id_pc_req_wait, TIMER_ID_NOT_SET);
+    verify_socket_comm_times_called(0, 0, 0, 0, 0, 0, 0);
 }

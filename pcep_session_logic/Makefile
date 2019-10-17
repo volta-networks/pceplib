@@ -18,7 +18,7 @@ PCEP_TIMERS_INC_DIR = ../pcep_timers/include
 PCEP_SOCKETCOMM_INC_DIR = ../pcep_socket_comm/include
 TEST_DIR = ./test
 TEST_LIB_DIRS = -L$(BUILD_DIR) -L/usr/local/lib
-TEST_LIBS = -l$(LIB_NAME) -lpcep_messages -lpcep_utils -lpcep_timers -lpcep_socket_comm -lcunit -lpthread
+TEST_LIBS = -l$(LIB_NAME) -lpcep_messages -lpcep_utils -lpcep_timers -lcunit -lpthread
 
 LIB_NAME = pcep_session_logic
 LIB = $(BUILD_DIR)/lib$(LIB_NAME).a

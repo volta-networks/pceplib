@@ -89,7 +89,11 @@ pcep_session *connect_pce_with_port(pcep_configuration *config, struct in_addr *
 
 void disconnect_pce(pcep_session *session)
 {
-    destroy_pcep_session(session);
+    /* This will cause the session to be destroyed AFTER the close message is sent */
+    session->destroy_session_after_write = true;
+
+    /* Send a PCEP close message */
+    close_pcep_session(session);
 }
 
 

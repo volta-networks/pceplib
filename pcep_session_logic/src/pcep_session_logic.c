@@ -121,10 +121,35 @@ bool stop_session_logic()
     ordered_list_destroy(session_logic_handle_->response_msg_list);
     queue_destroy(session_logic_handle_->session_event_queue);
 
+    /* Explicitly stop the socket comm loop started by the pcep_sessions */
+    destroy_socket_comm_loop();
+
     free(session_logic_handle_);
     session_logic_handle_ = NULL;
 
     return true;
+}
+
+
+void close_pcep_session(pcep_session *session)
+{
+    close_pcep_session_with_reason(session, PCEP_CLOSE_REASON_NO);
+}
+
+void close_pcep_session_with_reason(pcep_session *session, enum pcep_close_reasons reason)
+{
+    struct pcep_header* close_msg = pcep_msg_create_close(0, reason);
+    socket_comm_session_send_message(
+            session->socket_comm_session,
+            (char *) close_msg,
+            ntohs(close_msg->length),
+            true);
+
+    printf("[%ld-%ld] pcep_session_logic send pcep_close message len [%d] for session_id [%d]\n",
+           time(NULL), pthread_self(), ntohs(close_msg->length), session->session_id);
+
+    socket_comm_session_close_tcp_after_write(session->socket_comm_session);
+    session->session_state = SESSION_STATE_INITIALIZED;
 }
 
 
@@ -136,25 +161,27 @@ void destroy_pcep_session(pcep_session *session)
         return;
     }
 
-    if (session->timer_idDead_timer != TIMER_ID_NOT_SET)
+    if (session->timer_id_dead_timer != TIMER_ID_NOT_SET)
     {
-        cancel_timer(session->timer_idDead_timer);
+        cancel_timer(session->timer_id_dead_timer);
     }
 
-    if (session->timer_idKeep_alive != TIMER_ID_NOT_SET)
+    if (session->timer_id_keep_alive != TIMER_ID_NOT_SET)
     {
-        cancel_timer(session->timer_idKeep_alive);
+        cancel_timer(session->timer_id_keep_alive);
     }
 
-    if (session->timer_idOpen_keep_wait != TIMER_ID_NOT_SET)
+    if (session->timer_id_open_keep_wait != TIMER_ID_NOT_SET)
     {
-        cancel_timer(session->timer_idOpen_keep_wait);
+        cancel_timer(session->timer_id_open_keep_wait);
     }
 
-    if (session->timer_idPc_req_wait != TIMER_ID_NOT_SET)
+    if (session->timer_id_pc_req_wait != TIMER_ID_NOT_SET)
     {
-        cancel_timer(session->timer_idPc_req_wait);
+        cancel_timer(session->timer_id_pc_req_wait);
     }
+
+    printf("[%ld-%ld] pcep_session [%d] destroyed\n", time(NULL), pthread_self(), session->session_id);
 
     socket_comm_session_teardown(session->socket_comm_session);
 
@@ -191,12 +218,13 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
     pcep_session *session = malloc(sizeof(pcep_session));
     session->session_id = get_next_session_id();
     session->session_state = SESSION_STATE_INITIALIZED;
-    session->timer_idOpen_keep_wait = TIMER_ID_NOT_SET;
-    session->timer_idPc_req_wait = TIMER_ID_NOT_SET;
-    session->timer_idDead_timer = TIMER_ID_NOT_SET;
-    session->timer_idKeep_alive = TIMER_ID_NOT_SET;
+    session->timer_id_open_keep_wait = TIMER_ID_NOT_SET;
+    session->timer_id_pc_req_wait = TIMER_ID_NOT_SET;
+    session->timer_id_dead_timer = TIMER_ID_NOT_SET;
+    session->timer_id_keep_alive = TIMER_ID_NOT_SET;
     session->num_erroneous_messages = 0;
     session->pcep_open_received = false;
+    session->destroy_session_after_write = false;
     memcpy(&(session->pcc_config), config, sizeof(pcep_configuration));
     /* copy the pcc_config to the pce_config until we receive the open keep_alive response */
     memcpy(&(session->pce_config), config, sizeof(pcep_configuration));
@@ -204,6 +232,7 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
     session->socket_comm_session = socket_comm_session_initialize(
             NULL,
             session_logic_msg_ready_handler,
+            session_logic_message_sent_handler,
             session_logic_conn_except_notifier,
             pce_ip,
             port,
@@ -237,7 +266,7 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
                                      ntohs(open_msg->length),
                                      true);
 
-    session->timer_idOpen_keep_wait = create_timer(config->keep_alive_seconds, session);
+    session->timer_id_open_keep_wait = create_timer(config->keep_alive_seconds, session);
     //session->session_state = SESSION_STATE_OPENED;
 
     return session;
@@ -281,7 +310,7 @@ pcep_message_response *register_response_message(
     /* TODO we should periodically check purge the list of timed-out responses */
     pthread_mutex_lock(&(session_logic_handle_->session_logic_mutex));
     session->session_state = SESSION_STATE_WAIT_PCREQ;
-    session->timer_idPc_req_wait = create_timer(session->pce_config.request_time_seconds, session);
+    session->timer_id_pc_req_wait = create_timer(session->pce_config.request_time_seconds, session);
     ordered_list_add_node(session_logic_handle_->response_msg_list, msg_response);
     pthread_mutex_unlock(&(session_logic_handle_->session_logic_mutex));
 

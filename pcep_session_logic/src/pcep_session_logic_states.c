@@ -21,23 +21,6 @@ extern pcep_session_logic_handle *session_logic_handle_;
  * util functions called by the state handling below
  */
 
-void close_pcep_session(pcep_session * session, enum pcep_close_reasons reason)
-{
-    struct pcep_header* close_msg = pcep_msg_create_close(0, reason);
-    socket_comm_session_send_message(
-            session->socket_comm_session,
-            (char *) close_msg,
-            ntohs(close_msg->length),
-            true);
-
-    printf("[%ld-%ld] pcep_session_logic send pcep_close message len [%d] for session_id [%d]\n",
-            time(NULL), pthread_self(), ntohs(close_msg->length), session->session_id);
-
-    socket_comm_session_close_tcp_after_write(session->socket_comm_session);
-    session->session_state = SESSION_STATE_INITIALIZED;
-}
-
-
 void send_keep_alive(pcep_session *session)
 {
     struct pcep_header* keep_alive_msg = pcep_msg_create_keepalive();
@@ -50,17 +33,24 @@ void send_keep_alive(pcep_session *session)
     printf("[%ld-%ld] pcep_session_logic send keep_alive message len [%d] for session_id [%d]\n",
             time(NULL), pthread_self(), ntohs(keep_alive_msg->length), session->session_id);
 
-    if (session->timer_idKeep_alive == TIMER_ID_NOT_SET)
+    /* The keep alive timer will be (re)set once the message
+     * is sent in session_logic_message_sent_handler() */
+}
+
+
+void reset_dead_timer(pcep_session *session)
+{
+    if (session->timer_id_dead_timer == TIMER_ID_NOT_SET)
     {
-        printf("[%ld-%ld] pcep_session_logic set keep_alive timer [%d secs] for session_id [%d]\n",
+        printf("[%ld-%ld] pcep_session_logic set dead timer [%d secs] for session_id [%d]\n",
                 time(NULL), pthread_self(), session->pce_config.keep_alive_seconds, session->session_id);
-        session->timer_idKeep_alive = create_timer(session->pce_config.keep_alive_seconds, session);
+        session->timer_id_dead_timer = create_timer(session->pce_config.dead_timer_seconds, session);
     }
     else
     {
-        printf("[%ld-%ld] pcep_session_logic reset keep_alive timer [%d secs] for session_id [%d]\n",
-                time(NULL), pthread_self(), session->pce_config.keep_alive_seconds, session->session_id);
-        reset_timer(session->timer_idKeep_alive);
+        printf("[%ld-%ld] pcep_session_logic reset dead timer [%d secs] for session_id [%d]\n",
+                time(NULL), pthread_self(), session->pce_config.dead_timer_seconds, session->session_id);
+        reset_timer(session->timer_id_dead_timer);
     }
 }
 
@@ -145,21 +135,21 @@ void handle_timer_event(pcep_session_event *event)
     printf("[%ld-%ld] pcep_session_logic handle_timer_event: session_id [%d] event timer_id [%d] "
             "session timers [OKW, PRW, DT, KA] [%d, %d, %d, %d]\n",
             time(NULL), pthread_self(), session->session_id, event->expired_timer_id,
-            session->timer_idOpen_keep_wait, session->timer_idPc_req_wait,
-            session->timer_idDead_timer, session->timer_idKeep_alive);
+            session->timer_id_open_keep_wait, session->timer_id_pc_req_wait,
+            session->timer_id_dead_timer, session->timer_id_keep_alive);
 
     /*
      * these timer expirations are independent of the session state
      */
-    if (event->expired_timer_id == session->timer_idDead_timer)
+    if (event->expired_timer_id == session->timer_id_dead_timer)
     {
-        session->timer_idDead_timer = TIMER_ID_NOT_SET;
-        close_pcep_session(session, PCEP_CLOSE_REASON_DEADTIMER);
+        session->timer_id_dead_timer = TIMER_ID_NOT_SET;
+        close_pcep_session_with_reason(session, PCEP_CLOSE_REASON_DEADTIMER);
         return;
     }
-    else if(event->expired_timer_id == session->timer_idKeep_alive)
+    else if(event->expired_timer_id == session->timer_id_keep_alive)
     {
-        session->timer_idKeep_alive = TIMER_ID_NOT_SET;
+        session->timer_id_keep_alive = TIMER_ID_NOT_SET;
         send_keep_alive(session);
         return;
     }
@@ -170,23 +160,23 @@ void handle_timer_event(pcep_session_event *event)
     switch(session->session_state)
     {
     case SESSION_STATE_TCP_CONNECTED:
-        if (event->expired_timer_id == session->timer_idOpen_keep_wait)
+        if (event->expired_timer_id == session->timer_id_open_keep_wait)
         {
             /* close the TCP session */
             printf("handle_timer_event open_keep_wait timer expired for session [%d]\n", session->session_id);
             socket_comm_session_close_tcp_after_write(session->socket_comm_session);
             session->session_state = SESSION_STATE_INITIALIZED;
-            session->timer_idOpen_keep_wait = TIMER_ID_NOT_SET;
+            session->timer_id_open_keep_wait = TIMER_ID_NOT_SET;
         }
         break;
 
     case SESSION_STATE_WAIT_PCREQ:
-        if (event->expired_timer_id == session->timer_idPc_req_wait)
+        if (event->expired_timer_id == session->timer_id_pc_req_wait)
         {
             printf("handle_timer_event PCReq_wait timer expired for session [%d]\n", session->session_id);
             /* TODO is this the right reason?? */
-            close_pcep_session(session, PCEP_CLOSE_REASON_DEADTIMER);
-            session->timer_idPc_req_wait = TIMER_ID_NOT_SET;
+            close_pcep_session_with_reason(session, PCEP_CLOSE_REASON_DEADTIMER);
+            session->timer_id_pc_req_wait = TIMER_ID_NOT_SET;
         }
         break;
 
@@ -234,8 +224,6 @@ void handle_socket_comm_event(pcep_session_event *event)
         return;
     }
 
-    /* TODO should we reset the dead_timer for every message received */
-
     switch (event->received_msg_list->header.type)
     {
     case PCEP_TYPE_OPEN:
@@ -248,6 +236,7 @@ void handle_socket_comm_event(pcep_session_event *event)
             session->pce_config.dead_timer_seconds = open_object->open_deadtimer;
             session->pce_config.keep_alive_seconds = open_object->open_keepalive;
             session->pcep_open_received = true;
+            reset_dead_timer(session);
             send_keep_alive(session);
         }
         else
@@ -259,31 +248,24 @@ void handle_socket_comm_event(pcep_session_event *event)
 
     case PCEP_TYPE_KEEPALIVE:
         printf("\t PCEP_KEEPALIVE message\n");
+        reset_dead_timer(session);
         if (session->session_state == SESSION_STATE_TCP_CONNECTED)
         {
             session->session_state = SESSION_STATE_OPENED;
-            cancel_timer(session->timer_idOpen_keep_wait);
-            session->timer_idOpen_keep_wait = TIMER_ID_NOT_SET;
-        }
-
-        if (session->timer_idDead_timer != TIMER_ID_NOT_SET)
-        {
-            reset_timer(session->timer_idDead_timer);
-        }
-        else
-        {
-            session->timer_idDead_timer = create_timer(session->pce_config.dead_timer_seconds, session);
+            cancel_timer(session->timer_id_open_keep_wait);
+            session->timer_id_open_keep_wait = TIMER_ID_NOT_SET;
         }
         break;
 
     case PCEP_TYPE_PCREP:
         printf("\t PCEP_PCREP message\n");
+        reset_dead_timer(session);
         update_response_message(session, event->received_msg_list);
         if (session->session_state == SESSION_STATE_WAIT_PCREQ)
         {
             session->session_state = SESSION_STATE_IDLE;
-            cancel_timer(session->timer_idPc_req_wait);
-            session->timer_idPc_req_wait = TIMER_ID_NOT_SET;
+            cancel_timer(session->timer_id_pc_req_wait);
+            session->timer_id_pc_req_wait = TIMER_ID_NOT_SET;
         }
         else
         {
@@ -307,10 +289,12 @@ void handle_socket_comm_event(pcep_session_event *event)
 
     case PCEP_TYPE_PCNOTF:
         printf("\t PCEP_PCNOTF message\n");
+        reset_dead_timer(session);
         /* TODO implement this */
         break;
     case PCEP_TYPE_ERROR:
         printf("\t PCEP_ERROR message\n");
+        reset_dead_timer(session);
         /* TODO implement this */
         break;
     default:

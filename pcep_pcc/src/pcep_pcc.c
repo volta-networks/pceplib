@@ -58,8 +58,13 @@ void send_pce_req_message_sync(pcep_session *session)
     bzero(pce_req, sizeof(pcep_pce_request));
 
     pce_req->endpoint_ipVersion = IPPROTO_IP;
+    /*
     inet_pton(AF_INET, "192.168.10.33", &(pce_req->src_endpoint_ip.srcV4Endpoint_ip));
     inet_pton(AF_INET, "172.100.80.56", &(pce_req->dst_endpoint_ip.dstV4Endpoint_ip));
+    */
+    /* These IPs are used with the Telefonica Open source PCE - it doesnt make sense they're in the same NW */
+    inet_pton(AF_INET, "192.168.1.1", &(pce_req->src_endpoint_ip.srcV4Endpoint_ip));
+    inet_pton(AF_INET, "192.168.1.3", &(pce_req->dst_endpoint_ip.dstV4Endpoint_ip));
 
     pcep_pce_reply *pce_reply = request_path_computation(session, pce_req, 1500);
 
@@ -171,6 +176,7 @@ int main(int argc, char **argv)
     send_pce_req_message_async(session);
     send_pce_req_message_sync(session);
 
+    /* Sleep for a while to let the timers expire */
     sleep(30);
 
     printf("Disconnecting from PCE\n");

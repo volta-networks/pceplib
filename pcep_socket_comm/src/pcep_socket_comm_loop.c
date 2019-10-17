@@ -144,7 +144,7 @@ void handle_reads(pcep_socket_comm_handle *socket_comm_handle)
             {
                 /* tell the handler a message is ready to be read */
                 comm_session->received_bytes =
-                        comm_session->message_ready_toRead_handler(
+                        comm_session->message_ready_to_read_handler(
                                 comm_session->session_data,
                                 comm_session->socket_fd);
             }
@@ -227,6 +227,16 @@ void handle_writes(pcep_socket_comm_handle *socket_comm_handle)
                 ordered_list_remove_first_node_equals(socket_comm_handle->write_list, comm_session);
                 close(comm_session->socket_fd);
             }
+        }
+
+        if (comm_session->message_sent_handler != NULL)
+        {
+            /* Unlocking to allow the message_sent_handler to
+             * make calls like destroy_socket_comm_session */
+            pthread_mutex_unlock(&(socket_comm_handle->socket_comm_mutex));
+            comm_session->message_sent_handler(
+                    comm_session->session_data, comm_session->socket_fd);
+            pthread_mutex_lock(&(socket_comm_handle->socket_comm_mutex));
         }
 
     }
