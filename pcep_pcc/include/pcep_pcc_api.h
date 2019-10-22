@@ -25,7 +25,7 @@ typedef struct pcep_pce_reply_
     bool timed_out;
     bool response_error;
     int elapsed_time_milli_seconds;
-    struct pcep_messages_list *response_msg_list;
+    pcep_message *response_msg;
     /* internally used field */
     pcep_message_response *response;
 

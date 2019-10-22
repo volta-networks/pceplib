@@ -27,7 +27,7 @@
 #include <stdint.h>
 #include <netinet/in.h> // struct in_addr
 
-#include "utlist.h"
+#include "pcep_utils_double_linked_list.h"
 #include "pcep-messages.h"
 #include "pcep-objects.h"
 
@@ -41,41 +41,37 @@ extern "C" {
     #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
-#ifndef MIN    
+#ifndef MIN
     #define MIN(a, b) (((a) > (b)) ? (b) : (a))
 #endif
 
-#define DL_COUNT(list, tmp, val) \
-        val = 0;                 \
-        DL_FOREACH(list, tmp) {  \
-            val++;               \
-        }
+/*
+ * A list of pcep messages is a double_linked_list of pcep_message items.
+ * A pcep_message->obj_list is a double_linked_list of struct pcep_object_header
+ * headers.
+ * A pointer to a struct pcep_object_header will point to the header with the actual
+ * pcep object just after the header.
+ */
 
-struct pcep_obj_list
-{    
-    struct pcep_object_header *header;
-    
-    struct pcep_obj_list *prev; 
-    struct pcep_obj_list *next;
-};
-
-struct pcep_messages_list
-{    
+typedef struct pcep_message
+{
     struct pcep_header header;
-    struct pcep_obj_list *list;
-    
-    struct pcep_messages_list *prev; 
-    struct pcep_messages_list *next;
-};
+    double_linked_list *obj_list;
 
-struct pcep_messages_list* pcep_msg_read    (int sock_fd);
-struct pcep_messages_list* pcep_msg_get     (struct pcep_messages_list* list, uint8_t type);
-struct pcep_messages_list* pcep_msg_get_next(struct pcep_messages_list* current, uint8_t type);
-struct pcep_obj_list*      pcep_obj_get     (struct pcep_messages_list* list, uint8_t type);
-struct pcep_obj_list*      pcep_obj_get_next(struct pcep_obj_list* current, uint8_t type);
-void                       pcep_msg_free    (struct pcep_messages_list* list);
-void                       pcep_msg_print   (struct pcep_messages_list* list);
-int                        pcep_msg_send    (int sock_fd, struct pcep_header* hdr);
+} pcep_message;
+
+
+/* Returns a double linked list of PCEP messages */
+double_linked_list*          pcep_msg_read    (int sock_fd);
+/* Given a double linked list of PCEP messages, return the first node that has the same message type */
+pcep_message*                pcep_msg_get     (double_linked_list* msg_list, uint8_t type);
+/* Given a double linked list of PCEP messages, return the next node after current node that has the same message type */
+pcep_message*                pcep_msg_get_next(double_linked_list *msg_list, pcep_message* current, uint8_t type);
+struct pcep_object_header*   pcep_obj_get     (double_linked_list* list, uint8_t type);
+struct pcep_object_header*   pcep_obj_get_next(double_linked_list *list, struct pcep_object_header* current, uint8_t type);
+void                         pcep_msg_free    (double_linked_list* list);
+void                         pcep_msg_print   (double_linked_list* list);
+int                          pcep_msg_send    (int sock_fd, struct pcep_header* hdr);
 
 #ifdef __cplusplus
 }

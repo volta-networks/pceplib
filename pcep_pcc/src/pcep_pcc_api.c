@@ -106,7 +106,7 @@ pcep_pce_reply *request_path_computation(pcep_session *session, pcep_pce_request
     /* this call will block for at most max_wait_milli_seconds */
     wait_for_response_message(pce_reply->response);
 
-    pce_reply->response_msg_list = pce_reply->response->response_msg_list;
+    pce_reply->response_msg = pce_reply->response->response_msg;
     pce_reply->elapsed_time_milli_seconds =
             timespec_diff(&(pce_reply->response->time_request_registered),
                          &(pce_reply->response->time_response_received));
@@ -171,11 +171,25 @@ pcep_pce_reply *request_path_computation_async(pcep_session *session, pcep_pce_r
     }
     if (pce_req->rro_list != NULL)
     {
-        message_size += ntohs(pce_req->rro_list->ero_hdr.header.object_length);
+        double_linked_list_node *rros_node;
+        for (rros_node = pce_req->rro_list->head;
+                rros_node != NULL;
+                rros_node = rros_node->next_node)
+        {
+            struct pcep_object_eros *rros_item = rros_node->data;
+            message_size += ntohs(rros_item->ero_hdr.header.object_length);
+        }
     }
     if (pce_req->iro_list != NULL)
     {
-        message_size += ntohs(pce_req->iro_list->ero_hdr.header.object_length);
+        double_linked_list_node *iros_node;
+        for (iros_node = pce_req->iro_list->head;
+                iros_node != NULL;
+                iros_node = iros_node->next_node)
+        {
+            struct pcep_object_eros *iros_item = iros_node->data;
+            message_size += ntohs(iros_item->ero_hdr.header.object_length);
+        }
     }
     if (pce_req->load_balancing != NULL)
     {
@@ -235,18 +249,31 @@ pcep_pce_reply *request_path_computation_async(pcep_session *session, pcep_pce_r
     /* RRO */
     if (pce_req->rro_list != NULL)
     {
-        memcpy(message_buffer + index, pce_req->rro_list, ntohs(pce_req->rro_list->ero_hdr.header.object_length));
-        index += ntohs(pce_req->rro_list->ero_hdr.header.object_length);
-        free(pce_req->rro_list);
+        double_linked_list_node *rros_node;
+        for (rros_node = pce_req->rro_list->head;
+                rros_node != NULL;
+                rros_node = rros_node->next_node)
+        {
+            struct pcep_object_eros *rros_item = rros_node->data;
+            memcpy(message_buffer + index, rros_item, ntohs(rros_item->ero_hdr.header.object_length));
+            index += ntohs(rros_item->ero_hdr.header.object_length);
+        }
+        pcep_obj_free_ero(pce_req->rro_list);
     }
 
     /* IRO */
     if (pce_req->iro_list != NULL)
     {
-        // TODO should we instead look at the header in case there is a list of IRO's?
-        memcpy(message_buffer + index, pce_req->iro_list, ntohs(pce_req->iro_list->ero_hdr.header.object_length));
-        index += ntohs(pce_req->iro_list->ero_hdr.header.object_length);
-        free(pce_req->iro_list);
+        double_linked_list_node *iros_node;
+        for (iros_node = pce_req->iro_list->head;
+             iros_node != NULL;
+             iros_node = iros_node->next_node)
+        {
+            struct pcep_object_eros *iros_item = iros_node->data;
+            memcpy(message_buffer + index, iros_item, ntohs(iros_item->ero_hdr.header.object_length));
+            index += ntohs(iros_item->ero_hdr.header.object_length);
+        }
+        pcep_obj_free_ero(pce_req->iro_list);
     }
 
     /* load balancing */
@@ -267,7 +294,7 @@ pcep_pce_reply *request_path_computation_async(pcep_session *session, pcep_pce_r
     pce_reply->elapsed_time_milli_seconds = 0;
     pce_reply->response_error = false;
     pce_reply->timed_out = false;
-    pce_reply->response_msg_list = NULL;
+    pce_reply->response_msg = NULL;
     pce_reply->response =
             register_response_message(session, request_id, max_wait_milli_seconds);
 
@@ -297,7 +324,7 @@ bool get_async_result(pcep_pce_reply *pce_reply)
 
     if (pce_reply->response->response_status == RESPONSE_STATE_READY)
     {
-        pce_reply->response_msg_list = pce_reply->response->response_msg_list;
+        pce_reply->response_msg = pce_reply->response->response_msg;
         pce_reply->elapsed_time_milli_seconds =
                 timespec_diff(&(pce_reply->response->time_request_registered),
                              &(pce_reply->response->time_response_received));

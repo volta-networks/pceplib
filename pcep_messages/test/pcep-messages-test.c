@@ -109,8 +109,13 @@ void test_pcep_msg_create_response()
     free(response_msg);
 
     struct pcep_object_rp *rp_obj = pcep_obj_create_rp(0, 0, 0);
-    struct pcep_object_ero_list *ero_list = pcep_obj_create_ero_32label(1, 10);
-    struct pcep_object_eros_list *eros_list = pcep_obj_create_ero(ero_list);
+    double_linked_list *ero_subobj_list = dll_initialize();
+    struct pcep_object_ero_subobj *ero_subobj = pcep_obj_create_ero_32label(1, 10);
+    dll_append(ero_subobj_list, ero_subobj);
+    struct pcep_object_eros *eros = pcep_obj_create_eros(ero_subobj_list);
+
+    double_linked_list *eros_list = dll_initialize();
+    dll_append(eros_list, eros);
     response_msg = pcep_msg_create_response(rp_obj, eros_list);
 
     CU_ASSERT_PTR_NOT_NULL(response_msg);
@@ -119,8 +124,7 @@ void test_pcep_msg_create_response()
             sizeof(struct pcep_object_ero) + sizeof(struct pcep_ero_subobj_32label));
     CU_ASSERT_EQUAL(response_msg->type, PCEP_TYPE_PCREP);
     CU_ASSERT_EQUAL(response_msg->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
-    free(ero_list);
-    free(eros_list);
+    pcep_obj_free_ero(eros_list);
     free(response_msg);
 }
 

@@ -56,8 +56,8 @@ int session_logic_msg_ready_handler(void *data, int socket_fd)
     pthread_mutex_lock(&(session_logic_handle_->session_logic_mutex));
     session_logic_handle_->session_logic_condition = true;
     /* TODO how to determine if the socket was closed */
-    struct pcep_messages_list *msg_list = pcep_msg_read(socket_fd);
-    if (msg_list == NULL)
+    double_linked_list *msg_list = pcep_msg_read(socket_fd);
+    if (msg_list == NULL || msg_list->num_entries == 0)
     {
         fprintf(stderr, "Error marshalling PCEP message\n");
         pthread_mutex_unlock(&(session_logic_handle_->session_logic_mutex));
@@ -65,18 +65,21 @@ int session_logic_msg_ready_handler(void *data, int socket_fd)
         return -1;
     }
 
+    /* Just looking at the first of potentially several messages received */
+    pcep_message *msg = ((pcep_message *) msg_list->head->data);
     printf("[%ld-%ld] session_logic_msg_ready_handler received message of type [%d] len [%d] on session_id [%d]\n",
-            time(NULL), pthread_self(), msg_list->header.type, msg_list->header.length, session->session_id);
+            time(NULL), pthread_self(), msg->header.type, msg->header.length, session->session_id);
 
+    /* This event will ultimately be handled by handle_socket_comm_event()
+     * in pcep_session_logic_states.c */
     pcep_session_event *rcvd_msg_event = create_session_event(session);
     rcvd_msg_event->received_msg_list = msg_list;
     queue_enqueue(session_logic_handle_->session_event_queue, rcvd_msg_event);
 
-
     pthread_cond_signal(&(session_logic_handle_->session_logic_cond_var));
     pthread_mutex_unlock(&(session_logic_handle_->session_logic_mutex));
 
-    return msg_list->header.length;
+    return msg->header.length;
 }
 
 

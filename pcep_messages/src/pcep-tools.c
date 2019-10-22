@@ -27,16 +27,11 @@
 #include <malloc.h>
 #include "pcep-tools.h"
 
-static struct pcep_obj_list*
+static struct pcep_object_header*
 pcep_obj_parse(struct pcep_object_header* hdr)
 {
-    struct pcep_obj_list *item = NULL;
-    struct pcep_object_header *obj = NULL; 
-    
-    item = malloc(sizeof(struct pcep_obj_list));
-    
-    bzero(item, sizeof(struct pcep_obj_list));        
-    
+    struct pcep_object_header *obj = NULL;
+
     switch(hdr->object_class) {
         case PCEP_OBJ_CLASS_OPEN:
             pcep_unpack_obj_open((struct pcep_object_open*) hdr);
@@ -62,13 +57,13 @@ pcep_obj_parse(struct pcep_object_header* hdr)
             break;
         case PCEP_OBJ_CLASS_ERO:
             pcep_unpack_obj_ero((struct pcep_object_ero*) hdr);
-            break;        
+            break;
         case PCEP_OBJ_CLASS_LSPA:
             pcep_unpack_obj_lspa((struct pcep_object_lspa*) hdr);
-            break;        
+            break;
         case PCEP_OBJ_CLASS_SVEC:
             pcep_unpack_obj_svec((struct pcep_object_svec*) hdr);
-            break;        
+            break;
         case PCEP_OBJ_CLASS_ERROR:
             pcep_unpack_obj_error((struct pcep_object_error*) hdr);
             break;
@@ -82,175 +77,189 @@ pcep_obj_parse(struct pcep_object_header* hdr)
             fprintf(stderr, "WARNING pcep_obj_parse: Unknown object class\n");
             return NULL;
     }
-        
+
     obj = malloc(hdr->object_length);
-    
-    bzero(obj, hdr->object_length);          
+
+    bzero(obj, hdr->object_length);
     memcpy(obj, hdr, hdr->object_length);
-    
-    item->header = obj;
-    
-    return item;
+
+    return obj;
 }
 
-struct pcep_messages_list*     
+double_linked_list*
 pcep_msg_read(int sock_fd)
 {
     int ret;
     int err_count = 0;
     uint8_t buffer[PCEP_MAX_SIZE];
     uint16_t buffer_read = 0;
-    struct pcep_header *msg_hdr;
-    struct pcep_messages_list *head = NULL, *item = NULL;
-    
+    struct pcep_header* msg_hdr;
+    double_linked_list* head = dll_initialize();
+    struct pcep_message* item = NULL;
+
     bzero(&buffer, PCEP_MAX_SIZE);
-    
+
     ret = read(sock_fd, &buffer, PCEP_MAX_SIZE);
-    
+
     if(ret < 0) {
         perror("WARNING pcep_msg_read");
         fprintf(stderr, "WARNING pcep_msg_read: Failed to read from socket\n");
     } else if(ret == 0) {
         fprintf(stderr, "WARNING pcep_msg_read: Remote shutdown\n");
     }
-        
+
     while((ret - buffer_read) >= sizeof(struct pcep_header)) {
-        
+
         uint16_t obj_read = sizeof(struct pcep_header);
-        
+
         msg_hdr = (struct pcep_header*) &buffer[buffer_read];
-        
+
         pcep_unpack_msg_header(msg_hdr);
-        
+
         if((ret - buffer_read) < msg_hdr->length) {
             int read_len = (msg_hdr->length - (ret - buffer_read));
             int read_ret = 0;
             fprintf(stderr, "WARNING pcep_msg_read: Message not fully read! Trying to read %d bytes more\n", read_len);
-            
+
             read_ret = read(sock_fd, &buffer[ret], read_len);
-            
+
             if(read_ret != read_len) {
                 fprintf(stderr, "WARNING pcep_msg_read: Did not manage to read enough data (%d != %d)\n", read_ret, read_len);
                 return head;
             }
         }
-        
+
         buffer_read += msg_hdr->length;
-        
-        item = (struct pcep_messages_list*) malloc(sizeof(struct pcep_messages_list));
-        
-        bzero(item, sizeof(struct pcep_messages_list));
-        
-        memcpy(&item->header, msg_hdr, sizeof(struct pcep_header));                
-        
-        while((msg_hdr->length - obj_read) > sizeof(struct pcep_object_header)) {    
-            struct pcep_obj_list* obj_item;
+
+        item = (struct pcep_message*) malloc(sizeof(struct pcep_message));
+
+        bzero(item, sizeof(struct pcep_message));
+        item->obj_list = dll_initialize();
+
+        memcpy(&item->header, msg_hdr, sizeof(struct pcep_header));
+
+        while((msg_hdr->length - obj_read) > sizeof(struct pcep_object_header)) {
             struct pcep_object_header* obj_hdr = (struct pcep_object_header*) (((uint8_t*)msg_hdr) + obj_read);
-            
-            pcep_unpack_obj_header(obj_hdr);                
-            
-            obj_item = pcep_obj_parse(obj_hdr);
-            
-            if(obj_item != NULL) {            
-                DL_APPEND(item->list, obj_item);                
+            pcep_unpack_obj_header(obj_hdr);
+
+            struct pcep_object_header* obj_item = pcep_obj_parse(obj_hdr);
+
+            if(obj_item != NULL) {
+                dll_append(item->obj_list, obj_item);
             } else {
                 err_count++;
             }
-            
+
             obj_read += obj_hdr->object_length;
-            
+
             if(err_count > 5) break;
         };
 
-        DL_APPEND(head, item);
+        dll_append(head, item);
     }
-    
+
     return head;
 }
 
-struct pcep_messages_list* 
-pcep_msg_get(struct pcep_messages_list* list, uint8_t type)
+pcep_message*
+pcep_msg_get(double_linked_list* msg_list, uint8_t type)
 {
-    struct pcep_messages_list *item;
-    
-    DL_FOREACH(list, item) {  
-        if(item->header.type == type) {
-            return item;
+    if (msg_list == NULL)
+    {
+        return NULL;
+    }
+
+    double_linked_list_node *item;
+    for (item = msg_list->head; item != NULL; item = item->next_node) {
+        if(((pcep_message *) item->data)->header.type == type) {
+            return (pcep_message *) item->data;
         }
     }
-    
+
     return NULL;
 }
 
-struct pcep_messages_list* 
-pcep_msg_get_next(struct pcep_messages_list* current, uint8_t type)
+pcep_message*
+pcep_msg_get_next(double_linked_list* list, pcep_message* current, uint8_t type)
 {
-    struct pcep_messages_list *item;
-    
-    DL_FOREACH(current, item) {  
-        if(item == current) continue;
-        if(item->header.type == type) {
-            return item;
+    if (list == NULL || current == NULL)
+    {
+        return NULL;
+    }
+
+    double_linked_list_node *item;
+    for (item = list->head; item != NULL; item = item->next_node) {
+        if(item->data == current) continue;
+        if(((pcep_message *) item->data)->header.type == type) {
+            return (pcep_message *) item->data;
         }
     }
-    
+
     return NULL;
 }
 
-struct pcep_obj_list* 
-pcep_obj_get(struct pcep_messages_list* item, uint8_t type)
+struct pcep_object_header*
+pcep_obj_get(double_linked_list* list, uint8_t type)
 {
-    struct pcep_obj_list *obj_item;    
-    
-    DL_FOREACH(item->list, obj_item) {         
-        if(obj_item->header->object_class == type) {
-            return obj_item;
+    if (list == NULL)
+    {
+        return NULL;
+    }
+
+    double_linked_list_node *obj_item;
+    for (obj_item = list->head; obj_item != NULL; obj_item = obj_item->next_node) {
+        if(((struct pcep_object_header *) obj_item->data)->object_class == type) {
+            return (struct pcep_object_header *) obj_item->data;
         }
     }
-    
+
     return NULL;
 }
 
-struct pcep_obj_list* 
-pcep_obj_get_next(struct pcep_obj_list* current, uint8_t type)
+struct pcep_object_header*
+pcep_obj_get_next(double_linked_list* list, struct pcep_object_header* current, uint8_t type)
 {
-    struct pcep_obj_list *obj_item;    
-    
-    DL_FOREACH(current->next, obj_item) {         
-        if(obj_item->header->object_class == type) {
-            return obj_item;
+    if (list == NULL || current == NULL)
+    {
+        return NULL;
+    }
+
+    double_linked_list_node *obj_item;
+    for (obj_item = list->head; obj_item != NULL; obj_item = obj_item->next_node) {
+        if(((struct pcep_object_header *) obj_item->data)->object_class == type) {
+            return (struct pcep_object_header *) obj_item->data;
         }
     }
-    
+
     return NULL;
 }
 
 void
-pcep_msg_free(struct pcep_messages_list* list)
+pcep_msg_free(double_linked_list* list)
 {
-    struct pcep_messages_list *item, *item_tmp;
-    struct pcep_obj_list *obj_item, *obj_tmp;
-        
-    DL_FOREACH_SAFE(list, item, item_tmp) {           
-        DL_FOREACH_SAFE(item->list, obj_item, obj_tmp) {               
-            DL_DELETE(item->list, obj_item);
-            free(obj_item->header);
-            free(obj_item);
+    /* Iterate the messages and free each one */
+    pcep_message *msg = (pcep_message *) dll_delete_first_node(list);
+    while (msg != NULL) {
+        /* Iterate the objects in the message and free each one */
+        struct pcep_object_header *obj = (struct pcep_object_header *) dll_delete_first_node(msg->obj_list);
+        while (obj != NULL) {
+            free(obj);
+            obj = (struct pcep_object_header *) dll_delete_first_node(msg->obj_list);
         }
-        
-        DL_DELETE(list, item);
-        free(item);
-    }      
+
+        dll_destroy(msg->obj_list);
+        free(msg);
+        msg = (pcep_message *) dll_delete_first_node(list);
+    }
+    dll_destroy(list);
 }
 
 void
-pcep_msg_print(struct pcep_messages_list* list)
+pcep_msg_print(double_linked_list* list)
 {
-    struct pcep_messages_list *item;
-    struct pcep_obj_list *obj_item;
-    
-    DL_FOREACH(list, item) {   
-        switch(item->header.type) {
+    double_linked_list_node *item;
+    for (item = list->head; item != NULL; item = item->next_node) {
+        switch(((pcep_message *) item->data)->header.type) {
             case PCEP_TYPE_OPEN:
                 printf("PCEP_TYPE_OPEN\n");
                 break;
@@ -269,30 +278,34 @@ pcep_msg_print(struct pcep_messages_list* list)
             case PCEP_TYPE_ERROR:
                 printf("PCEP_TYPE_ERROR\n");
                 break;
-            case PCEP_TYPE_CLOSE:  
+            case PCEP_TYPE_CLOSE:
                 printf("PCEP_TYPE_CLOSE\n");
                 break;
             default:
                 printf("UNKOWN\n");
                 continue;
-        } 
-        
-        DL_FOREACH(item->list, obj_item) {   
+        }
+
+        double_linked_list_node *obj_item;
+        for (obj_item = ((pcep_message *) item->data)->obj_list->head;
+             obj_item != NULL;
+             obj_item = obj_item->next_node) {
             printf("\t");
-            switch(obj_item->header->object_class) {
+            struct pcep_object_header *obj_header = ((struct pcep_object_header *) obj_item->data);
+            switch(obj_header->object_class) {
                 case PCEP_OBJ_CLASS_OPEN:
                     printf("PCEP_OBJ_CLASS_OPEN\n");
                     break;
                 case PCEP_OBJ_CLASS_RP:
-                    printf("PCEP_OBJ_CLASS_RP\n");               
+                    printf("PCEP_OBJ_CLASS_RP\n");
                     break;
                 case PCEP_OBJ_CLASS_NOPATH:
                     printf("PCEP_OBJ_CLASS_NOPATH\n");
                     break;
                 case PCEP_OBJ_CLASS_ENDPOINTS:
-                    if(obj_item->header->object_type == PCEP_OBJ_TYPE_ENDPOINT_IPV4) {
+                    if(obj_header->object_type == PCEP_OBJ_TYPE_ENDPOINT_IPV4) {
                         printf("PCEP_OBJ_CLASS_ENDPOINTS IPv4\n");
-                    } else if(obj_item->header->object_type == PCEP_OBJ_TYPE_ENDPOINT_IPV6) {
+                    } else if(obj_header->object_type == PCEP_OBJ_TYPE_ENDPOINT_IPV6) {
                         printf("PCEP_OBJ_CLASS_ENDPOINTS IPv6\n");
                     }
                     break;
@@ -304,13 +317,13 @@ pcep_msg_print(struct pcep_messages_list* list)
                     break;
                 case PCEP_OBJ_CLASS_ERO:
                     printf("PCEP_OBJ_CLASS_ERO\n");
-                    break;        
+                    break;
                 case PCEP_OBJ_CLASS_LSPA:
                     printf("PCEP_OBJ_CLASS_LSPA\n");
-                    break;        
+                    break;
                 case PCEP_OBJ_CLASS_SVEC:
                     printf("PCEP_OBJ_CLASS_SVEC\n");
-                    break;        
+                    break;
                 case PCEP_OBJ_CLASS_ERROR:
                     printf("PCEP_OBJ_CLASS_ERROR\n");
                     break;
@@ -323,15 +336,15 @@ pcep_msg_print(struct pcep_messages_list* list)
                 default:
                     printf("UNSUPPORTED CLASS\n");
                     break;
-            }        
+            }
         }
-    }   
+    }
 }
 
 int
 pcep_msg_send(int sock_fd, struct pcep_header* hdr)
 {
     if(hdr == NULL) return 0;
-    
+
     return write(sock_fd, hdr, ntohs(hdr->length));
 }
