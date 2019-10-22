@@ -12,6 +12,8 @@
 
 #include "pcep_socket_comm.h"
 #include "pcep-objects.h"
+#include "pcep-tools.h"
+#include "pcep_utils_double_linked_list.h"
 
 
 typedef struct pcep_configuration_
@@ -86,12 +88,12 @@ typedef struct pcep_pce_request_
     /* Reported Route Object
      * Populate with pcep_obj_create_rro()
      * TODO not supported yet, need to implement */
-    struct pcep_object_eros_list *rro_list;
+    double_linked_list *rro_list;
 
     /* Include Route Object
      * Populate with pcep_obj_create_iro()
      * TODO not supported yet, need to implement */
-    struct pcep_object_eros_list *iro_list;
+    double_linked_list *iro_list;
 
     /* Populate with pcep_obj_create_load_balancing() */
     struct pcep_object_load_balancing *load_balancing;
@@ -154,7 +156,7 @@ typedef struct pcep_message_response_
     struct timespec time_response_received;
     int max_wait_time_milli_seconds;
     pcep_session *session;
-    struct pcep_messages_list *response_msg_list;
+    pcep_message *response_msg;
     bool response_condition;
     pthread_mutex_t response_mutex;
     pthread_cond_t response_cond_var;

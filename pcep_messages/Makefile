@@ -1,16 +1,17 @@
 AR= ar
 ARFLAGS = rc
 CC= gcc
-CFLAGS = -I$(INC_DIR) -g -Wall -Werror
+CFLAGS = -I$(INC_DIR) -I$(PCEP_UTILS_INC_DIR) -g -Wall -Werror
 RANLIB = ranlib
 
 INC_DIR = include
 OBJ_DIR = ./obj
 SRC_DIR = ./src
 BUILD_DIR = ../build
+PCEP_UTILS_INC_DIR = ../pcep_utils/include
 TEST_DIR = ./test
 TEST_LIB_DIRS = -L$(BUILD_DIR) -L/usr/local/lib
-TEST_LIBS = -l$(LIB_NAME) -lcunit
+TEST_LIBS = -l$(LIB_NAME) -lpcep_utils -lcunit
 
 LIB_NAME = pcep_messages
 LIB = $(BUILD_DIR)/lib$(LIB_NAME).a
@@ -18,6 +19,7 @@ TEST_BIN = $(BUILD_DIR)/pcep_messages_tests
 
 _DEPS = *.h
 DEPS = $(patsubst %,$(INC_DIR)/%,$(_DEPS))
+EXTERNAL_DEPS = $(patsubst %,$(PCEP_UTILS_INC_DIR)/%,$(_DEPS))
 
 _OBJ = pcep-messages.o pcep-objects.o pcep-tools.o
 OBJ = $(patsubst %,$(OBJ_DIR)/%,$(_OBJ))
@@ -32,7 +34,7 @@ $(LIB): $(OBJ)
 	$(AR) $(ARFLAGS) $@ $^ 
 	$(RANLIB) $@
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(DEPS)
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(DEPS) $(EXTERNAL_DEPS)
 	$(shell [ ! -d $(@D) ] && mkdir -p $(@D))
 	$(CC) -c -o $@ $< $(CFLAGS)
 

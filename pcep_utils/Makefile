@@ -19,10 +19,10 @@ TEST_BIN = $(BUILD_DIR)/pcep_utils_tests
 _DEPS = *.h
 DEPS = $(patsubst %,$(INC_DIR)/%,$(_DEPS))
 
-_OBJ = pcep_utils_ordered_list.o pcep_utils_queue.o
+_OBJ = pcep_utils_double_linked_list.o pcep_utils_ordered_list.o pcep_utils_queue.o
 OBJ = $(patsubst %,$(OBJ_DIR)/%,$(_OBJ))
 
-_TEST_OBJ = pcep_utils_tests.o pcep_utils_ordered_list_test.o pcep_utils_queue_test.o
+_TEST_OBJ = pcep_utils_tests.o pcep_utils_double_linked_list_test.o pcep_utils_ordered_list_test.o pcep_utils_queue_test.o
 TEST_OBJ = $(patsubst %,$(TEST_DIR)/%,$(_TEST_OBJ))
 
 

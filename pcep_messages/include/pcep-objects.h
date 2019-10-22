@@ -27,6 +27,8 @@
 #include <stdint.h>
 #include <netinet/in.h> // struct in_addr
 
+#include "pcep_utils_double_linked_list.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -243,16 +245,13 @@ struct pcep_ero_subobj_border
     uint8_t swcap_info_thr;
 }__attribute__((packed));
 
-struct pcep_object_eros_list
+struct pcep_object_eros
 {
     struct pcep_object_ero ero_hdr;
-    struct pcep_object_ero_list *ero_list;
-
-    struct pcep_object_eros_list *prev;
-    struct pcep_object_eros_list *next;
+    double_linked_list *ero_list;
 };
 
-struct pcep_object_ero_list
+struct pcep_object_ero_subobj
 {
     union subobj {
         struct pcep_ero_subobj_ipv4 ipv4;
@@ -260,9 +259,6 @@ struct pcep_object_ero_list
         struct pcep_ero_subobj_32label label;
         struct pcep_ero_subobj_border border;
     } subobj;
-
-    struct pcep_object_ero_list *prev; /* needed for a doubly-linked list only */
-    struct pcep_object_ero_list *next; /* needed for singly- or doubly-linked lists */
 };
 
 struct pcep_object_lspa
@@ -371,10 +367,10 @@ struct pcep_object_endpoints_ipv4*      pcep_obj_create_enpoint_ipv4(const struc
 struct pcep_object_endpoints_ipv6*      pcep_obj_create_enpoint_ipv6(const struct in6_addr* src_ipv6, const struct in6_addr* dst_ipv6);
 struct pcep_object_bandwidth*           pcep_obj_create_bandwidth   (float bandwidth);
 struct pcep_object_metric*              pcep_obj_create_metric      (uint8_t flags, uint8_t type, float value);
-struct pcep_object_eros_list*           pcep_obj_create_ero         (struct pcep_object_ero_list* list);
-struct pcep_object_ero_list*            pcep_obj_create_ero_unnum   (struct in_addr* routerId, uint32_t ifId, uint16_t resv);
-struct pcep_object_ero_list*            pcep_obj_create_ero_32label (uint8_t dir, uint32_t label);
-struct pcep_object_ero_list*            pcep_obj_create_ero_border  (uint8_t direction, uint8_t swcap_from, uint8_t swcap_to);
+struct pcep_object_eros*                pcep_obj_create_eros        (double_linked_list* ero_list);
+struct pcep_object_ero_subobj*          pcep_obj_create_ero_unnum   (struct in_addr* routerId, uint32_t ifId, uint16_t resv);
+struct pcep_object_ero_subobj*          pcep_obj_create_ero_32label (uint8_t dir, uint32_t label);
+struct pcep_object_ero_subobj*          pcep_obj_create_ero_border  (uint8_t direction, uint8_t swcap_from, uint8_t swcap_to);
 struct pcep_object_lspa*                pcep_obj_create_lspa        (uint8_t prio, uint8_t hold_prio);
 struct pcep_object_svec*                pcep_obj_create_svec        (uint8_t srlg, uint8_t node, uint8_t link, uint16_t ids_count, uint32_t *ids);
 struct pcep_object_error*               pcep_obj_create_error       (uint8_t error_type, uint8_t error_value);
@@ -397,8 +393,8 @@ void pcep_unpack_obj_svec(struct pcep_object_svec *svec);
 void pcep_unpack_obj_error(struct pcep_object_error *error);
 void pcep_unpack_obj_close(struct pcep_object_close *close);
 
-void pcep_obj_free_ero          (struct pcep_object_eros_list *ero_list);
-void pcep_obj_free_ero_hop      (struct pcep_object_ero_list *hop_list);
+void pcep_obj_free_ero          (double_linked_list* ero_list);
+void pcep_obj_free_ero_hop      (double_linked_list* hop_list);
 
 #ifdef __cplusplus
 }

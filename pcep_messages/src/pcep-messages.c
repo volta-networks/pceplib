@@ -30,7 +30,7 @@
 
 #include "pcep-messages.h"
 #include "pcep-objects.h"
-#include "utlist.h"
+#include "pcep_utils_double_linked_list.h"
 
 struct pcep_header*
 pcep_msg_create_open(uint8_t keepalive, uint8_t deadtimer, uint8_t sid)
@@ -231,13 +231,13 @@ pcep_msg_create_response_nopath(struct pcep_object_rp *rp,  struct pcep_object_n
 }
 
 struct pcep_header*
-pcep_msg_create_response(struct pcep_object_rp *rp, struct pcep_object_eros_list *eros)
+pcep_msg_create_response(struct pcep_object_rp *rp, double_linked_list *eros_list)
 {
     uint8_t *buffer;
     uint16_t buffer_len;
     uint16_t buffer_pos;
     struct pcep_header *hdr;
-    struct pcep_object_eros_list *item;
+
 
     buffer_len = sizeof(struct pcep_header);
     buffer_pos = sizeof(struct pcep_header);
@@ -246,8 +246,15 @@ pcep_msg_create_response(struct pcep_object_rp *rp, struct pcep_object_eros_list
         buffer_len += ntohs(rp->header.object_length);
     }
 
-    DL_FOREACH(eros, item) {
-        buffer_len += ntohs(item->ero_hdr.header.object_length);
+    /* Calculate the buffer_len by summing the length
+     * of all the eros items in the eros_list */
+    if (eros_list != NULL) {
+        double_linked_list_node *eros_item;
+        for (eros_item = eros_list->head;
+                eros_item != NULL;
+                eros_item = eros_item->next_node) {
+            buffer_len += ntohs(((struct pcep_object_eros*) (eros_item->data))->ero_hdr.header.object_length);
+        }
     }
 
     buffer = malloc(sizeof(uint8_t) * buffer_len);
@@ -264,17 +271,26 @@ pcep_msg_create_response(struct pcep_object_rp *rp, struct pcep_object_eros_list
         buffer_pos += ntohs(rp->header.object_length);
     }
 
-    DL_FOREACH(eros, item) {
-        struct pcep_object_ero_list *ero_item;
-        struct pcep_ero_subobj_hdr *ero_subobj;
+    if (eros_list != NULL) {
+        double_linked_list_node *eros_item;
+        for (eros_item = eros_list->head;
+                eros_item != NULL;
+                eros_item = eros_item->next_node) {
+            struct pcep_ero_subobj_hdr *ero_subobj;
 
-        memcpy(buffer + buffer_pos, &item->ero_hdr.header, sizeof(struct pcep_object_ero));
-        buffer_pos += sizeof(struct pcep_object_ero);
+            memcpy(buffer + buffer_pos,
+                    &((struct pcep_object_eros*) eros_item->data)->ero_hdr.header,
+                    sizeof(struct pcep_object_ero));
+            buffer_pos += sizeof(struct pcep_object_ero);
 
-        DL_FOREACH(item->ero_list, ero_item) {
-            ero_subobj = (struct pcep_ero_subobj_hdr*) ero_item;
-            memcpy(buffer + buffer_pos, ero_subobj, ero_subobj->length);
-            buffer_pos += ero_subobj->length;
+            double_linked_list_node *ero_item;
+            for (ero_item = ((struct pcep_object_eros*) eros_item->data)->ero_list->head;
+                    ero_item != NULL;
+                    ero_item = ero_item->next_node) {
+                ero_subobj = (struct pcep_ero_subobj_hdr*) ero_item->data;
+                memcpy(buffer + buffer_pos, ero_subobj, ero_subobj->length);
+                buffer_pos += ero_subobj->length;
+            }
         }
     }
 

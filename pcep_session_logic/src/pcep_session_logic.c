@@ -297,7 +297,7 @@ pcep_message_response *register_response_message(
     msg_response->session = session;
     msg_response->request_id = request_id;
     msg_response->max_wait_time_milli_seconds = max_wait_time_milli_seconds;
-    msg_response->response_msg_list = NULL;
+    msg_response->response_msg = NULL;
     msg_response->prev_response_status = RESPONSE_STATE_WAITING;
     msg_response->response_status = RESPONSE_STATE_WAITING;
     clock_gettime(CLOCK_REALTIME, &msg_response->time_request_registered);

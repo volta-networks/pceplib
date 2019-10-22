@@ -14,6 +14,7 @@
 
 #include "pcep-tools.h"
 
+#include "pcep_utils_double_linked_list.h"
 #include "pcep_utils_ordered_list.h"
 #include "pcep_utils_queue.h"
 
@@ -37,7 +38,7 @@ typedef struct pcep_session_event_
 {
     pcep_session *session;
     int expired_timer_id;
-    struct pcep_messages_list *received_msg_list;
+    double_linked_list *received_msg_list;
     bool socket_closed;
 
 } pcep_session_event;

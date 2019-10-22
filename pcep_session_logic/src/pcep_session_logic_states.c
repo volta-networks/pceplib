@@ -55,7 +55,7 @@ void reset_dead_timer(pcep_session *session)
 }
 
 
-void update_response_message(pcep_session *session, struct pcep_messages_list *received_msg_list)
+void update_response_message(pcep_session *session, pcep_message *received_msg)
 {
     if (session == NULL)
     {
@@ -63,28 +63,16 @@ void update_response_message(pcep_session *session, struct pcep_messages_list *r
         return;
     }
 
-    if (received_msg_list == NULL)
+    if (received_msg == NULL)
     {
         printf("WARN update_response_message NULL received_msg_list\n");
         return;
     }
 
     /* iterate the message objects to get the RP object */
-    bool found_rpObject = false;
-    struct pcep_obj_list *list_entry = received_msg_list->list;
-    while (list_entry != NULL && found_rpObject == false)
-    {
-        if (list_entry->header->object_class == PCEP_OBJ_CLASS_RP)
-        {
-            found_rpObject = true;
-        }
-        else
-        {
-            list_entry = list_entry->next;
-        }
-    }
-
-    if (!found_rpObject)
+    struct pcep_object_rp *rp_object =
+            (struct pcep_object_rp *) pcep_obj_get(received_msg->obj_list, PCEP_OBJ_CLASS_RP);
+    if (rp_object == NULL)
     {
         fprintf(stderr, "ERROR in PCREP message: cant find mandatory RP object\n");
         /* TODO when this reaches a MAX, need to react */
@@ -92,7 +80,6 @@ void update_response_message(pcep_session *session, struct pcep_messages_list *r
         return;
     }
 
-    struct pcep_object_rp *rp_object = (struct pcep_object_rp *) list_entry->header;
     pcep_message_response msg_response_search;
     msg_response_search.request_id = rp_object->rp_reqidnumb;
     ordered_list_node *node =
@@ -113,7 +100,7 @@ void update_response_message(pcep_session *session, struct pcep_messages_list *r
     pthread_mutex_lock(&msg_response->response_mutex);
     msg_response->prev_response_status = msg_response->response_status;
     msg_response->response_status = RESPONSE_STATE_READY;
-    msg_response->response_msg_list = received_msg_list;
+    msg_response->response_msg = received_msg;
     msg_response->response_condition = true;
     clock_gettime(CLOCK_REALTIME, &msg_response->time_response_received);
     pthread_cond_signal(&msg_response->response_cond_var);
@@ -191,7 +178,9 @@ void handle_timer_event(pcep_session_event *event)
 }
 
 
-/* state machine handling for received messages */
+/* State machine handling for received messages.
+ * This event was created in session_logic_msg_ready_handler() in
+ * pcep_session_logic_loop.c */
 void handle_socket_comm_event(pcep_session_event *event)
 {
     if (event == NULL)
@@ -202,10 +191,10 @@ void handle_socket_comm_event(pcep_session_event *event)
 
     pcep_session *session = event->session;
 
-    printf("[%ld-%ld] pcep_session_logic handle_socket_comm_event: session_id [%d] msg_type [%d] socket_closed [%d]\n",
+    printf("[%ld-%ld] pcep_session_logic handle_socket_comm_event: session_id [%d] num messages [%d] socket_closed [%d]\n",
             time(NULL), pthread_self(),
             session->session_id,
-            (event->received_msg_list == NULL ? -1 : event->received_msg_list->header.type),
+            (event->received_msg_list == NULL ? -1 : event->received_msg_list->num_entries),
             event->socket_closed);
 
     /*
@@ -224,81 +213,96 @@ void handle_socket_comm_event(pcep_session_event *event)
         return;
     }
 
-    switch (event->received_msg_list->header.type)
+    double_linked_list_node *msg_node;
+    for (msg_node = event->received_msg_list->head;
+         msg_node != NULL;
+         msg_node = msg_node->next_node)
     {
-    case PCEP_TYPE_OPEN:
-        printf("\t PCEP_OPEN message\n");
+        pcep_message *msg = (pcep_message *) msg_node->data;
 
-        if (session->pcep_open_received == false)
+        switch (msg->header.type)
         {
-            struct pcep_object_open *open_object =
-                    (struct pcep_object_open *) event->received_msg_list->list->header;
-            session->pce_config.dead_timer_seconds = open_object->open_deadtimer;
-            session->pce_config.keep_alive_seconds = open_object->open_keepalive;
-            session->pcep_open_received = true;
+        case PCEP_TYPE_OPEN:
+            printf("\t PCEP_OPEN message\n");
+
+            if (session->pcep_open_received == false)
+            {
+                if (msg->obj_list == NULL || msg->obj_list->head == NULL)
+                {
+                    /* TODO when this reaches a MAX, need to react */
+                    session->num_erroneous_messages++;
+                    continue;
+                }
+
+                struct pcep_object_open *open_object =
+                        (struct pcep_object_open *) (msg->obj_list->head->data);
+                session->pce_config.dead_timer_seconds = open_object->open_deadtimer;
+                session->pce_config.keep_alive_seconds = open_object->open_keepalive;
+                session->pcep_open_received = true;
+                reset_dead_timer(session);
+                send_keep_alive(session);
+            }
+            else
+            {
+                /* TODO when this reaches a MAX, need to react */
+                session->num_erroneous_messages++;
+            }
+            break;
+
+        case PCEP_TYPE_KEEPALIVE:
+            printf("\t PCEP_KEEPALIVE message\n");
             reset_dead_timer(session);
-            send_keep_alive(session);
-        }
-        else
-        {
-            /* TODO when this reaches a MAX, need to react */
+            if (session->session_state == SESSION_STATE_TCP_CONNECTED)
+            {
+                session->session_state = SESSION_STATE_OPENED;
+                cancel_timer(session->timer_id_open_keep_wait);
+                session->timer_id_open_keep_wait = TIMER_ID_NOT_SET;
+            }
+            break;
+
+        case PCEP_TYPE_PCREP:
+            printf("\t PCEP_PCREP message\n");
+            reset_dead_timer(session);
+            update_response_message(session, msg);
+            if (session->session_state == SESSION_STATE_WAIT_PCREQ)
+            {
+                session->session_state = SESSION_STATE_IDLE;
+                cancel_timer(session->timer_id_pc_req_wait);
+                session->timer_id_pc_req_wait = TIMER_ID_NOT_SET;
+            }
+            else
+            {
+                /* TODO when this reaches a MAX, need to react */
+                session->num_erroneous_messages++;
+            }
+            break;
+
+        case PCEP_TYPE_CLOSE:
+            printf("\t PCEP_CLOSE message\n");
+            session->session_state = SESSION_STATE_INITIALIZED;
+            socket_comm_session_close_tcp(session->socket_comm_session);
+            break;
+
+        case PCEP_TYPE_PCREQ:
+            printf("\t PCEP_PCREQ message\n");
+            /* TODO when this reaches a MAX, need to react.
+             *      reply with pcep_error msg. */
             session->num_erroneous_messages++;
+            break;
+
+        case PCEP_TYPE_PCNOTF:
+            printf("\t PCEP_PCNOTF message\n");
+            reset_dead_timer(session);
+            /* TODO implement this */
+            break;
+        case PCEP_TYPE_ERROR:
+            printf("\t PCEP_ERROR message\n");
+            reset_dead_timer(session);
+            /* TODO implement this */
+            break;
+        default:
+            break;
         }
-        break;
-
-    case PCEP_TYPE_KEEPALIVE:
-        printf("\t PCEP_KEEPALIVE message\n");
-        reset_dead_timer(session);
-        if (session->session_state == SESSION_STATE_TCP_CONNECTED)
-        {
-            session->session_state = SESSION_STATE_OPENED;
-            cancel_timer(session->timer_id_open_keep_wait);
-            session->timer_id_open_keep_wait = TIMER_ID_NOT_SET;
-        }
-        break;
-
-    case PCEP_TYPE_PCREP:
-        printf("\t PCEP_PCREP message\n");
-        reset_dead_timer(session);
-        update_response_message(session, event->received_msg_list);
-        if (session->session_state == SESSION_STATE_WAIT_PCREQ)
-        {
-            session->session_state = SESSION_STATE_IDLE;
-            cancel_timer(session->timer_id_pc_req_wait);
-            session->timer_id_pc_req_wait = TIMER_ID_NOT_SET;
-        }
-        else
-        {
-            /* TODO when this reaches a MAX, need to react */
-            session->num_erroneous_messages++;
-        }
-        break;
-
-    case PCEP_TYPE_CLOSE:
-        printf("\t PCEP_CLOSE message\n");
-        session->session_state = SESSION_STATE_INITIALIZED;
-        socket_comm_session_close_tcp(session->socket_comm_session);
-        break;
-
-    case PCEP_TYPE_PCREQ:
-        printf("\t PCEP_PCREQ message\n");
-        /* TODO when this reaches a MAX, need to react.
-         *      reply with pcep_error msg. */
-        session->num_erroneous_messages++;
-        break;
-
-    case PCEP_TYPE_PCNOTF:
-        printf("\t PCEP_PCNOTF message\n");
-        reset_dead_timer(session);
-        /* TODO implement this */
-        break;
-    case PCEP_TYPE_ERROR:
-        printf("\t PCEP_ERROR message\n");
-        reset_dead_timer(session);
-        /* TODO implement this */
-        break;
-    default:
-        break;
     }
 
     /* Traverse the msg_list and free everything */

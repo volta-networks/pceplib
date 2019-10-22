@@ -27,6 +27,7 @@
 #include <stdint.h>
 #include <netinet/in.h> // struct in_addr
 
+#include "pcep_utils_double_linked_list.h"
 #include "pcep-objects.h"
 
 #ifdef __cplusplus
@@ -73,7 +74,7 @@ struct pcep_header*     pcep_msg_create_open            (uint8_t keepalive, uint
 struct pcep_header*     pcep_msg_create_request         (struct pcep_object_rp *rp,  struct pcep_object_endpoints_ipv4 *enpoints, struct pcep_object_bandwidth *bandwidth);
 struct pcep_header*     pcep_msg_create_request_svec    (struct pcep_header **requests, uint16_t request_count, float disjointness);
 struct pcep_header*     pcep_msg_create_response_nopath (struct pcep_object_rp *rp,  struct pcep_object_nopath *nopath);
-struct pcep_header*     pcep_msg_create_response        (struct pcep_object_rp *rp,  struct pcep_object_eros_list *eros);
+struct pcep_header*     pcep_msg_create_response        (struct pcep_object_rp *rp,  double_linked_list *eros);
 struct pcep_header*     pcep_msg_create_close           (uint8_t flags, uint8_t reason);
 struct pcep_header*     pcep_msg_create_error           (uint8_t error_type, uint8_t error_value);
 struct pcep_header*     pcep_msg_create_keepalive       ();
