@@ -253,7 +253,7 @@ pcep_msg_create_response(struct pcep_object_rp *rp, double_linked_list *eros_lis
         for (eros_item = eros_list->head;
                 eros_item != NULL;
                 eros_item = eros_item->next_node) {
-            buffer_len += ntohs(((struct pcep_object_eros*) (eros_item->data))->ero_hdr.header.object_length);
+            buffer_len += ntohs(((struct pcep_object_route_object*) (eros_item->data))->ro_hdr.header.object_length);
         }
     }
 
@@ -276,18 +276,18 @@ pcep_msg_create_response(struct pcep_object_rp *rp, double_linked_list *eros_lis
         for (eros_item = eros_list->head;
                 eros_item != NULL;
                 eros_item = eros_item->next_node) {
-            struct pcep_ero_subobj_hdr *ero_subobj;
+            struct pcep_ro_subobj_hdr *ero_subobj;
 
             memcpy(buffer + buffer_pos,
-                    &((struct pcep_object_eros*) eros_item->data)->ero_hdr.header,
-                    sizeof(struct pcep_object_ero));
-            buffer_pos += sizeof(struct pcep_object_ero);
+                    &((struct pcep_object_route_object*) eros_item->data)->ro_hdr.header,
+                    sizeof(struct pcep_object_ro));
+            buffer_pos += sizeof(struct pcep_object_ro);
 
             double_linked_list_node *ero_item;
-            for (ero_item = ((struct pcep_object_eros*) eros_item->data)->ero_list->head;
+            for (ero_item = ((struct pcep_object_route_object*) eros_item->data)->ro_list->head;
                     ero_item != NULL;
                     ero_item = ero_item->next_node) {
-                ero_subobj = (struct pcep_ero_subobj_hdr*) ero_item->data;
+                ero_subobj = (struct pcep_ro_subobj_hdr*) ero_item->data;
                 memcpy(buffer + buffer_pos, ero_subobj, ero_subobj->length);
                 buffer_pos += ero_subobj->length;
             }
