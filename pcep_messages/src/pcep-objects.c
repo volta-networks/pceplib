@@ -201,47 +201,89 @@ pcep_obj_create_metric(uint8_t flags, uint8_t type, float value)
     return obj;
 }
 
-struct pcep_object_eros*
-pcep_obj_create_eros(double_linked_list* ero_list)
+/* Internal common function used to create a pcep_object_route_object,
+ * used internally by:
+ *     pcep_obj_create_eroute_object()
+ *     pcep_obj_create_iroute_object()
+ *     pcep_obj_create_rroute_object() */
+static struct pcep_object_route_object*
+pcep_obj_create_common_route_object(double_linked_list* ro_list)
 {
     uint16_t buffer_len = 0;
-    struct pcep_object_eros *ero = malloc(sizeof(struct pcep_object_eros));
-    bzero(ero, sizeof(struct pcep_object_eros));
+    struct pcep_object_route_object *route_object = malloc(sizeof(struct pcep_object_route_object));
+    bzero(route_object, sizeof(struct pcep_object_route_object));
 
     double_linked_list_node *node;
-    for (node = ero_list->head; node != NULL; node = node->next_node)
+    for (node = ro_list->head; node != NULL; node = node->next_node)
     {
-        struct pcep_ero_subobj_hdr *subobj = (struct pcep_ero_subobj_hdr*) node->data;
+        struct pcep_ro_subobj_hdr *subobj = (struct pcep_ro_subobj_hdr*) node->data;
         buffer_len += subobj->length;
     }
 
-    buffer_len += sizeof(struct pcep_object_ero);
+    buffer_len += sizeof(struct pcep_object_ro);
 
-    ero->ero_hdr.header.object_class = PCEP_OBJ_CLASS_ERO;
-    ero->ero_hdr.header.object_type = PCEP_OBJ_TYPE_ERO;
-    ero->ero_hdr.header.object_flags = 0;
-    ero->ero_hdr.header.object_length = htons(buffer_len);
+    /* object_class and object_type MUST be set by calling functions */
+    route_object->ro_hdr.header.object_flags = 0;
+    route_object->ro_hdr.header.object_length = htons(buffer_len);
 
-    ero->ero_list = ero_list;
+    route_object->ro_list = ro_list;
+
+    return route_object;
+}
+
+/* Wrap a list of ro subobjects in a structure with an object header */
+struct pcep_object_route_object*
+pcep_obj_create_eroute_object(double_linked_list* ero_list)
+{
+    struct pcep_object_route_object *ero = pcep_obj_create_common_route_object(ero_list);
+    ero->ro_hdr.header.object_class = PCEP_OBJ_CLASS_ERO;
+    ero->ro_hdr.header.object_type = PCEP_OBJ_TYPE_ERO;
 
     return ero;
 }
 
-struct pcep_object_ero_subobj*
-pcep_obj_create_ero_unnum(struct in_addr* routerId, uint32_t ifId, uint16_t resv)
+/* Wrap a list of ro subobjects in a structure with an object header */
+struct pcep_object_route_object*
+pcep_obj_create_iroute_object(double_linked_list* iro_list)
 {
-    uint8_t *buffer;
-    uint16_t buffer_len;
-    struct pcep_object_ero_subobj *obj;
+    struct pcep_object_route_object *iro = pcep_obj_create_common_route_object(iro_list);
+    iro->ro_hdr.header.object_class = PCEP_OBJ_CLASS_IRO;
+    iro->ro_hdr.header.object_type = PCEP_OBJ_TYPE_IRO;
 
-    buffer_len = sizeof(struct pcep_object_ero);
-    buffer = malloc(sizeof(uint8_t) * buffer_len);
+    return iro;
+}
 
-    bzero(buffer, buffer_len);
+/* Wrap a list of ro subobjects in a structure with an object header */
+struct pcep_object_route_object*
+pcep_obj_create_rroute_object(double_linked_list* rro_list)
+{
+    struct pcep_object_route_object *rro = pcep_obj_create_common_route_object(rro_list);
+    rro->ro_hdr.header.object_class = PCEP_OBJ_CLASS_RRO;
+    rro->ro_hdr.header.object_type = PCEP_OBJ_TYPE_RRO;
 
-    obj = (struct pcep_object_ero_subobj*) buffer;
-    obj->subobj.unnum.header.length = sizeof(struct pcep_ero_subobj_unnum);
-    obj->subobj.unnum.header.type = ERO_SUBOBJ_TYPE_UNNUM;
+    return rro;
+}
+
+/*
+ * Route Object Sub-object creation functions
+ */
+
+static struct pcep_object_ro_subobj*
+pcep_obj_create_ro_subobj_common()
+{
+    uint8_t *buffer = malloc(sizeof(uint8_t) * sizeof(struct pcep_object_ro_subobj));
+    bzero(buffer, sizeof(struct pcep_object_ro_subobj));
+
+    return (struct pcep_object_ro_subobj*) buffer;
+}
+
+struct pcep_object_ro_subobj*
+pcep_obj_create_ro_subobj_unnum(struct in_addr* routerId, uint32_t ifId, uint16_t resv)
+{
+    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_common();
+
+    obj->subobj.unnum.header.length = sizeof(struct pcep_ro_subobj_unnum);
+    obj->subobj.unnum.header.type = RO_SUBOBJ_TYPE_UNNUM;
     obj->subobj.unnum.ifId = htonl(ifId);
 
     memcpy(&obj->subobj.unnum.routerId, routerId, sizeof(struct in_addr));
@@ -250,21 +292,13 @@ pcep_obj_create_ero_unnum(struct in_addr* routerId, uint32_t ifId, uint16_t resv
     return obj;
 }
 
-struct pcep_object_ero_subobj*
-pcep_obj_create_ero_32label (uint8_t dir, uint32_t label)
+struct pcep_object_ro_subobj*
+pcep_obj_create_ro_subobj_32label(uint8_t dir, uint32_t label)
 {
-    uint8_t *buffer;
-    uint16_t buffer_len;
-    struct pcep_object_ero_subobj *obj;
+    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_common();
 
-    buffer_len = sizeof(struct pcep_object_ero);
-    buffer = malloc(sizeof(uint8_t) * buffer_len);
-
-    bzero(buffer, buffer_len);
-
-    obj = (struct pcep_object_ero_subobj*) buffer;
-    obj->subobj.label.header.length = sizeof(struct pcep_ero_subobj_32label);
-    obj->subobj.label.header.type = ERO_SUBOBJ_TYPE_LABEL;
+    obj->subobj.label.header.length = sizeof(struct pcep_ro_subobj_32label);
+    obj->subobj.label.header.type = RO_SUBOBJ_TYPE_LABEL;
     obj->subobj.label.class_type = 2;
     obj->subobj.label.upstream = dir;
     obj->subobj.label.label = htonl(label);
@@ -272,24 +306,64 @@ pcep_obj_create_ero_32label (uint8_t dir, uint32_t label)
     return obj;
 }
 
-struct pcep_object_ero_subobj*
-pcep_obj_create_ero_border  (uint8_t direction, uint8_t swcap_from, uint8_t swcap_to)
+struct pcep_object_ro_subobj*
+pcep_obj_create_ro_subobj_border(uint8_t direction, uint8_t swcap_from, uint8_t swcap_to)
 {
-    uint8_t *buffer;
-    uint16_t buffer_len;
-    struct pcep_object_ero_subobj *obj;
+    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_common();
 
-    buffer_len = sizeof(struct pcep_object_ero);
-    buffer = malloc(sizeof(uint8_t) * buffer_len);
-
-    bzero(buffer, buffer_len);
-
-    obj = (struct pcep_object_ero_subobj*) buffer;
-    obj->subobj.border.header.length = sizeof(struct pcep_ero_subobj_border);
-    obj->subobj.border.header.type = ERO_SUBOBJ_TYPE_BORDER;
+    obj->subobj.border.header.length = sizeof(struct pcep_ro_subobj_border);
+    obj->subobj.border.header.type = RO_SUBOBJ_TYPE_BORDER;
     obj->subobj.border.direction = direction;
     obj->subobj.border.swcap_from = swcap_from;
     obj->subobj.border.swcap_to = swcap_to;
+
+    return obj;
+}
+
+struct pcep_object_ro_subobj*
+pcep_obj_create_ro_subobj_ipv4(bool loose_hop, const struct in_addr* rro_ipv4, uint8_t prefix_length)
+{
+    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_common();
+
+    obj->subobj.ipv4.header.length = sizeof(struct pcep_ro_subobj_ipv4);
+    obj->subobj.ipv4.header.type = RO_SUBOBJ_TYPE_IPV4;
+    obj->subobj.ipv4.prefix_length = prefix_length;
+    memcpy(&obj->subobj.ipv4.ip_addr, rro_ipv4, sizeof(struct in_addr));
+    if (loose_hop == true)
+    {
+        // The first bit of the type field is used to specify Loose Hop
+        obj->subobj.ipv4.header.type |= 0x08;
+    }
+
+    return obj;
+}
+
+struct pcep_object_ro_subobj*
+pcep_obj_create_ro_subobj_ipv6(bool loose_hop, const struct in6_addr* rro_ipv6, uint8_t prefix_length)
+{
+    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_common();
+
+    obj->subobj.ipv6.header.length = sizeof(struct pcep_ro_subobj_ipv6);
+    obj->subobj.ipv6.header.type = RO_SUBOBJ_TYPE_IPV6;
+    obj->subobj.ipv6.prefix_length = prefix_length;
+    memcpy(&obj->subobj.ipv6.ip_addr, rro_ipv6, sizeof(struct in6_addr));
+    if (loose_hop == true)
+    {
+        // The first bit of the type field is used to specify Loose Hop
+        obj->subobj.ipv6.header.type |= 0x08;
+    }
+
+    return obj;
+}
+
+struct pcep_object_ro_subobj*
+pcep_obj_create_ro_subobj_asn(uint16_t asn)
+{
+    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_common();
+
+    obj->subobj.asn.header.length = sizeof(struct pcep_ro_subobj_border);
+    obj->subobj.asn.header.type = RO_SUBOBJ_TYPE_ASN;
+    obj->subobj.asn.aut_sys_number = asn;
 
     return obj;
 }
@@ -477,15 +551,15 @@ pcep_unpack_obj_metic(struct pcep_object_metric *obj)
 }
 
 void
-pcep_unpack_obj_ero(struct pcep_object_ero *obj)
+pcep_unpack_obj_ro(struct pcep_object_ro *obj)
 {
     uint16_t read_count = sizeof(struct pcep_object_header);
 
-    while((obj->header.object_length - read_count) > sizeof(struct pcep_ero_subobj_hdr)) {
-        struct pcep_ero_subobj_hdr *hdr = (struct pcep_ero_subobj_hdr*) (((uint8_t*)obj) + read_count);
+    while((obj->header.object_length - read_count) > sizeof(struct pcep_ro_subobj_hdr)) {
+        struct pcep_ro_subobj_hdr *hdr = (struct pcep_ro_subobj_hdr*) (((uint8_t*)obj) + read_count);
 
-        if(hdr->type == ERO_SUBOBJ_TYPE_UNNUM) {
-            struct pcep_ero_subobj_unnum *unum = (struct pcep_ero_subobj_unnum*) (((uint8_t*)obj) + read_count);
+        if(hdr->type == RO_SUBOBJ_TYPE_UNNUM) {
+            struct pcep_ro_subobj_unnum *unum = (struct pcep_ro_subobj_unnum*) (((uint8_t*)obj) + read_count);
             unum->ifId = ntohl(unum->ifId);
         }
         read_count += hdr->length;
@@ -525,28 +599,28 @@ pcep_unpack_obj_close(struct pcep_object_close *obj)
 }
 
 void
-pcep_obj_free_ero(double_linked_list *eros_list)
+pcep_obj_free_ro(double_linked_list *route_object_list)
 {
-    if(eros_list == NULL) return;
+    if(route_object_list == NULL) return;
 
-    /* Iterate the eros items and free each one */
-    struct pcep_object_eros *eros = (struct pcep_object_eros *) dll_delete_first_node(eros_list);
+    /* Iterate the route object items and free each one */
+    struct pcep_object_route_object *eros = (struct pcep_object_route_object *) dll_delete_first_node(route_object_list);
     while (eros != NULL) {
-        pcep_obj_free_ero_hop(eros->ero_list);
+        pcep_obj_free_ro_hop(eros->ro_list);
         free(eros);
-        eros = (struct pcep_object_eros *) dll_delete_first_node(eros_list);
+        eros = (struct pcep_object_route_object *) dll_delete_first_node(route_object_list);
     }
-    dll_destroy(eros_list);
+    dll_destroy(route_object_list);
 }
 
 void
-pcep_obj_free_ero_hop(double_linked_list *hop_list)
+pcep_obj_free_ro_hop(double_linked_list *hop_list)
 {
     /* Iterate the ero items and free each one */
-    struct pcep_object_ero *ero = (struct pcep_object_ero *) dll_delete_first_node(hop_list);
-    while (ero != NULL) {
-        free(ero);
-        ero = (struct pcep_object_ero *) dll_delete_first_node(hop_list);
+    struct pcep_object_ro *ro = (struct pcep_object_ro *) dll_delete_first_node(hop_list);
+    while (ro != NULL) {
+        free(ro);
+        ro = (struct pcep_object_ro *) dll_delete_first_node(hop_list);
     }
 
     dll_destroy(hop_list);

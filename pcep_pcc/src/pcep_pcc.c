@@ -57,6 +57,7 @@ void send_pce_req_message_sync(pcep_session *session)
 {
     pcep_pce_request *pce_req = malloc(sizeof(pcep_pce_request));
     bzero(pce_req, sizeof(pcep_pce_request));
+    struct in_addr rro_ip;
 
     /*
     inet_pton(AF_INET, "192.168.10.33", &(pce_req->src_endpoint_ip.srcV4Endpoint_ip));
@@ -68,10 +69,11 @@ void send_pce_req_message_sync(pcep_session *session)
     pce_req->endpoint_ipVersion = IPPROTO_IP;
 
     double_linked_list *rro_subobj_list = dll_initialize();
-    dll_append(rro_subobj_list, pcep_obj_create_ero_32label(0, 10));
-    dll_append(rro_subobj_list, pcep_obj_create_ero_border(1, 1, 1));
+    dll_append(rro_subobj_list, pcep_obj_create_ro_subobj_32label(0, 10));
+    inet_pton(AF_INET, "172.100.80.10", &rro_ip);
+    dll_append(rro_subobj_list, pcep_obj_create_ro_subobj_ipv4(false, &rro_ip, 24));
     double_linked_list *rro_list = dll_initialize();
-    dll_append(rro_list, pcep_obj_create_eros(rro_subobj_list));
+    dll_append(rro_list, pcep_obj_create_rroute_object(rro_subobj_list));
     pce_req->rro_list = rro_list;
 
     pcep_pce_reply *pce_reply = request_path_computation(session, pce_req, 1500);
