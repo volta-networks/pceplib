@@ -59,6 +59,7 @@ void test_pcep_msg_create_request()
             sizeof(struct pcep_object_endpoints_ipv4) + sizeof(struct pcep_object_bandwidth));
     CU_ASSERT_EQUAL(request_msg->type, PCEP_TYPE_PCREQ);
     CU_ASSERT_EQUAL(request_msg->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
+    free(rp_obj);
     free(ipv4_obj);
     free(bandwidth_obj);
     free(request_msg);
@@ -128,6 +129,7 @@ void test_pcep_msg_create_response()
     CU_ASSERT_EQUAL(response_msg->type, PCEP_TYPE_PCREP);
     CU_ASSERT_EQUAL(response_msg->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
     pcep_obj_free_ro(eros_list);
+    free(rp_obj);
     free(response_msg);
 }
 

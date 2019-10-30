@@ -39,7 +39,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(DEPS) $(EXTERNAL_DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(TEST_BIN): $(TEST_OBJ) $(LIB)
-	$(CC) -o $@ $(TEST_OBJ) $(CFLAGS) -static $(TEST_LIB_DIRS) $(TEST_LIBS)
+	$(CC) -o $@ $(TEST_OBJ) $(CFLAGS) $(TEST_LIB_DIRS) $(TEST_LIBS)
 
 $(TEST_DIR)/%.o: $(TEST_DIR)/%.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)

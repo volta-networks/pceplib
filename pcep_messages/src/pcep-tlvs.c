@@ -46,8 +46,11 @@ pcep_tlv_create_speaker_entity_id(double_linked_list *speaker_entity_id_list)
     }
 
     /* speaker_entity_id_list is a double list of uint32_t* */
-    struct pcep_object_tlv *tlv = malloc(sizeof(struct pcep_object_tlv_header) + speaker_entity_id_list->num_entries);
-    bzero(tlv, sizeof(struct pcep_object_tlv_header) + speaker_entity_id_list->num_entries);
+    struct pcep_object_tlv *tlv = malloc(
+            sizeof(struct pcep_object_tlv_header) +
+            (sizeof(uint32_t) * speaker_entity_id_list->num_entries));
+    bzero(tlv, sizeof(struct pcep_object_tlv_header) +
+               (sizeof(uint32_t) * speaker_entity_id_list->num_entries));
 
     tlv->header.type = htons(PCEP_OBJ_TLV_TYPE_SPEAKER_ENTITY_ID);
     tlv->header.length = htons(speaker_entity_id_list->num_entries * sizeof(uint32_t));
@@ -287,7 +290,7 @@ pcep_tlv_create_rsvp_ipv4_error_spec(struct in_addr *error_node_ip, uint8_t flag
     rsvp_header->class_num = 6;
     rsvp_header->length = htons(rsvp_length);
 
-    struct rsvp_error_spec_ipv4 *error_spec = (struct rsvp_error_spec_ipv4 *) &(tlv->value[4]);
+    struct rsvp_error_spec_ipv4 *error_spec = (struct rsvp_error_spec_ipv4 *) &(tlv->value[1]);
     error_spec->error_node_ip.s_addr = htonl(error_node_ip->s_addr);
     error_spec->flags = flags;
     error_spec->error_code = error_code;
@@ -318,7 +321,7 @@ pcep_tlv_create_rsvp_ipv6_error_spec(struct in6_addr *error_node_ip, uint8_t fla
     rsvp_header->class_num = 6;
     rsvp_header->length = htons(rsvp_length);
 
-    struct rsvp_error_spec_ipv6 * error_spec = (struct rsvp_error_spec_ipv6 *) &(tlv->value[4]);
+    struct rsvp_error_spec_ipv6 * error_spec = (struct rsvp_error_spec_ipv6 *) &(tlv->value[1]);
     error_spec->error_node_ip.__in6_u.__u6_addr32[0] = htonl(error_node_ip->__in6_u.__u6_addr32[0]);
     error_spec->error_node_ip.__in6_u.__u6_addr32[1] = htonl(error_node_ip->__in6_u.__u6_addr32[1]);
     error_spec->error_node_ip.__in6_u.__u6_addr32[2] = htonl(error_node_ip->__in6_u.__u6_addr32[2]);
