@@ -107,7 +107,6 @@ int build_fd_sets(pcep_socket_comm_handle *socket_comm_handle)
 
 void handle_reads(pcep_socket_comm_handle *socket_comm_handle)
 {
-    pthread_mutex_lock(&(socket_comm_handle->socket_comm_mutex));
 
     /*
      * iterate all the socket_fd's in the read_list. it may be that not
@@ -115,13 +114,23 @@ void handle_reads(pcep_socket_comm_handle *socket_comm_handle)
      * from the read_list since messages could come at any time.
      */
 
+    /* Notice: Only locking the mutex when accessing the read_list,
+     * since the read callbacks may end up calling back into the socket
+     * comm module to write messages which could be a deadlock. */
+    pthread_mutex_lock(&(socket_comm_handle->socket_comm_mutex));
     ordered_list_node *node = socket_comm_handle->read_list->head;
-    pcep_socket_comm_session *comm_session;
+    pthread_mutex_unlock(&(socket_comm_handle->socket_comm_mutex));
+
     while (node != NULL)
     {
-        comm_session = (pcep_socket_comm_session *) node->data;
+        pcep_socket_comm_session *comm_session = (pcep_socket_comm_session *) node->data;
+
+        pthread_mutex_lock(&(socket_comm_handle->socket_comm_mutex));
         node = node->next_node;
-        if (FD_ISSET(comm_session->socket_fd, &(socket_comm_handle->read_master_set)))
+        int is_set = FD_ISSET(comm_session->socket_fd, &(socket_comm_handle->read_master_set));
+        pthread_mutex_unlock(&(socket_comm_handle->socket_comm_mutex));
+
+        if (is_set)
         {
             /* either read the message locally, or call the message_ready_handler to read it */
             if (comm_session->message_handler != NULL)
@@ -163,7 +172,9 @@ void handle_reads(pcep_socket_comm_handle *socket_comm_handle)
                 }
 
                 /* stop reading from the socket if its closed */
+                pthread_mutex_lock(&(socket_comm_handle->socket_comm_mutex));
                 ordered_list_remove_first_node_equals(socket_comm_handle->read_list, comm_session);
+                pthread_mutex_unlock(&(socket_comm_handle->socket_comm_mutex));
             }
             else if (comm_session->received_bytes < 0)
             {
@@ -173,8 +184,6 @@ void handle_reads(pcep_socket_comm_handle *socket_comm_handle)
             }
         }
     }
-
-    pthread_mutex_unlock(&(socket_comm_handle->socket_comm_mutex));
 }
 
 

@@ -66,10 +66,19 @@ pcep_configuration *create_default_pcep_configuration()
 {
     pcep_configuration *config = malloc(sizeof(pcep_configuration));
     config->keep_alive_seconds = DEFAULT_CONFIG_KEEP_ALIVE;
+    config->min_keep_alive_seconds = DEFAULT_MIN_CONFIG_KEEP_ALIVE;
+    config->max_keep_alive_seconds = DEFAULT_MAX_CONFIG_KEEP_ALIVE;
+
     config->dead_timer_seconds = DEFAULT_CONFIG_DEAD_TIMER;
+    config->min_dead_timer_seconds = DEFAULT_MIN_CONFIG_DEAD_TIMER;
+    config->max_dead_timer_seconds = DEFAULT_MAX_CONFIG_DEAD_TIMER;
+
     config->request_time_seconds = DEFAULT_CONFIG_REQUEST_TIME;
     config->max_unknown_messages = DEFAULT_CONFIG_MAX_UNKNOWN_MESSAGES;
     config->max_unknown_requests = DEFAULT_CONFIG_MAX_UNKNOWN_REQUESTS;
+
+    config->support_stateful_pce_lsp_update = true;
+    config->support_stateful_pcc_lsp_update = true;
 
     return config;
 }

@@ -187,6 +187,11 @@ pcep_msg_get_next(double_linked_list* list, pcep_message* current, uint8_t type)
         return NULL;
     }
 
+    if (list->head == NULL)
+    {
+        return NULL;
+    }
+
     double_linked_list_node *item;
     for (item = list->head; item != NULL; item = item->next_node) {
         if(item->data == current) continue;
@@ -199,16 +204,21 @@ pcep_msg_get_next(double_linked_list* list, pcep_message* current, uint8_t type)
 }
 
 struct pcep_object_header*
-pcep_obj_get(double_linked_list* list, uint8_t type)
+pcep_obj_get(double_linked_list* list, uint8_t object_class)
 {
     if (list == NULL)
     {
         return NULL;
     }
 
+    if (list->head == NULL)
+    {
+        return NULL;
+    }
+
     double_linked_list_node *obj_item;
     for (obj_item = list->head; obj_item != NULL; obj_item = obj_item->next_node) {
-        if(((struct pcep_object_header *) obj_item->data)->object_class == type) {
+        if(((struct pcep_object_header *) obj_item->data)->object_class == object_class) {
             return (struct pcep_object_header *) obj_item->data;
         }
     }
@@ -217,16 +227,21 @@ pcep_obj_get(double_linked_list* list, uint8_t type)
 }
 
 struct pcep_object_header*
-pcep_obj_get_next(double_linked_list* list, struct pcep_object_header* current, uint8_t type)
+pcep_obj_get_next(double_linked_list* list, struct pcep_object_header* current, uint8_t object_class)
 {
     if (list == NULL || current == NULL)
     {
         return NULL;
     }
 
+    if (list->head == NULL)
+    {
+        return NULL;
+    }
+
     double_linked_list_node *obj_item;
     for (obj_item = list->head; obj_item != NULL; obj_item = obj_item->next_node) {
-        if(((struct pcep_object_header *) obj_item->data)->object_class == type) {
+        if(((struct pcep_object_header *) obj_item->data)->object_class == object_class) {
             return (struct pcep_object_header *) obj_item->data;
         }
     }

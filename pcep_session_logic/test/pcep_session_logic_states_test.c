@@ -45,8 +45,16 @@ void pcep_session_logic_states_test_setup()
     session_logic_handle_->response_msg_list =
             ordered_list_initialize(request_id_compare_function);
 
-    bzero(&event, sizeof(pcep_session_event));
     bzero(&session, sizeof(pcep_session));
+    session.pcc_config.keep_alive_seconds = 5;
+    session.pcc_config.min_keep_alive_seconds = 1;
+    session.pcc_config.max_keep_alive_seconds = 10;
+    session.pcc_config.dead_timer_seconds = 5;
+    session.pcc_config.min_dead_timer_seconds = 1;
+    session.pcc_config.max_dead_timer_seconds = 10;
+    memcpy(&session.pce_config, &session.pcc_config, sizeof(pcep_configuration));
+
+    bzero(&event, sizeof(pcep_session_event));
     event.socket_closed = false;
     event.session = &session;
 

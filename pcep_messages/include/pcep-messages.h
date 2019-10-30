@@ -71,6 +71,7 @@ struct pcep_header
 #define PCEP_COMMON_HEADER_VER_FLAGS 0x20
 
 struct pcep_header*     pcep_msg_create_open            (uint8_t keepalive, uint8_t deadtimer, uint8_t sid);
+struct pcep_header*     pcep_msg_create_open_with_tlvs  (uint8_t keepalive, uint8_t deadtimer, uint8_t sid, double_linked_list *tlv_list);
 struct pcep_header*     pcep_msg_create_request         (struct pcep_object_rp *rp,  struct pcep_object_endpoints_ipv4 *enpoints, struct pcep_object_bandwidth *bandwidth);
 struct pcep_header*     pcep_msg_create_request_svec    (struct pcep_header **requests, uint16_t request_count, float disjointness);
 struct pcep_header*     pcep_msg_create_response_nopath (struct pcep_object_rp *rp,  struct pcep_object_nopath *nopath);

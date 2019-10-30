@@ -4,4 +4,6 @@
 .settings/
 **/*.o
 **/lib*.a
+**/obj
 build/*
+/build/

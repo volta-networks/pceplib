@@ -29,6 +29,7 @@
 #include <netinet/in.h> // struct in_addr
 
 #include "pcep_utils_double_linked_list.h"
+#include "pcep-tlvs.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -72,21 +73,13 @@ enum pcep_object_types
     PCEP_OBJ_TYPE_BANDWIDTH_TELSP = 2,
 
     PCEP_OBJ_TYPE_METRIC = 1,
-
     PCEP_OBJ_TYPE_ERO = 1,
-
     PCEP_OBJ_TYPE_RRO = 1,
-
     PCEP_OBJ_TYPE_LSPA = 1,
-
     PCEP_OBJ_TYPE_IRO = 1,
-
     PCEP_OBJ_TYPE_SVEC = 1,
-
     PCEP_OBJ_TYPE_NOTF = 1,
-
     PCEP_OBJ_TYPE_ERROR = 1,
-
     PCEP_OBJ_TYPE_CLOSE = 1
 };
 
@@ -127,14 +120,6 @@ struct pcep_object_rp
     uint32_t rp_reqidnumb;      //The Request-id-number value combined with the source for PCC & PCE creates a uniquely number.
 }__attribute__((packed));
 
-//For future work, optional tlvs in objects
-struct pcep_opt_tlv_uint32
-{
-    uint16_t type;
-    uint16_t length;
-    uint32_t value;
-}__attribute__((packed));
-
 enum pcep_nopath_err_codes {
     PCEP_NOPATH_ERR_UNAVAILABLE = (1 << 0),
     PCEP_NOPATH_ERR_UNKNOWN_DST = (1 << 1),
@@ -147,7 +132,7 @@ struct pcep_object_nopath
     uint8_t ni;         //Nature of Issue, reports the nature of the issue that led to a negative reply
     uint16_t flags;     //One flag is defined: C, when set it indicates that an unsatisfied constraint
     uint8_t reserved;   //Reserved field
-    struct pcep_opt_tlv_uint32 err_code;
+    struct pcep_object_tlv err_code;
 }__attribute__((packed));
 
 struct pcep_object_endpoints_ipv4
@@ -415,6 +400,7 @@ void            pcep_obj_svec_print     (struct pcep_object_svec* obj);
 
 void pcep_unpack_obj_header(struct pcep_object_header* hdr);
 void pcep_unpack_obj_open(struct pcep_object_open *open);
+void pcep_unpack_obj_tlv(struct pcep_object_tlv *tlv);
 void pcep_unpack_obj_rp(struct pcep_object_rp *rp);
 void pcep_unpack_obj_nopath(struct pcep_object_nopath *nopath);
 void pcep_unpack_obj_ep_ipv4(struct pcep_object_endpoints_ipv4 *ep_ipv4);
@@ -429,6 +415,10 @@ void pcep_unpack_obj_close(struct pcep_object_close *close);
 
 void pcep_obj_free_ro          (double_linked_list* ro_list);
 void pcep_obj_free_ro_hop      (double_linked_list* hop_list);
+
+bool pcep_obj_has_tlv(struct pcep_object_header* hdr, uint16_t obj_len);
+struct pcep_object_tlv* pcep_obj_get_next_tlv(struct pcep_object_header *base, struct pcep_object_tlv *current_tlv);
+double_linked_list* pcep_obj_get_tlvs(struct pcep_object_header *base, struct pcep_object_tlv *first_tlv);
 
 #ifdef __cplusplus
 }
