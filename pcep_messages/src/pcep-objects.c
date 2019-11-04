@@ -86,7 +86,8 @@ pcep_obj_create_nopath(uint8_t obj_hdr_flags, uint8_t ni, uint16_t unsat_constr_
     uint16_t flags = (unsat_constr_flag << 15);
     struct pcep_object_nopath *obj;
 
-    buffer_len = sizeof(struct pcep_object_nopath);
+    /* Adding 4 bytes for the TLV value */
+    buffer_len = sizeof(struct pcep_object_nopath) + 4;
     buffer = malloc(sizeof(uint8_t) * buffer_len);
 
     bzero(buffer, buffer_len);
@@ -100,9 +101,9 @@ pcep_obj_create_nopath(uint8_t obj_hdr_flags, uint8_t ni, uint16_t unsat_constr_
     obj->flags = htons(flags);
     obj->reserved = 0;
 
-    obj->err_code.type = htons(1); // Type 1 from IANA
-    obj->err_code.length = htons(sizeof(struct pcep_opt_tlv_uint32));
-    obj->err_code.value = htonl(errorcode);
+    obj->err_code.header.type = htons(1); // Type 1 from IANA
+    obj->err_code.header.length = htons(sizeof(uint32_t));
+    obj->err_code.value[0] = htonl(errorcode);
 
     return obj;
 }
@@ -503,7 +504,35 @@ pcep_unpack_obj_header(struct pcep_object_header* hdr)
 void
 pcep_unpack_obj_open(struct pcep_object_open *obj)
 {
-    // nothing to unpack.
+    struct pcep_object_header* obj_header = (struct pcep_object_header*) obj;
+
+    /* Check if the Open has TLVs, and unpack them */
+    if (pcep_obj_has_tlv(obj_header, sizeof(struct pcep_object_open)) == false)
+    {
+        return;
+    }
+
+    struct pcep_object_tlv *tlv = (struct pcep_object_tlv *)
+               (((char *) obj) + sizeof(struct pcep_object_open));
+    while (tlv != NULL)
+    {
+        pcep_unpack_obj_tlv(tlv);
+        tlv = pcep_obj_get_next_tlv(obj_header, tlv);
+    }
+}
+
+void
+pcep_unpack_obj_tlv(struct pcep_object_tlv *tlv)
+{
+    tlv->header.type   = ntohs(tlv->header.type);
+    tlv->header.length = ntohs(tlv->header.length);
+    /*
+    int i;
+    for (i = 0; i < tlv->header.length; i++)
+    {
+        tlv->value[i]  = ntohl(tlv->value[i]);
+    }
+    */
 }
 
 void
@@ -517,11 +546,11 @@ void
 pcep_unpack_obj_nopath(struct pcep_object_nopath *obj)
 {
     obj->flags = ntohs(obj->flags);
-    obj->err_code.type = ntohs(obj->err_code.type);
-    obj->err_code.length = ntohs(obj->err_code.length);
+    obj->err_code.header.type = ntohs(obj->err_code.header.type);
+    obj->err_code.header.length = ntohs(obj->err_code.header.length);
 
-    if(obj->err_code.type == 1) {
-        obj->err_code.value = ntohl(obj->err_code.value);
+    if(obj->err_code.header.type == 1) {
+        obj->err_code.value[0] = ntohl(obj->err_code.value[0]);
     }
 }
 
@@ -596,6 +625,37 @@ void
 pcep_unpack_obj_close(struct pcep_object_close *obj)
 {
     // nothing to unpack.
+}
+
+bool
+pcep_obj_has_tlv(struct pcep_object_header* hdr, uint16_t obj_len)
+{
+    return (hdr->object_length - obj_len) > 0;
+}
+
+struct pcep_object_tlv*
+pcep_obj_get_next_tlv(struct pcep_object_header *base, struct pcep_object_tlv *current_tlv)
+{
+    /* assuming ntohs() has already been called on the current_tlv->length */
+    /* The TLV length is the length of the value, need to also get past the TLV header */
+    char *next_tlv = ((char *) current_tlv) + current_tlv->header.length + 4;
+    return (next_tlv >= (((char *)base) + base->object_length)) ?
+            NULL : (struct pcep_object_tlv*) next_tlv;
+}
+
+double_linked_list*
+pcep_obj_get_tlvs(struct pcep_object_header *base, struct pcep_object_tlv *first_tlv)
+{
+    double_linked_list *tlv_list = dll_initialize();
+    struct pcep_object_tlv *next_tlv = first_tlv;
+
+    while (next_tlv != NULL)
+    {
+        dll_append(tlv_list, next_tlv);
+        next_tlv = pcep_obj_get_next_tlv(base, next_tlv);
+    }
+
+    return tlv_list;
 }
 
 void

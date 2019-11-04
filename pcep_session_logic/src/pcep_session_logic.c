@@ -222,8 +222,10 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
     session->timer_id_pc_req_wait = TIMER_ID_NOT_SET;
     session->timer_id_dead_timer = TIMER_ID_NOT_SET;
     session->timer_id_keep_alive = TIMER_ID_NOT_SET;
+    session->stateful_pce = false;
     session->num_erroneous_messages = 0;
     session->pcep_open_received = false;
+    session->pcep_open_rejected = false;
     session->destroy_session_after_write = false;
     memcpy(&(session->pcc_config), config, sizeof(pcep_configuration));
     /* copy the pcc_config to the pce_config until we receive the open keep_alive response */
@@ -257,10 +259,26 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
     /* create and send PCEP open
      * with PCEP, the PCC sends the config the PCE should use in the open message,
      * and the PCE will send an open with the config the PCC should use. */
-    struct pcep_header* open_msg =
-            pcep_msg_create_open(session->pcc_config.keep_alive_seconds,
-                                 session->pcc_config.dead_timer_seconds,
-                                 session->session_id);
+    struct pcep_header* open_msg;
+    if (session->pcc_config.support_stateful_pcc_lsp_update == true)
+    {
+        double_linked_list *tlv_list = dll_initialize();
+        dll_append(tlv_list,
+            pcep_tlv_create_stateful_pce_capability(PCEP_TLV_FLAG_LSP_UPDATE_CAPABILITY));
+        dll_append(tlv_list,
+            pcep_tlv_create_sr_pce_capability(PCEP_TLV_FLAG_NO_MSD_LIMITS, 8));
+        open_msg = pcep_msg_create_open_with_tlvs(
+                session->pcc_config.keep_alive_seconds,
+                session->pcc_config.dead_timer_seconds,
+                session->session_id,
+                tlv_list);
+    }
+    else
+    {
+        open_msg = pcep_msg_create_open(session->pcc_config.keep_alive_seconds,
+                                        session->pcc_config.dead_timer_seconds,
+                                        session->session_id);
+    }
     socket_comm_session_send_message(session->socket_comm_session,
                                      (char *) open_msg,
                                      ntohs(open_msg->length),

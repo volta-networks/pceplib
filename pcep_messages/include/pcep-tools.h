@@ -67,8 +67,8 @@ double_linked_list*          pcep_msg_read    (int sock_fd);
 pcep_message*                pcep_msg_get     (double_linked_list* msg_list, uint8_t type);
 /* Given a double linked list of PCEP messages, return the next node after current node that has the same message type */
 pcep_message*                pcep_msg_get_next(double_linked_list *msg_list, pcep_message* current, uint8_t type);
-struct pcep_object_header*   pcep_obj_get     (double_linked_list* list, uint8_t type);
-struct pcep_object_header*   pcep_obj_get_next(double_linked_list *list, struct pcep_object_header* current, uint8_t type);
+struct pcep_object_header*   pcep_obj_get     (double_linked_list* list, uint8_t object_class);
+struct pcep_object_header*   pcep_obj_get_next(double_linked_list *list, struct pcep_object_header* current, uint8_t object_class);
 void                         pcep_msg_free    (double_linked_list* list);
 void                         pcep_msg_print   (double_linked_list* list);
 int                          pcep_msg_send    (int sock_fd, struct pcep_header* hdr);

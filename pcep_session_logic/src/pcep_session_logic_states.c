@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "pcep_timers.h"
 #include "pcep_session_logic.h"
@@ -35,6 +36,50 @@ void send_keep_alive(pcep_session *session)
 
     /* The keep alive timer will be (re)set once the message
      * is sent in session_logic_message_sent_handler() */
+}
+
+
+/* Send an error message with the "corrected" open object */
+void send_pcep_open_error(pcep_session *session, struct pcep_object_open *open_obj)
+{
+    uint8_t *buffer;
+    uint16_t buffer_len;
+    struct pcep_object_error *error_obj;
+    struct pcep_header *hdr;
+
+    error_obj = pcep_obj_create_error(PCEP_ERRT_SESSION_FAILURE, PCEP_ERRV_RECVD_INVALID_OPEN_MSG);
+
+    buffer_len = sizeof(struct pcep_header) +
+            ntohs(open_obj->header.object_length) +
+            ntohs(error_obj->header.object_length);
+    buffer = malloc(sizeof(uint8_t) * buffer_len);
+    bzero(buffer, buffer_len);
+
+    hdr = (struct pcep_header*) buffer;
+    hdr->length = htons(buffer_len);
+    hdr->type = PCEP_TYPE_ERROR;
+    hdr->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
+
+    memcpy(buffer + sizeof(struct pcep_header), error_obj, ntohs(error_obj->header.object_length));
+    memcpy(buffer + sizeof(struct pcep_header) + ntohs(error_obj->header.object_length),
+           open_obj, ntohs(open_obj->header.object_length));
+
+    /* The open_obj will be freed when the received open message is freed */
+    free(error_obj);
+}
+
+
+void send_pcep_error(pcep_session *session, enum pcep_error_type error_type, enum pcep_error_value error_value)
+{
+    struct pcep_header* error_msg = pcep_msg_create_error(error_type, error_value);
+    socket_comm_session_send_message(
+            session->socket_comm_session,
+            (char *) error_msg,
+            ntohs(error_msg->length),
+            true);
+
+    printf("[%ld-%ld] pcep_session_logic send error message [%d][%d] len [%d] for session_id [%d]\n",
+            time(NULL), pthread_self(), error_type, error_value, ntohs(error_msg->length), session->session_id);
 }
 
 
@@ -105,6 +150,147 @@ void update_response_message(pcep_session *session, pcep_message *received_msg)
     clock_gettime(CLOCK_REALTIME, &msg_response->time_response_received);
     pthread_cond_signal(&msg_response->response_cond_var);
     pthread_mutex_unlock(&msg_response->response_mutex);
+}
+
+
+/* Verify the received PCEP Open object parameters are acceptable. If not,
+ * update the unacceptable value(s) with an acceptable value so it can be sent
+ * back to the sender. */
+bool verify_pcep_open(pcep_session *session, struct pcep_object_open *open_object)
+{
+    int retval = true;
+
+    if (open_object->open_keepalive < session->pcc_config.min_keep_alive_seconds)
+    {
+        printf("WARN rejecting unsupported Open Keep Alive value [%d] min [%d]\n",
+               open_object->open_keepalive, session->pcc_config.min_keep_alive_seconds);
+        open_object->open_keepalive =
+                session->pcc_config.min_keep_alive_seconds;
+        retval = false;
+    }
+    else if (open_object->open_keepalive > session->pcc_config.max_keep_alive_seconds)
+    {
+        printf("WARN rejecting unsupported Open Keep Alive value [%d] max [%d]\n",
+               open_object->open_keepalive, session->pcc_config.max_keep_alive_seconds);
+        open_object->open_keepalive =
+                session->pcc_config.max_keep_alive_seconds;
+        retval = false;
+    }
+
+    if (open_object->open_deadtimer < session->pcc_config.min_dead_timer_seconds)
+    {
+        printf("WARN rejecting unsupported Open Dead Timer value [%d]\n",
+               open_object->open_deadtimer);
+        open_object->open_deadtimer =
+                session->pcc_config.min_dead_timer_seconds;
+        retval = false;
+    }
+    else if (open_object->open_keepalive > session->pcc_config.max_dead_timer_seconds)
+    {
+        printf("WARN rejecting unsupported Open Dead Timer value [%d]\n",
+               open_object->open_deadtimer);
+        open_object->open_deadtimer =
+                session->pcc_config.max_dead_timer_seconds;
+        retval = false;
+    }
+
+    /* Check for Open Object TLVs */
+    if (pcep_obj_has_tlv((struct pcep_object_header*) open_object, sizeof(struct pcep_object_open)) == false)
+    {
+        /* There are no TLVs, all done */
+        return retval;
+    }
+
+    double_linked_list *tlv_list = pcep_obj_get_tlvs(
+            (struct pcep_object_header *) open_object,
+            (struct pcep_object_tlv *) (((char *) open_object) + sizeof(struct pcep_object_open)));
+
+    double_linked_list_node *tlv_node = tlv_list->head;
+    for (; tlv_node != NULL; tlv_node = tlv_node->next_node)
+    {
+        struct pcep_object_tlv *tlv = tlv_node->data;
+
+        /* Check for the STATEFUL-PCE-CAPABILITY TLV */
+        if (tlv->header.type == PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY)
+        {
+            /* If the U flag is set, then the PCE is
+             * capable of updating LSP parameters */
+            if (tlv->value[0] & PCEP_TLV_FLAG_LSP_UPDATE_CAPABILITY)
+            {
+                if (session->pce_config.support_stateful_pce_lsp_update == false)
+                {
+                    /* Turn off the U bit, as it is not supported */
+                    printf("WARN rejecting unsupported Open STATEFUL-PCE-CAPABILITY TLV\n");
+                    tlv->value[0] &= ~PCEP_TLV_FLAG_LSP_UPDATE_CAPABILITY;
+                    retval = false;
+                }
+                else
+                {
+                    session->stateful_pce  = true;
+                    printf("Setting PCEP session [%d] STATEFUL to support LSP updates\n",
+                            session->session_id);
+                }
+            }
+            /* TODO TODO how to handle unrecognized TLV ??
+            else { } */
+        }
+    }
+    dll_destroy(tlv_list);
+
+    return retval;
+}
+
+
+void handle_pcep_open(pcep_session *session, pcep_message *open_msg)
+{
+    if (session->pcep_open_received == true)
+    {
+        /* TODO when this reaches a MAX, need to react */
+        session->num_erroneous_messages++;
+        return;
+    }
+
+    struct pcep_object_open *open_object =
+            (struct pcep_object_open *) pcep_obj_get(open_msg->obj_list, PCEP_OBJ_CLASS_OPEN);
+    if (open_object == NULL)
+    {
+        /* TODO when this reaches a MAX, need to react */
+        session->num_erroneous_messages++;
+        return;
+    }
+
+    /* Verify the open object parameters */
+    if (verify_pcep_open(session, open_object) == false)
+    {
+        if (session->pcep_open_rejected)
+        {
+            /* The Open message was already rejected once, so according to
+             * the spec, send an error message and close the TCP connection. */
+            send_pcep_error(session, PCEP_ERRT_SESSION_FAILURE, PCEP_ERRV_RECVD_INVALID_OPEN_MSG);
+            socket_comm_session_close_tcp_after_write(session->socket_comm_session);
+            session->session_state = SESSION_STATE_INITIALIZED;
+        }
+        else
+        {
+            session->pcep_open_rejected = true;
+            send_pcep_open_error(session, open_object);
+        }
+
+        return;
+    }
+
+    /* Check for additional Open Msg objects */
+    if (open_msg->obj_list->num_entries > 1)
+    {
+        /* TODO finish this */
+        printf("There are additional objects in the Open message\n");
+    }
+
+    session->pce_config.dead_timer_seconds = open_object->open_deadtimer;
+    session->pce_config.keep_alive_seconds = open_object->open_keepalive;
+    session->pcep_open_received = true;
+    reset_dead_timer(session);
+    send_keep_alive(session);
 }
 
 
@@ -224,29 +410,8 @@ void handle_socket_comm_event(pcep_session_event *event)
         {
         case PCEP_TYPE_OPEN:
             printf("\t PCEP_OPEN message\n");
+            handle_pcep_open(session, msg);
 
-            if (session->pcep_open_received == false)
-            {
-                if (msg->obj_list == NULL || msg->obj_list->head == NULL)
-                {
-                    /* TODO when this reaches a MAX, need to react */
-                    session->num_erroneous_messages++;
-                    continue;
-                }
-
-                struct pcep_object_open *open_object =
-                        (struct pcep_object_open *) (msg->obj_list->head->data);
-                session->pce_config.dead_timer_seconds = open_object->open_deadtimer;
-                session->pce_config.keep_alive_seconds = open_object->open_keepalive;
-                session->pcep_open_received = true;
-                reset_dead_timer(session);
-                send_keep_alive(session);
-            }
-            else
-            {
-                /* TODO when this reaches a MAX, need to react */
-                session->num_erroneous_messages++;
-            }
             break;
 
         case PCEP_TYPE_KEEPALIVE:

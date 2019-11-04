@@ -19,6 +19,12 @@
 #define DEFAULT_CONFIG_MAX_UNKNOWN_REQUESTS 5
 #define DEFAULT_CONFIG_MAX_UNKNOWN_MESSAGES 5
 
+/* Acceptable MIN and MAX values used in deciding if the PCEP
+ * Open received from a PCE should be accepted or rejected. */
+#define DEFAULT_MIN_CONFIG_KEEP_ALIVE 5
+#define DEFAULT_MAX_CONFIG_KEEP_ALIVE 120
+#define DEFAULT_MIN_CONFIG_DEAD_TIMER DEFAULT_MIN_CONFIG_KEEP_ALIVE * 4
+#define DEFAULT_MAX_CONFIG_DEAD_TIMER DEFAULT_MAX_CONFIG_KEEP_ALIVE * 4
 
 typedef struct pcep_pce_reply_
 {

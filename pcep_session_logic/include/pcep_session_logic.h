@@ -18,11 +18,28 @@
 
 typedef struct pcep_configuration_
 {
+    /* These are the configuration values that will
+     * be sent to the PCE in the PCEP Open message */
     int keep_alive_seconds;
     int dead_timer_seconds;
     int request_time_seconds;
     int max_unknown_requests;
     int max_unknown_messages;
+
+    /* These are the acceptable ranges of values received by
+     * the PCE in the initial PCEP Open Message. If a value is
+     * received outside of these ranges, then the Open message
+     * will be rejected. */
+    int min_keep_alive_seconds;
+    int max_keep_alive_seconds;
+    int min_dead_timer_seconds;
+    int max_dead_timer_seconds;
+
+    /* Set if the PCE/PCC will support stateful PCE LSP Updates
+     * according to RCF8231, section 7.1.1, defaults to true */
+    bool support_stateful_pce_lsp_update;
+    /* Send an additional TLV in PCEP Open */
+    bool support_stateful_pcc_lsp_update;
 
 } pcep_configuration;
 
@@ -125,7 +142,10 @@ typedef struct pcep_session_
     int timer_id_dead_timer;
     int timer_id_keep_alive;
     bool pcep_open_received;
+    bool pcep_open_rejected;
+    bool stateful_pce;
     int num_erroneous_messages;
+    /* set this flag when finalizing the session */
     bool destroy_session_after_write;
     pcep_socket_comm_session *socket_comm_session;
     /* Configuration sent from the PCC to the PCE */

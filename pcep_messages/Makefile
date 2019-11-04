@@ -21,10 +21,10 @@ _DEPS = *.h
 DEPS = $(patsubst %,$(INC_DIR)/%,$(_DEPS))
 EXTERNAL_DEPS = $(patsubst %,$(PCEP_UTILS_INC_DIR)/%,$(_DEPS))
 
-_OBJ = pcep-messages.o pcep-objects.o pcep-tools.o
+_OBJ = pcep-messages.o pcep-objects.o pcep-tools.o pcep-tlvs.o
 OBJ = $(patsubst %,$(OBJ_DIR)/%,$(_OBJ))
 
-_TEST_OBJ = pcep-messages-tests.o pcep-messages-test.o
+_TEST_OBJ = pcep-messages-tests.o pcep-messages-test.o pcep-tlvs-test.o
 TEST_OBJ = $(patsubst %,$(TEST_DIR)/%,$(_TEST_OBJ))
 
 all: $(LIB) $(TEST_BIN)
@@ -39,7 +39,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(DEPS) $(EXTERNAL_DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(TEST_BIN): $(TEST_OBJ) $(LIB)
-	$(CC) -o $@ $(TEST_OBJ) $(CFLAGS) -static $(TEST_LIB_DIRS) $(TEST_LIBS)
+	$(CC) -o $@ $(TEST_OBJ) $(CFLAGS) $(TEST_LIB_DIRS) $(TEST_LIBS)
 
 $(TEST_DIR)/%.o: $(TEST_DIR)/%.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
