@@ -31,21 +31,29 @@
 #include "pcep_utils_double_linked_list.h"
 #include "pcep-objects.h"
 
+/* Internal common function used to create a pcep_object and populate the header */
+static struct pcep_object_header*
+pcep_obj_create_common(uint16_t buffer_len, uint8_t object_class, uint8_t object_type)
+{
+    uint8_t *buffer = malloc(buffer_len);
+    bzero(buffer, buffer_len);
+
+    struct pcep_object_header *hdr = (struct pcep_object_header *) buffer;
+    hdr->object_class = object_class;
+    hdr->object_type = object_type;
+    hdr->object_length = htons(buffer_len);
+
+    return hdr;
+}
+
 struct pcep_object_open*
 pcep_obj_create_open(uint8_t keepalive, uint8_t deadtimer, uint8_t sid)
 {
-    uint8_t *buffer;
-    uint16_t buffer_len = sizeof(struct pcep_object_open);
-    struct pcep_object_open *open;
+    struct pcep_object_open *open =
+            (struct pcep_object_open *) pcep_obj_create_common(
+                    sizeof(struct pcep_object_open),
+                    PCEP_OBJ_CLASS_OPEN, PCEP_OBJ_TYPE_OPEN);
 
-    buffer = malloc(sizeof(uint8_t) * buffer_len);
-
-    bzero(buffer, buffer_len);
-
-    open = (struct pcep_object_open*) buffer;
-    open->header.object_class = PCEP_OBJ_CLASS_OPEN;
-    open->header.object_type = PCEP_OBJ_TYPE_OPEN;
-    open->header.object_length = htons(sizeof(struct pcep_object_open));
     open->open_ver_flags = 1<<5;        // PCEP version. Current version is 1 /No flags are currently defined.
     open->open_keepalive = keepalive;   // Maximum period of time between two consecutive PCEP messages sent by the sender.
     open->open_deadtimer = deadtimer;   // Specifies the amount of time before closing the session down.
@@ -57,21 +65,12 @@ pcep_obj_create_open(uint8_t keepalive, uint8_t deadtimer, uint8_t sid)
 struct pcep_object_rp*
 pcep_obj_create_rp(uint8_t obj_hdr_flags, uint32_t obj_flags, uint32_t reqid)
 {
-    uint8_t *buffer;
-    uint16_t buffer_len;
-    struct pcep_object_rp *obj;
+    struct pcep_object_rp *obj =
+            (struct pcep_object_rp *) pcep_obj_create_common(
+                    sizeof(struct pcep_object_rp),
+                    PCEP_OBJ_CLASS_RP, PCEP_OBJ_TYPE_RP);
 
-    buffer_len = sizeof(struct pcep_object_rp);
-    buffer = malloc(sizeof(uint8_t) * buffer_len);
-
-    bzero(buffer, buffer_len);
-
-    obj = (struct pcep_object_rp*) buffer;
-    obj->header.object_class = PCEP_OBJ_CLASS_RP;
-    obj->header.object_type = PCEP_OBJ_TYPE_RP;
     obj->header.object_flags = obj_hdr_flags;
-    obj->header.object_length = htons(buffer_len);
-
     obj->rp_flags = obj_flags;  //|O|B|R|Pri|
     obj->rp_reqidnumb = htonl(reqid); //Set the request id
 
@@ -81,26 +80,15 @@ pcep_obj_create_rp(uint8_t obj_hdr_flags, uint32_t obj_flags, uint32_t reqid)
 struct pcep_object_nopath*
 pcep_obj_create_nopath(uint8_t obj_hdr_flags, uint8_t ni, uint16_t unsat_constr_flag, uint32_t errorcode)
 {
-    uint8_t *buffer;
-    uint16_t buffer_len;
-    uint16_t flags = (unsat_constr_flag << 15);
-    struct pcep_object_nopath *obj;
+    struct pcep_object_nopath *obj =
+            (struct pcep_object_nopath *) pcep_obj_create_common(
+                    sizeof(struct pcep_object_nopath) + 4, /* Adding 4 bytes for the TLV value */
+                    PCEP_OBJ_CLASS_NOPATH, PCEP_OBJ_TYPE_NOPATH);
 
-    /* Adding 4 bytes for the TLV value */
-    buffer_len = sizeof(struct pcep_object_nopath) + 4;
-    buffer = malloc(sizeof(uint8_t) * buffer_len);
-
-    bzero(buffer, buffer_len);
-
-    obj = (struct pcep_object_nopath*) buffer;
-    obj->header.object_class = PCEP_OBJ_CLASS_NOPATH;
-    obj->header.object_type = PCEP_OBJ_TYPE_NOPATH;
     obj->header.object_flags = obj_hdr_flags;
-    obj->header.object_length = htons(buffer_len);
     obj->ni = ni;
-    obj->flags = htons(flags);
+    obj->flags = htons(unsat_constr_flag << 15);
     obj->reserved = 0;
-
     obj->err_code.header.type = htons(1); // Type 1 from IANA
     obj->err_code.header.length = htons(sizeof(uint32_t));
     obj->err_code.value[0] = htonl(errorcode);
@@ -111,23 +99,18 @@ pcep_obj_create_nopath(uint8_t obj_hdr_flags, uint8_t ni, uint16_t unsat_constr_
 struct pcep_object_endpoints_ipv4*
 pcep_obj_create_enpoint_ipv4(const struct in_addr* src_ipv4, const struct in_addr* dst_ipv4)
 {
-    uint8_t *buffer;
-    uint16_t buffer_len;
-    struct pcep_object_endpoints_ipv4 *obj;
+    if (src_ipv4 == NULL || dst_ipv4 == NULL)
+    {
+        return NULL;
+    }
 
-    buffer_len = sizeof(struct pcep_object_endpoints_ipv4);
-    buffer = malloc(sizeof(uint8_t) * buffer_len);
+    struct pcep_object_endpoints_ipv4 *obj =
+            (struct pcep_object_endpoints_ipv4 *) pcep_obj_create_common(
+                    sizeof(struct pcep_object_endpoints_ipv4),
+                    PCEP_OBJ_CLASS_ENDPOINTS, PCEP_OBJ_TYPE_ENDPOINT_IPV4);
 
-    bzero(buffer, buffer_len);
-
-    obj = (struct pcep_object_endpoints_ipv4*) buffer;
-    obj->header.object_class = PCEP_OBJ_CLASS_ENDPOINTS;
-    obj->header.object_type = PCEP_OBJ_TYPE_ENDPOINT_IPV4;
-    obj->header.object_flags = 0;
-    obj->header.object_length = htons(buffer_len);
-
-    memcpy(&obj->src_ipv4, src_ipv4, sizeof(struct in_addr));
-    memcpy(&obj->dst_ipv4, dst_ipv4, sizeof(struct in_addr));
+    obj->src_ipv4.s_addr = htonl(src_ipv4->s_addr);
+    obj->dst_ipv4.s_addr = htonl(dst_ipv4->s_addr);
 
     return obj;
 }
@@ -135,23 +118,25 @@ pcep_obj_create_enpoint_ipv4(const struct in_addr* src_ipv4, const struct in_add
 struct pcep_object_endpoints_ipv6*
 pcep_obj_create_enpoint_ipv6(const struct in6_addr* src_ipv6, const struct in6_addr* dst_ipv6)
 {
-    uint8_t *buffer;
-    uint16_t buffer_len;
-    struct pcep_object_endpoints_ipv6 *obj;
+    if (src_ipv6 == NULL || dst_ipv6 == NULL)
+    {
+        return NULL;
+    }
 
-    buffer_len = sizeof(struct pcep_object_endpoints_ipv6);
-    buffer = malloc(sizeof(uint8_t) * buffer_len);
+    struct pcep_object_endpoints_ipv6 *obj =
+            (struct pcep_object_endpoints_ipv6 *) pcep_obj_create_common(
+                    sizeof(struct pcep_object_endpoints_ipv6),
+                    PCEP_OBJ_CLASS_ENDPOINTS, PCEP_OBJ_TYPE_ENDPOINT_IPV6);
 
-    bzero(buffer, buffer_len);
+    obj->src_ipv6.__in6_u.__u6_addr32[0] = htonl(src_ipv6->__in6_u.__u6_addr32[0]);
+    obj->src_ipv6.__in6_u.__u6_addr32[1] = htonl(src_ipv6->__in6_u.__u6_addr32[1]);
+    obj->src_ipv6.__in6_u.__u6_addr32[2] = htonl(src_ipv6->__in6_u.__u6_addr32[2]);
+    obj->src_ipv6.__in6_u.__u6_addr32[3] = htonl(src_ipv6->__in6_u.__u6_addr32[3]);
 
-    obj = (struct pcep_object_endpoints_ipv6*) buffer;
-    obj->header.object_class = PCEP_OBJ_CLASS_ENDPOINTS;
-    obj->header.object_type = PCEP_OBJ_TYPE_ENDPOINT_IPV6;
-    obj->header.object_flags = 0;
-    obj->header.object_length = htons(buffer_len);
-
-    memcpy(&obj->src_ipv6, src_ipv6, sizeof(struct in6_addr));
-    memcpy(&obj->dst_ipv6, dst_ipv6, sizeof(struct in6_addr));
+    obj->dst_ipv6.__in6_u.__u6_addr32[0] = htonl(dst_ipv6->__in6_u.__u6_addr32[0]);
+    obj->dst_ipv6.__in6_u.__u6_addr32[1] = htonl(dst_ipv6->__in6_u.__u6_addr32[1]);
+    obj->dst_ipv6.__in6_u.__u6_addr32[2] = htonl(dst_ipv6->__in6_u.__u6_addr32[2]);
+    obj->dst_ipv6.__in6_u.__u6_addr32[3] = htonl(dst_ipv6->__in6_u.__u6_addr32[3]);
 
     return obj;
 }
@@ -159,20 +144,11 @@ pcep_obj_create_enpoint_ipv6(const struct in6_addr* src_ipv6, const struct in6_a
 struct pcep_object_bandwidth*
 pcep_obj_create_bandwidth(float bandwidth)
 {
-    uint8_t *buffer;
-    uint16_t buffer_len;
-    struct pcep_object_bandwidth *obj;
+    struct pcep_object_bandwidth *obj =
+            (struct pcep_object_bandwidth *) pcep_obj_create_common(
+                    sizeof(struct pcep_object_bandwidth),
+                    PCEP_OBJ_CLASS_BANDWIDTH, PCEP_OBJ_TYPE_BANDWIDTH_REQ);
 
-    buffer_len = sizeof(struct pcep_object_bandwidth);
-    buffer = malloc(sizeof(uint8_t) * buffer_len);
-
-    bzero(buffer, buffer_len);
-
-    obj = (struct pcep_object_bandwidth*) buffer;
-    obj->header.object_class = PCEP_OBJ_CLASS_BANDWIDTH;
-    obj->header.object_type = PCEP_OBJ_TYPE_BANDWIDTH_REQ;
-    obj->header.object_flags = 0;
-    obj->header.object_length = htons(buffer_len);
     obj->bandwidth = bandwidth;
 
     return obj;
@@ -181,23 +157,152 @@ pcep_obj_create_bandwidth(float bandwidth)
 struct pcep_object_metric*
 pcep_obj_create_metric(uint8_t flags, uint8_t type, float value)
 {
-    uint8_t *buffer;
-    uint16_t buffer_len;
-    struct pcep_object_metric *obj;
+    struct pcep_object_metric *obj =
+            (struct pcep_object_metric*) pcep_obj_create_common(
+                    sizeof(struct pcep_object_metric),
+                    PCEP_OBJ_CLASS_METRIC, PCEP_OBJ_TYPE_METRIC);
 
-    buffer_len = sizeof(struct pcep_object_metric);
-    buffer = malloc(sizeof(uint8_t) * buffer_len);
-
-    bzero(buffer, buffer_len);
-
-    obj = (struct pcep_object_metric*) buffer;
-    obj->header.object_class = PCEP_OBJ_CLASS_METRIC;
-    obj->header.object_type = PCEP_OBJ_TYPE_METRIC;
-    obj->header.object_flags = 0;
-    obj->header.object_length = htons(buffer_len);
     obj->flags = flags;
-    obj->type = type;
+    obj->type  = type;
     obj->value = value;
+
+    return obj;
+}
+
+struct pcep_object_lspa*
+pcep_obj_create_lspa(uint8_t prio, uint8_t hold_prio)
+{
+    struct pcep_object_lspa *obj =
+            (struct pcep_object_lspa*) pcep_obj_create_common(
+                    sizeof(struct pcep_object_lspa),
+                    PCEP_OBJ_CLASS_LSPA, PCEP_OBJ_TYPE_LSPA);
+
+    obj->lspa_prio = prio;
+    obj->lspa_holdprio = hold_prio;
+
+    return obj;
+}
+
+uint32_t*
+pcep_obj_svec_get(struct pcep_object_svec* obj, uint16_t *length)
+{
+    uint8_t *buff = (uint8_t*) obj;
+
+    *length = (obj->header.object_length - sizeof(struct pcep_object_svec)) / sizeof(uint32_t);
+
+    return (uint32_t*)(buff + sizeof(struct pcep_object_svec));
+}
+
+void
+pcep_obj_svec_print(struct pcep_object_svec* obj)
+{
+    uint16_t len;
+    uint32_t i = 0;
+    uint32_t *array = pcep_obj_svec_get(obj, &len);
+
+    printf("PCEP_OBJ_CLASS_SVEC request IDs:\n");
+
+    for(i = 0; i < len; i++) {
+        printf("\tID: 0x%x\n", array[i]);
+    }
+}
+
+struct pcep_object_svec*
+pcep_obj_create_svec(bool srlg, bool node, bool link, uint16_t ids_count, uint32_t *ids)
+{
+    if (ids == NULL)
+    {
+        return NULL;
+    }
+
+    struct pcep_object_svec *obj =
+            (struct pcep_object_svec*) pcep_obj_create_common(
+                    sizeof(struct pcep_object_svec) + (ids_count*sizeof(uint32_t)),
+                    PCEP_OBJ_CLASS_SVEC, PCEP_OBJ_TYPE_SVEC);
+
+    obj->flag_srlg = (srlg == true ? 1 : 0);
+    obj->flag_node = (node == true ? 1 : 0);
+    obj->flag_link = (link == true ? 1 : 0);
+
+    uint32_t i;
+    uint32_t *svec_ids = (uint32_t *) (((uint8_t *) obj) + sizeof(struct pcep_object_svec));
+    for(i = 0; i < ids_count; i++) {
+        svec_ids[i] = htonl(ids[i]);
+    }
+
+    return obj;
+}
+
+struct pcep_object_error*
+pcep_obj_create_error(uint8_t error_type, uint8_t error_value)
+{
+    struct pcep_object_error *obj =
+            (struct pcep_object_error*) pcep_obj_create_common(
+                    sizeof(struct pcep_object_error),
+                    PCEP_OBJ_CLASS_ERROR, PCEP_OBJ_TYPE_ERROR);
+
+    obj->error_type = error_type;
+    obj->error_value = error_value;
+
+    return obj;
+}
+
+struct pcep_object_close*
+pcep_obj_create_close(uint8_t flags, uint8_t reason)
+{
+    struct pcep_object_close *obj =
+            (struct pcep_object_close*) pcep_obj_create_common(
+                    sizeof(struct pcep_object_close),
+                    PCEP_OBJ_CLASS_CLOSE, PCEP_OBJ_TYPE_CLOSE);
+
+    obj->flags = flags;
+    obj->reason = reason;
+
+    return obj;
+}
+
+struct pcep_object_srp*
+pcep_obj_create_srp(bool lsp_remove, uint32_t srp_id_number)
+{
+    struct pcep_object_srp *obj =
+            (struct pcep_object_srp*) pcep_obj_create_common(
+                    sizeof(struct pcep_object_srp),
+                    PCEP_OBJ_CLASS_SRP, PCEP_OBJ_TYPE_SRP);
+
+    obj->lsp_remove = (lsp_remove == true ? 1 : 0);
+    obj->srp_id_number = htonl(srp_id_number);
+
+    return obj;
+}
+
+struct pcep_object_lsp*
+pcep_obj_create_lsp(uint32_t plsp_id, enum pcep_lsp_operational_status status,
+                    bool c_flag, bool a_flag, bool r_flag, bool s_flag, bool d_flag)
+{
+    /* The plsp_id is only 20 bits */
+    if (plsp_id > 0x000fffff)
+    {
+        return NULL;
+    }
+
+    /* The status is only 20 bits */
+    if (status > 7)
+    {
+        return NULL;
+    }
+
+    struct pcep_object_lsp *obj =
+            (struct pcep_object_lsp*) pcep_obj_create_common(
+                    sizeof(struct pcep_object_lsp),
+                    PCEP_OBJ_CLASS_LSP, PCEP_OBJ_TYPE_LSP);
+
+    obj->plsp_id = plsp_id;
+    obj->o_flag = status;
+    obj->c_flag = (c_flag == true ? 1 : 0);
+    obj->a_flag = (a_flag == true ? 1 : 0);
+    obj->r_flag = (r_flag == true ? 1 : 0);
+    obj->s_flag = (s_flag == true ? 1 : 0);
+    obj->d_flag = (d_flag == true ? 1 : 0);
 
     return obj;
 }
@@ -214,11 +319,14 @@ pcep_obj_create_common_route_object(double_linked_list* ro_list)
     struct pcep_object_route_object *route_object = malloc(sizeof(struct pcep_object_route_object));
     bzero(route_object, sizeof(struct pcep_object_route_object));
 
-    double_linked_list_node *node;
-    for (node = ro_list->head; node != NULL; node = node->next_node)
+    if (ro_list != NULL)
     {
-        struct pcep_ro_subobj_hdr *subobj = (struct pcep_ro_subobj_hdr*) node->data;
-        buffer_len += subobj->length;
+        double_linked_list_node *node;
+        for (node = ro_list->head; node != NULL; node = node->next_node)
+        {
+            struct pcep_ro_subobj_hdr *subobj = (struct pcep_ro_subobj_hdr*) node->data;
+            buffer_len += subobj->length;
+        }
     }
 
     buffer_len += sizeof(struct pcep_object_ro);
@@ -272,23 +380,28 @@ pcep_obj_create_rroute_object(double_linked_list* rro_list)
 static struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_common()
 {
-    uint8_t *buffer = malloc(sizeof(uint8_t) * sizeof(struct pcep_object_ro_subobj));
+    uint8_t *buffer = malloc(sizeof(struct pcep_object_ro_subobj));
     bzero(buffer, sizeof(struct pcep_object_ro_subobj));
 
     return (struct pcep_object_ro_subobj*) buffer;
 }
 
 struct pcep_object_ro_subobj*
-pcep_obj_create_ro_subobj_unnum(struct in_addr* routerId, uint32_t ifId, uint16_t resv)
+pcep_obj_create_ro_subobj_unnum(struct in_addr* router_id, uint32_t ifId, uint16_t resv)
 {
+    if (router_id == NULL)
+    {
+        return NULL;
+    }
+
     struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_common();
 
     obj->subobj.unnum.header.length = sizeof(struct pcep_ro_subobj_unnum);
     obj->subobj.unnum.header.type = RO_SUBOBJ_TYPE_UNNUM;
     obj->subobj.unnum.ifId = htonl(ifId);
 
-    memcpy(&obj->subobj.unnum.routerId, routerId, sizeof(struct in_addr));
-    memcpy(&obj->subobj.unnum.resv, &resv, sizeof(uint16_t));
+    obj->subobj.unnum.routerId.s_addr = htonl(router_id->s_addr);
+    obj->subobj.unnum.resv = htons(resv);
 
     return obj;
 }
@@ -324,16 +437,21 @@ pcep_obj_create_ro_subobj_border(uint8_t direction, uint8_t swcap_from, uint8_t 
 struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_ipv4(bool loose_hop, const struct in_addr* rro_ipv4, uint8_t prefix_length)
 {
+    if (rro_ipv4 == NULL)
+    {
+        return NULL;
+    }
+
     struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_common();
 
     obj->subobj.ipv4.header.length = sizeof(struct pcep_ro_subobj_ipv4);
     obj->subobj.ipv4.header.type = RO_SUBOBJ_TYPE_IPV4;
     obj->subobj.ipv4.prefix_length = prefix_length;
-    memcpy(&obj->subobj.ipv4.ip_addr, rro_ipv4, sizeof(struct in_addr));
+    obj->subobj.ipv4.ip_addr.s_addr = htonl(rro_ipv4->s_addr);
     if (loose_hop == true)
     {
         // The first bit of the type field is used to specify Loose Hop
-        obj->subobj.ipv4.header.type |= 0x08;
+        obj->subobj.ipv4.header.type |= LOOSE_HOP_BIT;
     }
 
     return obj;
@@ -342,16 +460,24 @@ pcep_obj_create_ro_subobj_ipv4(bool loose_hop, const struct in_addr* rro_ipv4, u
 struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_ipv6(bool loose_hop, const struct in6_addr* rro_ipv6, uint8_t prefix_length)
 {
+    if (rro_ipv6 == NULL)
+    {
+        return NULL;
+    }
+
     struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_common();
 
     obj->subobj.ipv6.header.length = sizeof(struct pcep_ro_subobj_ipv6);
     obj->subobj.ipv6.header.type = RO_SUBOBJ_TYPE_IPV6;
     obj->subobj.ipv6.prefix_length = prefix_length;
-    memcpy(&obj->subobj.ipv6.ip_addr, rro_ipv6, sizeof(struct in6_addr));
+    obj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[0] = htonl(rro_ipv6->__in6_u.__u6_addr32[0]);
+    obj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[1] = htonl(rro_ipv6->__in6_u.__u6_addr32[1]);
+    obj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[2] = htonl(rro_ipv6->__in6_u.__u6_addr32[2]);
+    obj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[3] = htonl(rro_ipv6->__in6_u.__u6_addr32[3]);
     if (loose_hop == true)
     {
         // The first bit of the type field is used to specify Loose Hop
-        obj->subobj.ipv6.header.type |= 0x08;
+        obj->subobj.ipv6.header.type |= LOOSE_HOP_BIT;
     }
 
     return obj;
@@ -362,139 +488,188 @@ pcep_obj_create_ro_subobj_asn(uint16_t asn)
 {
     struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_common();
 
-    obj->subobj.asn.header.length = sizeof(struct pcep_ro_subobj_border);
+    obj->subobj.asn.header.length = sizeof(struct pcep_ro_subobj_asn);
     obj->subobj.asn.header.type = RO_SUBOBJ_TYPE_ASN;
     obj->subobj.asn.aut_sys_number = asn;
 
     return obj;
 }
 
-struct pcep_object_lspa*
-pcep_obj_create_lspa(uint8_t prio, uint8_t hold_prio)
+/* Internal util function to create pcep_object_ro_subobj sub-objects */
+static struct pcep_object_ro_subobj*
+pcep_obj_create_ro_subobj_sr_common(uint8_t extra_length, enum pcep_sr_subobj_nai nai,
+        bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag)
 {
-    uint8_t *buffer;
-    uint16_t buffer_len;
-    struct pcep_object_lspa *obj;
+    uint8_t *buffer = malloc(sizeof(struct pcep_object_ro_subobj) + extra_length);
+    bzero(buffer, sizeof(struct pcep_object_ro_subobj));
 
-    buffer_len = sizeof(struct pcep_object_lspa);
-    buffer = malloc(sizeof(uint8_t) * buffer_len);
+    struct pcep_object_ro_subobj *obj = (struct pcep_object_ro_subobj*) buffer;
 
-    bzero(buffer, buffer_len);
+    obj->subobj.sr.header.length = sizeof(struct pcep_ro_subobj_sr) + extra_length;
+    obj->subobj.sr.header.type = RO_SUBOBJ_TYPE_SR;
+    obj->subobj.sr.nai_type = nai;
 
-    obj = (struct pcep_object_lspa*) buffer;
-    obj->header.object_class = PCEP_OBJ_CLASS_LSPA;
-    obj->header.object_type = PCEP_OBJ_TYPE_LSPA;
-    obj->header.object_flags = 0;
-    obj->header.object_length = htons(buffer_len);
-    obj->lspa_prio = prio;
-    obj->lspa_holdprio = hold_prio;
-
-    return obj;
-}
-
-uint32_t*
-pcep_obj_svec_get(struct pcep_object_svec* obj, uint16_t *length)
-{
-    uint8_t *buff = (uint8_t*) obj;
-
-    *length = (obj->header.object_length - sizeof(struct pcep_object_svec)) / sizeof(uint32_t);
-
-    return (uint32_t*)(buff + sizeof(struct pcep_object_svec));
-}
-
-void
-pcep_obj_svec_print(struct pcep_object_svec* obj)
-{
-    uint16_t len;
-    uint32_t i = 0;
-    uint32_t *array = pcep_obj_svec_get(obj, &len);
-
-    printf("PCEP_OBJ_CLASS_SVEC request IDs:\n");
-
-    for(i = 0; i < len; i++) {
-        printf("\tID: 0x%x\n", array[i]);
-    }
-}
-
-struct pcep_object_svec*
-pcep_obj_create_svec(uint8_t srlg, uint8_t node, uint8_t link, uint16_t ids_count, uint32_t *ids)
-{
-    uint32_t i;
-    uint8_t *buffer;
-    uint16_t buffer_len;
-    uint16_t buffer_pos;
-    struct pcep_object_svec *obj;
-
-    buffer_len = sizeof(struct pcep_object_svec) + (ids_count*sizeof(uint32_t));
-    buffer_pos = sizeof(struct pcep_object_svec);
-    buffer = malloc(sizeof(uint8_t) * buffer_len);
-
-    bzero(buffer, buffer_len);
-
-    obj = (struct pcep_object_svec*) buffer;
-    obj->header.object_class = PCEP_OBJ_CLASS_SVEC;
-    obj->header.object_type = PCEP_OBJ_TYPE_SVEC;
-    obj->header.object_flags = 0;
-    obj->header.object_length = htons(buffer_len);
-    obj->flag_srlg = srlg;
-    obj->flag_node = node;
-    obj->flag_link = link;
-
-    for(i = 0; i < ids_count; i++) {
-        uint32_t id = htonl(ids[i]);
-        memcpy((buffer + buffer_pos), &id, sizeof(uint32_t));
-        buffer_pos += sizeof(uint32_t);
+    obj->subobj.sr.f_flag = (f_flag == true) ? 1 : 0;
+    obj->subobj.sr.s_flag = (s_flag == true) ? 1 : 0;
+    obj->subobj.sr.c_flag = (c_flag == true) ? 1 : 0;
+    obj->subobj.sr.m_flag = (m_flag == true) ? 1 : 0;
+    if (loose_hop == true)
+    {
+        // The first bit of the type field is used to specify Loose Hop
+        obj->subobj.sr.header.type |= LOOSE_HOP_BIT;
     }
 
     return obj;
 }
 
-struct pcep_object_error*
-pcep_obj_create_error(uint8_t error_type, uint8_t error_value)
+struct pcep_object_ro_subobj*
+pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag)
 {
-    uint8_t *buffer;
-    uint16_t buffer_len;
-    struct pcep_object_error *obj;
+    return pcep_obj_create_ro_subobj_sr_common(
+            0, PCEP_SR_SUBOBJ_NAI_ABSENT, loose_hop, f_flag, s_flag, c_flag, m_flag);
+}
 
-    buffer_len = sizeof(struct pcep_object_error);
-    buffer = malloc(sizeof(uint8_t) * buffer_len);
+struct pcep_object_ro_subobj*
+pcep_obj_create_ro_subobj_sr_ipv4_node(
+        bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
+        struct in_addr *ipv4_node_id)
+{
+    if (ipv4_node_id == NULL)
+    {
+        return NULL;
+    }
 
-    bzero(buffer, buffer_len);
+    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
+            sizeof(struct in_addr), PCEP_SR_SUBOBJ_NAI_IPV4_NODE,
+            loose_hop, f_flag, s_flag, c_flag, m_flag);
 
-    obj = (struct pcep_object_error*) buffer;
-    obj->header.object_class = PCEP_OBJ_CLASS_ERROR;
-    obj->header.object_type = PCEP_OBJ_TYPE_ERROR;
-    obj->header.object_flags = 0;
-    obj->header.object_length = htons(buffer_len);
-    obj->error_type = error_type;
-    obj->error_value = error_value;
+    obj->subobj.sr.sid_nai[0] = htonl(ipv4_node_id->s_addr);
 
     return obj;
 }
 
-struct pcep_object_close*
-pcep_obj_create_close(uint8_t flags, uint8_t reason)
+struct pcep_object_ro_subobj*
+pcep_obj_create_ro_subobj_sr_ipv6_node(
+        bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
+        struct in6_addr *ipv6_node_id)
 {
-    uint8_t *buffer;
-    uint16_t buffer_len;
-    struct pcep_object_close *obj;
+    if (ipv6_node_id == NULL)
+    {
+        return NULL;
+    }
 
-    buffer_len = sizeof(struct pcep_object_close);
-    buffer = malloc(sizeof(uint8_t) * buffer_len);
+    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
+            sizeof(struct in6_addr), PCEP_SR_SUBOBJ_NAI_IPV6_NODE,
+            loose_hop, f_flag, s_flag, c_flag, m_flag);
 
-    bzero(buffer, buffer_len);
-
-    obj = (struct pcep_object_close*) buffer;
-    obj->header.object_class = PCEP_OBJ_CLASS_CLOSE;
-    obj->header.object_type = PCEP_OBJ_TYPE_CLOSE;
-    obj->header.object_flags = 0;
-    obj->header.object_length = htons(buffer_len);
-    obj->flags = flags;
-    obj->reason = reason;
+    obj->subobj.sr.sid_nai[0] = htonl(ipv6_node_id->__in6_u.__u6_addr32[0]);
+    obj->subobj.sr.sid_nai[1] = htonl(ipv6_node_id->__in6_u.__u6_addr32[1]);
+    obj->subobj.sr.sid_nai[2] = htonl(ipv6_node_id->__in6_u.__u6_addr32[2]);
+    obj->subobj.sr.sid_nai[3] = htonl(ipv6_node_id->__in6_u.__u6_addr32[3]);
 
     return obj;
 }
 
+struct pcep_object_ro_subobj*
+pcep_obj_create_ro_subobj_sr_ipv4_adj(
+        bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
+        struct in_addr *local_ipv4, struct in_addr *remote_ipv4)
+{
+    if (local_ipv4 == NULL || remote_ipv4 == NULL)
+    {
+        return NULL;
+    }
+
+    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
+            sizeof(struct in_addr) * 2, PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY,
+            loose_hop, f_flag, s_flag, c_flag, m_flag);
+
+    obj->subobj.sr.sid_nai[0] = htonl(local_ipv4->s_addr);
+    obj->subobj.sr.sid_nai[1] = htonl(remote_ipv4->s_addr);
+
+    return obj;
+}
+
+struct pcep_object_ro_subobj*
+pcep_obj_create_ro_subobj_sr_ipv6_adj(
+        bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
+        struct in6_addr *local_ipv6, struct in6_addr *remote_ipv6)
+{
+    if (local_ipv6 == NULL || remote_ipv6 == NULL)
+    {
+        return NULL;
+    }
+
+    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
+            sizeof(struct in6_addr) * 2, PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY,
+            loose_hop, f_flag, s_flag, c_flag, m_flag);
+
+    obj->subobj.sr.sid_nai[0] = htonl(local_ipv6->__in6_u.__u6_addr32[0]);
+    obj->subobj.sr.sid_nai[1] = htonl(local_ipv6->__in6_u.__u6_addr32[1]);
+    obj->subobj.sr.sid_nai[2] = htonl(local_ipv6->__in6_u.__u6_addr32[2]);
+    obj->subobj.sr.sid_nai[3] = htonl(local_ipv6->__in6_u.__u6_addr32[3]);
+
+    obj->subobj.sr.sid_nai[4] = htonl(remote_ipv6->__in6_u.__u6_addr32[0]);
+    obj->subobj.sr.sid_nai[5] = htonl(remote_ipv6->__in6_u.__u6_addr32[1]);
+    obj->subobj.sr.sid_nai[6] = htonl(remote_ipv6->__in6_u.__u6_addr32[2]);
+    obj->subobj.sr.sid_nai[7] = htonl(remote_ipv6->__in6_u.__u6_addr32[3]);
+
+    return obj;
+}
+
+struct pcep_object_ro_subobj*
+pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(
+        bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
+        uint32_t local_node_id, uint32_t local_if_id,
+        uint32_t remote_node_id, uint32_t remote_if_id)
+{
+    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
+            sizeof(uint32_t) * 4, PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY,
+            loose_hop, f_flag, s_flag, c_flag, m_flag);
+
+    obj->subobj.sr.sid_nai[0] = htonl(local_node_id);
+    obj->subobj.sr.sid_nai[1] = htonl(local_if_id);
+    obj->subobj.sr.sid_nai[2] = htonl(remote_node_id);
+    obj->subobj.sr.sid_nai[3] = htonl(remote_if_id);
+
+    return obj;
+}
+
+struct pcep_object_ro_subobj*
+pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
+        bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
+        struct in6_addr *local_ipv6, uint32_t local_if_id,
+        struct in6_addr *remote_ipv6, uint32_t remote_if_id)
+{
+    if (local_ipv6 == NULL || remote_ipv6 == NULL)
+    {
+        return NULL;
+    }
+
+    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
+            (sizeof(struct in6_addr) * 2) + (sizeof(uint32_t) * 2),
+            PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY,
+            loose_hop, f_flag, s_flag, c_flag, m_flag);
+
+    obj->subobj.sr.sid_nai[0] = htonl(local_ipv6->__in6_u.__u6_addr32[0]);
+    obj->subobj.sr.sid_nai[1] = htonl(local_ipv6->__in6_u.__u6_addr32[1]);
+    obj->subobj.sr.sid_nai[2] = htonl(local_ipv6->__in6_u.__u6_addr32[2]);
+    obj->subobj.sr.sid_nai[3] = htonl(local_ipv6->__in6_u.__u6_addr32[3]);
+    obj->subobj.sr.sid_nai[4] = htonl(local_if_id);
+
+    obj->subobj.sr.sid_nai[5] = htonl(remote_ipv6->__in6_u.__u6_addr32[0]);
+    obj->subobj.sr.sid_nai[6] = htonl(remote_ipv6->__in6_u.__u6_addr32[1]);
+    obj->subobj.sr.sid_nai[7] = htonl(remote_ipv6->__in6_u.__u6_addr32[2]);
+    obj->subobj.sr.sid_nai[8] = htonl(remote_ipv6->__in6_u.__u6_addr32[3]);
+    obj->subobj.sr.sid_nai[9] = htonl(remote_if_id);
+
+    return obj;
+}
+
+
+/*
+ * Object unpack functions.
+ */
 void
 pcep_unpack_obj_header(struct pcep_object_header* hdr)
 {
@@ -586,10 +761,64 @@ pcep_unpack_obj_ro(struct pcep_object_ro *obj)
 
     while((obj->header.object_length - read_count) > sizeof(struct pcep_ro_subobj_hdr)) {
         struct pcep_ro_subobj_hdr *hdr = (struct pcep_ro_subobj_hdr*) (((uint8_t*)obj) + read_count);
+        /* Some sub-objects store the loose_hop bit in the top bit of the type field */
+        uint8_t hdr_type = (hdr->type & 0x7f);
 
-        if(hdr->type == RO_SUBOBJ_TYPE_UNNUM) {
-            struct pcep_ro_subobj_unnum *unum = (struct pcep_ro_subobj_unnum*) (((uint8_t*)obj) + read_count);
+        if(hdr_type == RO_SUBOBJ_TYPE_UNNUM) {
+            struct pcep_ro_subobj_unnum *unum = (struct pcep_ro_subobj_unnum*) hdr;
             unum->ifId = ntohl(unum->ifId);
+            unum->routerId.s_addr = ntohl(unum->routerId.s_addr);
+        }
+        else if(hdr_type == RO_SUBOBJ_TYPE_IPV4)
+        {
+            struct pcep_ro_subobj_ipv4 *ipv4 = (struct pcep_ro_subobj_ipv4*) hdr;
+            ipv4->ip_addr.s_addr = ntohl(ipv4->ip_addr.s_addr);
+        }
+        else if(hdr_type == RO_SUBOBJ_TYPE_IPV6)
+        {
+            struct pcep_ro_subobj_ipv6 *ipv6 = (struct pcep_ro_subobj_ipv6*) hdr;
+            ipv6->ip_addr.__in6_u.__u6_addr32[0] = ntohl(ipv6->ip_addr.__in6_u.__u6_addr32[0]);
+            ipv6->ip_addr.__in6_u.__u6_addr32[1] = ntohl(ipv6->ip_addr.__in6_u.__u6_addr32[1]);
+            ipv6->ip_addr.__in6_u.__u6_addr32[2] = ntohl(ipv6->ip_addr.__in6_u.__u6_addr32[2]);
+            ipv6->ip_addr.__in6_u.__u6_addr32[3] = ntohl(ipv6->ip_addr.__in6_u.__u6_addr32[3]);
+        }
+        else if(hdr_type == RO_SUBOBJ_TYPE_SR)
+        {
+            struct pcep_ro_subobj_sr *sr_subobj = (struct pcep_ro_subobj_sr*) hdr;
+            int words_to_convert = 0;
+            switch (sr_subobj->nai_type)
+            {
+            case PCEP_SR_SUBOBJ_NAI_IPV4_NODE:
+                words_to_convert = 1;
+                break;
+
+            case PCEP_SR_SUBOBJ_NAI_IPV6_NODE:
+            case PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY:
+                words_to_convert = 4;
+                break;
+
+            case PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY:
+                words_to_convert = 2;
+                break;
+
+            case PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY:
+                words_to_convert = 8;
+                break;
+
+            case PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY:
+                words_to_convert = 10;
+                break;
+
+            case PCEP_SR_SUBOBJ_NAI_ABSENT:
+            default:
+                break;
+            }
+
+            int i = 0;
+            for (; i < words_to_convert; i++)
+            {
+                sr_subobj->sid_nai[i] = ntohl(sr_subobj->sid_nai[i]);
+            }
         }
         read_count += hdr->length;
     }
@@ -623,6 +852,16 @@ pcep_unpack_obj_error(struct pcep_object_error *obj)
 
 void
 pcep_unpack_obj_close(struct pcep_object_close *obj)
+{
+    // nothing to unpack.
+}
+
+void pcep_unpack_obj_srp(struct pcep_object_srp *srp)
+{
+    srp->srp_id_number = ntohl(srp->srp_id_number);
+}
+
+void pcep_unpack_obj_lsp(struct pcep_object_lsp *lsp)
 {
     // nothing to unpack.
 }

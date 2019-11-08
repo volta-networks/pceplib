@@ -56,6 +56,8 @@ enum pcep_object_class
     PCEP_OBJ_CLASS_NOTF = 12,
     PCEP_OBJ_CLASS_ERROR = 13,
     PCEP_OBJ_CLASS_CLOSE = 15,
+    PCEP_OBJ_CLASS_LSP = 32,
+    PCEP_OBJ_CLASS_SRP = 33,
 };
 
 enum pcep_object_types
@@ -71,6 +73,9 @@ enum pcep_object_types
 
     PCEP_OBJ_TYPE_BANDWIDTH_REQ = 1,
     PCEP_OBJ_TYPE_BANDWIDTH_TELSP = 2,
+
+    PCEP_OBJ_TYPE_SRP = 1,
+    PCEP_OBJ_TYPE_LSP = 1,
 
     PCEP_OBJ_TYPE_METRIC = 1,
     PCEP_OBJ_TYPE_ERO = 1,
@@ -186,8 +191,11 @@ enum pcep_ro_subobj_types
     RO_SUBOBJ_TYPE_LABEL = 3,
     RO_SUBOBJ_TYPE_UNNUM = 4,
     RO_SUBOBJ_TYPE_BORDER = 10,
-    RO_SUBOBJ_TYPE_ASN = 32
+    RO_SUBOBJ_TYPE_ASN = 32,
+    RO_SUBOBJ_TYPE_SR = 36
 };
+
+#define LOOSE_HOP_BIT 0x80
 
 /*
  * Common Route Object sub-object definitions
@@ -203,7 +211,7 @@ struct pcep_ro_subobj_hdr
 struct pcep_ro_subobj_ipv4
 {
     struct pcep_ro_subobj_hdr header;
-    uint32_t ip_addr;
+    struct in_addr ip_addr;
     uint8_t prefix_length; // prefix length
     uint8_t resvd;         // reserved bits (padding)
 }__attribute__((packed));
@@ -211,7 +219,7 @@ struct pcep_ro_subobj_ipv4
 struct pcep_ro_subobj_ipv6
 {
     struct pcep_ro_subobj_hdr header;
-    uint8_t ip_addr[16];
+    struct in6_addr ip_addr;
     uint8_t prefix_length; // prefix length
     uint8_t resvd;         // reserved bits (padding)
 }__attribute__((packed));
@@ -239,7 +247,7 @@ struct pcep_ro_subobj_asn
     uint16_t aut_sys_number;       // Autonomous system number
 }__attribute__((packed));
 
-// Non standard object to include layer information in the returned path.
+/* Non standard object to include layer information in the returned path. */
 struct pcep_ro_subobj_border
 {
     struct pcep_ro_subobj_hdr header;
@@ -252,11 +260,33 @@ struct pcep_ro_subobj_border
     uint8_t swcap_info_thr;
 }__attribute__((packed));
 
-struct pcep_object_route_object
+enum pcep_sr_subobj_nai
 {
-    struct pcep_object_ro ro_hdr;
-    double_linked_list *ro_list;
+      PCEP_SR_SUBOBJ_NAI_ABSENT = 0,
+      PCEP_SR_SUBOBJ_NAI_IPV4_NODE = 1,
+      PCEP_SR_SUBOBJ_NAI_IPV6_NODE = 2,
+      PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY = 3,
+      PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY = 4,
+      PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY = 5,
+      PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY = 6
 };
+
+/* The SR ERO and SR RRO subojbects are the same, except
+ * the SR-RRO does not have the L flag in the Type field.
+ * Defined in draft-ietf-pce-segment-routing-16 */
+struct pcep_ro_subobj_sr
+{
+    struct pcep_ro_subobj_hdr header;
+    uint16_t nai_type:4;
+    uint16_t unused_flags:8;
+    uint16_t f_flag:1;
+    uint16_t s_flag:1;
+    uint16_t c_flag:1;
+    uint16_t m_flag:1;
+    /* The SID and NAI are optional depending on the flags,
+     * and the NAI can be variable length */
+    uint32_t sid_nai[];
+}__attribute__((packed));
 
 struct pcep_object_ro_subobj
 {
@@ -267,7 +297,14 @@ struct pcep_object_ro_subobj
         struct pcep_ro_subobj_32label label;
         struct pcep_ro_subobj_border border;
         struct pcep_ro_subobj_asn asn;
+        struct pcep_ro_subobj_sr sr;
     } subobj;
+};
+
+struct pcep_object_route_object
+{
+    struct pcep_object_ro ro_hdr;
+    double_linked_list *ro_list;
 };
 
 struct pcep_object_lspa
@@ -369,6 +406,39 @@ struct pcep_object_close
     uint8_t reason;
 }__attribute__((packed));
 
+/* Stateful PCE Request Parameters */
+struct pcep_object_srp
+{
+    struct pcep_object_header header;
+    uint32_t unused_flags:31;
+    uint32_t lsp_remove:1;
+    uint32_t srp_id_number;
+}__attribute__((packed));
+
+enum pcep_lsp_operational_status
+{
+    PCEP_LSP_OPERATIONAL_DOWN = 0,
+    PCEP_LSP_OPERATIONAL_UP = 1,
+    PCEP_LSP_OPERATIONAL_ACTIVE = 2,
+    PCEP_LSP_OPERATIONAL_GOING_DOWN = 3,
+    PCEP_LSP_OPERATIONAL_GOING_UP = 4,
+};
+
+/* Label Switched Path Object */
+struct pcep_object_lsp
+{
+    struct pcep_object_header header;
+    uint32_t plsp_id:20;
+    uint32_t unused_flags:4;
+    uint32_t c_flag:1;
+    uint32_t o_flag:3;
+    uint32_t a_flag:1;
+    uint32_t r_flag:1;
+    uint32_t s_flag:1;
+    uint32_t d_flag:1;
+}__attribute__((packed));
+
+
 struct pcep_object_open*                pcep_obj_create_open        (uint8_t keepalive, uint8_t deadtimer, uint8_t sid);
 struct pcep_object_rp*                  pcep_obj_create_rp          (uint8_t obj_hdr_flags, uint32_t obj_flags, uint32_t reqid);
 struct pcep_object_nopath*              pcep_obj_create_nopath      (uint8_t obj_hdr_flags, uint8_t ni, uint16_t obj_flags, uint32_t errorcode);
@@ -377,23 +447,44 @@ struct pcep_object_endpoints_ipv6*      pcep_obj_create_enpoint_ipv6(const struc
 struct pcep_object_bandwidth*           pcep_obj_create_bandwidth   (float bandwidth);
 struct pcep_object_metric*              pcep_obj_create_metric      (uint8_t flags, uint8_t type, float value);
 struct pcep_object_lspa*                pcep_obj_create_lspa        (uint8_t prio, uint8_t hold_prio);
-struct pcep_object_svec*                pcep_obj_create_svec        (uint8_t srlg, uint8_t node, uint8_t link, uint16_t ids_count, uint32_t *ids);
+struct pcep_object_svec*                pcep_obj_create_svec        (bool srlg, bool node, bool link, uint16_t ids_count, uint32_t *ids);
 struct pcep_object_error*               pcep_obj_create_error       (uint8_t error_type, uint8_t error_value);
 struct pcep_object_close*               pcep_obj_create_close       (uint8_t flags, uint8_t reason);
+struct pcep_object_srp*                 pcep_obj_create_srp         (bool lsp_remove, uint32_t srp_id_number);
+struct pcep_object_lsp*                 pcep_obj_create_lsp         (uint32_t plsp_id, enum pcep_lsp_operational_status status,
+                                                                     bool c_flag, bool a_flag, bool r_flag, bool s_flag, bool d_flag);
 
 /* Route Object (Explicit ero, Reported rro, and Include iro) functions
  * First, the sub-objects should be created and appended to a double_linked_list,
  * then call one of these Route Object creation functions with the subobj list */
-struct pcep_object_route_object*       pcep_obj_create_eroute_object      (double_linked_list* ero_list);
-struct pcep_object_route_object*       pcep_obj_create_rroute_object      (double_linked_list* rro_list);
-struct pcep_object_route_object*       pcep_obj_create_iroute_object      (double_linked_list* iro_list);
+struct pcep_object_route_object*  pcep_obj_create_eroute_object      (double_linked_list* ero_list);
+struct pcep_object_route_object*  pcep_obj_create_rroute_object      (double_linked_list* rro_list);
+struct pcep_object_route_object*  pcep_obj_create_iroute_object      (double_linked_list* iro_list);
 /* Route Object sub-object creation functions */
-struct pcep_object_ro_subobj*          pcep_obj_create_ro_subobj_ipv4     (bool loose_hop, const struct in_addr* ro_ipv4, uint8_t prefix_len);
-struct pcep_object_ro_subobj*          pcep_obj_create_ro_subobj_ipv6     (bool loose_hop, const struct in6_addr* ro_ipv6, uint8_t prefix_len);
-struct pcep_object_ro_subobj*          pcep_obj_create_ro_subobj_unnum    (struct in_addr* routerId, uint32_t ifId, uint16_t resv);
-struct pcep_object_ro_subobj*          pcep_obj_create_ro_subobj_32label  (uint8_t dir, uint32_t label);
-struct pcep_object_ro_subobj*          pcep_obj_create_ro_subobj_border   (uint8_t direction, uint8_t swcap_from, uint8_t swcap_to);
-struct pcep_object_ro_subobj*          pcep_obj_create_ro_subobj_asn      (uint16_t asn);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_ipv4     (bool loose_hop, const struct in_addr* ro_ipv4, uint8_t prefix_len);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_ipv6     (bool loose_hop, const struct in6_addr* ro_ipv6, uint8_t prefix_len);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_unnum    (struct in_addr* routerId, uint32_t ifId, uint16_t resv);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_32label  (uint8_t dir, uint32_t label);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_border   (uint8_t direction, uint8_t swcap_from, uint8_t swcap_to);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_asn      (uint16_t asn);
+/* sr ero and sr rro creation functions.
+ * The loose_hop must always be false for sr rro.
+ * The NAI value will be set internally, depending on which function is used. */
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_ipv4_node(bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
+                                                                         struct in_addr *ipv4_node_id);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_ipv6_node(bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
+                                                                         struct in6_addr *ipv6_node_id);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_ipv4_adj(bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
+                                                                        struct in_addr *local_ipv4, struct in_addr *remote_ipv4);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_ipv6_adj(bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
+                                                                        struct in6_addr *local_ipv6, struct in6_addr *remote_ipv6);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
+                                                                                   uint32_t local_node_id, uint32_t local_if_id,
+                                                                                   uint32_t remote_node_id, uint32_t remote_if_id);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
+                                                                                  struct in6_addr *local_ipv6, uint32_t local_if_id,
+                                                                                  struct in6_addr *remote_ipv6, uint32_t remote_if_id);
 
 uint32_t*       pcep_obj_svec_get       (struct pcep_object_svec* obj, uint16_t *length);
 void            pcep_obj_svec_print     (struct pcep_object_svec* obj);
@@ -412,6 +503,8 @@ void pcep_unpack_obj_lspa(struct pcep_object_lspa *lspa);
 void pcep_unpack_obj_svec(struct pcep_object_svec *svec);
 void pcep_unpack_obj_error(struct pcep_object_error *error);
 void pcep_unpack_obj_close(struct pcep_object_close *close);
+void pcep_unpack_obj_srp(struct pcep_object_srp *srp);
+void pcep_unpack_obj_lsp(struct pcep_object_lsp *lsp);
 
 void pcep_obj_free_ro          (double_linked_list* ro_list);
 void pcep_obj_free_ro_hop      (double_linked_list* hop_list);

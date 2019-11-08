@@ -4,6 +4,7 @@
 .settings/
 **/*.o
 **/lib*.a
+**/valgrind*.log
 **/obj
 build/*
 /build/

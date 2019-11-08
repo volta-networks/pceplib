@@ -25,14 +25,15 @@ extern pcep_session_logic_handle *session_logic_handle_;
 void send_keep_alive(pcep_session *session)
 {
     struct pcep_header* keep_alive_msg = pcep_msg_create_keepalive();
+
+    printf("[%ld-%ld] pcep_session_logic send keep_alive message len [%d] for session_id [%d]\n",
+            time(NULL), pthread_self(), ntohs(keep_alive_msg->length), session->session_id);
+
     socket_comm_session_send_message(
             session->socket_comm_session,
             (char *) keep_alive_msg,
             ntohs(keep_alive_msg->length),
             true);
-
-    printf("[%ld-%ld] pcep_session_logic send keep_alive message len [%d] for session_id [%d]\n",
-            time(NULL), pthread_self(), ntohs(keep_alive_msg->length), session->session_id);
 
     /* The keep alive timer will be (re)set once the message
      * is sent in session_logic_message_sent_handler() */

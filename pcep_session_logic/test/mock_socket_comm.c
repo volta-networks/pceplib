@@ -119,6 +119,11 @@ void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_sess
 {
     mock_socket_metadata.socket_comm_session_send_message_times_called++;
 
+    if (delete_after_send == true)
+    {
+        free(unmarshalled_message);
+    }
+
     return;
 }
 

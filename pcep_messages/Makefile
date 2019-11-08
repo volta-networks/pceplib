@@ -12,6 +12,7 @@ PCEP_UTILS_INC_DIR = ../pcep_utils/include
 TEST_DIR = ./test
 TEST_LIB_DIRS = -L$(BUILD_DIR) -L/usr/local/lib
 TEST_LIBS = -l$(LIB_NAME) -lpcep_utils -lcunit
+VALGRIND=G_SLICE=always-malloc G_DEBUG=gc-friendly valgrind -v --tool=memcheck --leak-check=full --num-callers=40 --error-exitcode=1
 
 LIB_NAME = pcep_messages
 LIB = $(BUILD_DIR)/lib$(LIB_NAME).a
@@ -24,7 +25,7 @@ EXTERNAL_DEPS = $(patsubst %,$(PCEP_UTILS_INC_DIR)/%,$(_DEPS))
 _OBJ = pcep-messages.o pcep-objects.o pcep-tools.o pcep-tlvs.o
 OBJ = $(patsubst %,$(OBJ_DIR)/%,$(_OBJ))
 
-_TEST_OBJ = pcep-messages-tests.o pcep-messages-test.o pcep-tlvs-test.o
+_TEST_OBJ = pcep-messages-tests.o pcep-messages-test.o pcep-tlvs-test.o pcep-objects-test.o
 TEST_OBJ = $(patsubst %,$(TEST_DIR)/%,$(_TEST_OBJ))
 
 all: $(LIB) $(TEST_BIN)
@@ -48,7 +49,8 @@ $(TEST_DIR)/%.o: $(TEST_DIR)/%.c $(DEPS)
 
 test: $(TEST_BIN)
 	$(TEST_BIN)
+	$(VALGRIND) --log-file=valgrind.$(LIB_NAME).log $(TEST_BIN)
 
 clean:
-	rm -f $(LIB) $(TEST_BIN) $(OBJ_DIR)/*.o *~ core $(INC_DIR)/*~ $(SRC_DIR)/*~
+	rm -f $(LIB) $(TEST_BIN) $(OBJ_DIR)/*.o valgrind*.log *~ core $(INC_DIR)/*~ $(SRC_DIR)/*~
 

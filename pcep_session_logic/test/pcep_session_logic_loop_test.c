@@ -100,6 +100,8 @@ void test_session_logic_msg_ready_handler()
     CU_ASSERT_PTR_EQUAL(socket_event->session, &session);
     CU_ASSERT_EQUAL(socket_event->expired_timer_id, TIMER_ID_NOT_SET);
     CU_ASSERT_PTR_NOT_NULL(socket_event->received_msg_list);
+    pcep_msg_free(socket_event->received_msg_list);
+    free(socket_event);
     free(keep_alive_msg);
     close(fd);
 }
@@ -124,6 +126,7 @@ void test_session_logic_conn_except_notifier()
     CU_ASSERT_EQUAL(socket_event->expired_timer_id, TIMER_ID_NOT_SET);
     CU_ASSERT_PTR_NULL(socket_event->received_msg_list);
 
+    free(socket_event);
 }
 
 
@@ -145,4 +148,6 @@ void test_session_logic_timer_expire_handler()
     CU_ASSERT_PTR_EQUAL(socket_event->session, &session);
     CU_ASSERT_EQUAL(socket_event->expired_timer_id, 42);
     CU_ASSERT_PTR_NULL(socket_event->received_msg_list);
+
+    free(socket_event);
 }

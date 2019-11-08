@@ -150,7 +150,6 @@ void test_update_response_message()
     CU_ASSERT_TRUE(registered_msg_response.response_condition);
     CU_ASSERT_NOT_EQUAL(registered_msg_response.time_response_received.tv_sec, 0);
     CU_ASSERT_NOT_EQUAL(registered_msg_response.time_response_received.tv_nsec, 0);
-
 }
 
 
@@ -158,6 +157,7 @@ void test_handle_timer_event_dead_timer()
 {
     /* Dead Timer expired */
     event.expired_timer_id = session.timer_id_dead_timer = 100;
+
     handle_timer_event(&event);
 
     CU_ASSERT_EQUAL(session.timer_id_dead_timer, TIMER_ID_NOT_SET);
@@ -172,6 +172,7 @@ void test_handle_timer_event_keep_alive()
 {
     /* Keep Alive timer expired */
     event.expired_timer_id = session.timer_id_keep_alive = 200;
+
     handle_timer_event(&event);
 
     CU_ASSERT_EQUAL(session.timer_id_keep_alive, TIMER_ID_NOT_SET);
@@ -245,7 +246,6 @@ void test_handle_socket_comm_event_close()
 
     CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_INITIALIZED);
     verify_socket_comm_times_called(0, 0, 0, 0, 0, 1, 0);
-    do_msg_free = false;
 }
 
 
@@ -254,7 +254,9 @@ void test_handle_socket_comm_event_open()
     pcep_message_response registered_msg_response;
     bzero(&registered_msg_response, sizeof(pcep_message_response));
 
-    dll_append(obj_list, pcep_obj_create_open(1, 1, 1));
+    struct pcep_object_open *open_object = pcep_obj_create_open(1, 1, 1);
+    pcep_unpack_obj_header((struct pcep_object_header*) open_object);
+    dll_append(obj_list, open_object);
     msg_node->header.type = PCEP_TYPE_OPEN;
     event.received_msg_list = msg_list;
     session.pcep_open_received = false;
