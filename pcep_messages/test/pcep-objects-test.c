@@ -1081,6 +1081,7 @@ void test_pcep_unpack_obj_ro_sr()
     verify_sid_nai("sr_linklocal_ipv6_adj", &sr_subobj->subobj.sr, compare_entries, 10);
     free(sr);
     free(ro);
+
     /* PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY sid present */
     sr = pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
             true, false, true, true, sid, &local_ipv6, local_if_id, &remote_ipv6, remote_if_id);
