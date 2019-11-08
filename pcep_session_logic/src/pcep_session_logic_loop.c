@@ -61,6 +61,7 @@ int session_logic_msg_ready_handler(void *data, int socket_fd)
     {
         fprintf(stderr, "Error marshalling PCEP message\n");
         pthread_mutex_unlock(&(session_logic_handle_->session_logic_mutex));
+        dll_destroy(msg_list);
 
         return -1;
     }

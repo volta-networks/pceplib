@@ -54,6 +54,7 @@ bool run_session_logic()
     }
 
     session_logic_handle_ = malloc(sizeof(pcep_session_logic_handle));
+    bzero(session_logic_handle_, sizeof(pcep_session_logic_handle));
 
     session_logic_handle_->active = true;
     session_logic_handle_->session_logic_condition = false;
@@ -139,14 +140,15 @@ void close_pcep_session(pcep_session *session)
 void close_pcep_session_with_reason(pcep_session *session, enum pcep_close_reasons reason)
 {
     struct pcep_header* close_msg = pcep_msg_create_close(0, reason);
+
+    printf("[%ld-%ld] pcep_session_logic send pcep_close message len [%d] for session_id [%d]\n",
+           time(NULL), pthread_self(), ntohs(close_msg->length), session->session_id);
+
     socket_comm_session_send_message(
             session->socket_comm_session,
             (char *) close_msg,
             ntohs(close_msg->length),
             true);
-
-    printf("[%ld-%ld] pcep_session_logic send pcep_close message len [%d] for session_id [%d]\n",
-           time(NULL), pthread_self(), ntohs(close_msg->length), session->session_id);
 
     socket_comm_session_close_tcp_after_write(session->socket_comm_session);
     session->session_state = SESSION_STATE_INITIALIZED;
@@ -279,6 +281,10 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
                                         session->pcc_config.dead_timer_seconds,
                                         session->session_id);
     }
+
+    printf("[%ld-%ld] pcep_session_logic send open message len [%d] for session_id [%d]\n",
+            time(NULL), pthread_self(), ntohs(open_msg->length), session->session_id);
+
     socket_comm_session_send_message(session->socket_comm_session,
                                      (char *) open_msg,
                                      ntohs(open_msg->length),

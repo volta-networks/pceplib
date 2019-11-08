@@ -23,6 +23,8 @@ void test_empty_queue()
     CU_ASSERT_PTR_NOT_NULL(handle);
     CU_ASSERT_PTR_NULL(handle->head);
     CU_ASSERT_EQUAL(handle->num_entries, 0);
+
+    queue_destroy(handle);
 }
 
 
@@ -66,16 +68,7 @@ void test_enqueue()
     node = node->next_node;
     CU_ASSERT_PTR_NULL(node);
 
-    /*
-    printf("&data1 = %p, %d\n", &data1, data1.int_data);
-    printf("&data2 = %p, %d\n", &data2, data2.int_data);
-    printf("&data3 = %p, %d\n", &data3, data3.int_data);
-    node = handle->head;
-    printf("&Node1 = %p\n", node->data);
-    printf("&Node2 = %p\n", node->next_node->data);
-    printf("&Node3 = %p\n", node->next_node->next_node->data);
-    printf("END = %p\n",    node->next_node->next_node->next_node);
-    */
+    queue_destroy(handle);
 }
 
 
@@ -107,6 +100,8 @@ void test_enqueue_with_limit()
 
     node = node->next_node;
     CU_ASSERT_PTR_NULL(node);
+
+    queue_destroy(handle);
 }
 
 
@@ -141,4 +136,6 @@ void test_dequeue()
 
     node_data = queue_dequeue(handle);
     CU_ASSERT_PTR_NULL(node_data);
+
+    queue_destroy(handle);
 }

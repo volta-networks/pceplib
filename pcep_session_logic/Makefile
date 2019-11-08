@@ -19,6 +19,7 @@ PCEP_SOCKETCOMM_INC_DIR = ../pcep_socket_comm/include
 TEST_DIR = ./test
 TEST_LIB_DIRS = -L$(BUILD_DIR) -L/usr/local/lib
 TEST_LIBS = -l$(LIB_NAME) -lpcep_messages -lpcep_utils -lpcep_timers -lcunit -lpthread
+VALGRIND=G_SLICE=always-malloc G_DEBUG=gc-friendly valgrind -v --tool=memcheck --leak-check=full --num-callers=40 --error-exitcode=1
 
 LIB_NAME = pcep_session_logic
 LIB = $(BUILD_DIR)/lib$(LIB_NAME).a
@@ -49,7 +50,7 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(DEPS) $(EXTERNAL_DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS)
 
 $(TEST_BIN): $(TEST_OBJ) $(LIB)
-	$(CC) -o $@ $(TEST_OBJ) $(CFLAGS) -static $(TEST_LIB_DIRS) $(TEST_LIBS)
+	$(CC) -o $@ $(TEST_OBJ) $(CFLAGS) $(TEST_LIB_DIRS) $(TEST_LIBS)
 
 $(TEST_DIR)/%.o: $(TEST_DIR)/%.c $(DEPS)
 	$(CC) -c -o $@ $< $(CFLAGS) -I$(SRC_DIR)
@@ -58,7 +59,8 @@ $(TEST_DIR)/%.o: $(TEST_DIR)/%.c $(DEPS)
 
 test: $(TEST_BIN)
 	$(TEST_BIN)
+	$(VALGRIND) --log-file=valgrind.$(LIB_NAME).log $(TEST_BIN)
 
 clean:
-	rm -f $(LIB) $(TEST_BIN) $(OBJ_DIR)/*.o $(TEST_DIR)/*.o *~ core $(INC_DIR)/*~ $(SRC_DIR)/*~
+	rm -f $(LIB) $(TEST_BIN) $(OBJ_DIR)/*.o $(TEST_DIR)/*.o valgrind*.log *~ core $(INC_DIR)/*~ $(SRC_DIR)/*~
 

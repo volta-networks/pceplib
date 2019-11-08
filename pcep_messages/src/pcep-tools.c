@@ -72,6 +72,12 @@ pcep_obj_parse(struct pcep_object_header* hdr)
         case PCEP_OBJ_CLASS_CLOSE:
             pcep_unpack_obj_close((struct pcep_object_close*) hdr);
             break;
+        case PCEP_OBJ_CLASS_SRP:
+            pcep_unpack_obj_srp((struct pcep_object_srp*) hdr);
+            break;
+        case PCEP_OBJ_CLASS_LSP:
+            pcep_unpack_obj_lsp((struct pcep_object_lsp*) hdr);
+            break;
         case PCEP_OBJ_CLASS_NOTF:
         default:
             fprintf(stderr, "WARNING pcep_obj_parse: Unknown object class\n");

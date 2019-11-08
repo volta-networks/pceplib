@@ -78,6 +78,7 @@ void test_create_destroy_pcep_session()
     struct in_addr pce_ip;
     short port = 4789;
 
+    bzero(&config, sizeof(pcep_configuration));
     config.keep_alive_seconds = 5;
     config.dead_timer_seconds = 5;
     config.request_time_seconds = 5;
@@ -109,6 +110,7 @@ void test_register_destroy_response_message()
 {
     pcep_message_response *rsp_message;
     pcep_session session;
+    bzero(&session, sizeof(pcep_session));
 
     CU_ASSERT_TRUE(run_session_logic());
     rsp_message = register_response_message(&session, 1, 5);
