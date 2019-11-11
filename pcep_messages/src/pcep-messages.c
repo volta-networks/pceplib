@@ -403,6 +403,198 @@ pcep_msg_create_keepalive()
     return hdr;
 }
 
+/* Common message creation function to handle double_linked_list of
+ * objects, * used by pcep_msg_create_report(), pcep_msg_create_update(),
+ * and pcep_msg_create_initiate() */
+static struct pcep_header*
+pcep_msg_create_from_object_list(double_linked_list *object_list, double_linked_list *tlv_list)
+{
+    /* Messaged defined in RFC 8231 */
+
+    if (object_list == NULL)
+    {
+        fprintf(stderr, "pcep_msg_create_from_object_list NULL object_list\n");
+        return NULL;
+    }
+
+    if (object_list->num_entries == 0)
+    {
+        fprintf(stderr, "pcep_msg_create_from_object_list empty object_list\n");
+        return NULL;
+    }
+
+    int buffer_len = sizeof(struct pcep_header);
+    double_linked_list_node *node = object_list->head;
+    for(; node != NULL; node = node->next_node)
+    {
+        struct pcep_object_header *obj_hdr = (struct pcep_object_header*) node->data;
+        buffer_len += ntohs(obj_hdr->object_length);
+    }
+
+    if (tlv_list != NULL)
+    {
+        node = tlv_list->head;
+        for(; node != NULL; node = node->next_node)
+        {
+            struct pcep_object_tlv_header *tlv_hdr =
+                    (struct pcep_object_tlv_header*) node->data;
+            buffer_len += ntohs(tlv_hdr->length) + sizeof(struct pcep_object_tlv_header);
+        }
+    }
+
+    uint8_t *buffer = malloc(buffer_len);
+    struct pcep_header *hdr = (struct pcep_header *) buffer;
+    hdr->length = htons(buffer_len);
+    hdr->type = 0; /* Should be filled in by calling function */
+    hdr->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
+
+    int index = sizeof(struct pcep_header);
+    node = object_list->head;
+    for(; node != NULL; node = node->next_node)
+    {
+        struct pcep_object_header *obj_hdr = (struct pcep_object_header*) node->data;
+        memcpy(buffer + index, obj_hdr, ntohs(obj_hdr->object_length));
+        index += ntohs(obj_hdr->object_length);
+    }
+
+    if (tlv_list != NULL)
+    {
+        node = tlv_list->head;
+        for(; node != NULL; node = node->next_node)
+        {
+            struct pcep_object_tlv_header *tlv_hdr =
+                    (struct pcep_object_tlv_header*) node->data;
+            buffer_len += ntohs(tlv_hdr->length) + sizeof(struct pcep_object_tlv_header);
+            memcpy(buffer + index, tlv_hdr, ntohs(tlv_hdr->length) + sizeof(struct pcep_object_tlv_header));
+            index += ntohs(tlv_hdr->length) + sizeof(struct pcep_object_tlv_header);
+        }
+    }
+
+    return hdr;
+}
+
+struct pcep_header*
+pcep_msg_create_report(double_linked_list *state_report_object_list, double_linked_list *tlv_list)
+{
+    struct pcep_header* report =
+            pcep_msg_create_from_object_list(state_report_object_list, tlv_list);
+    if (report != NULL)
+    {
+        report->type = PCEP_TYPE_REPORT;
+    }
+
+    return report;
+}
+
+struct pcep_header*
+pcep_msg_create_update(double_linked_list *update_request_object_list)
+{
+    if (update_request_object_list == NULL)
+    {
+        fprintf(stderr, "pcep_msg_create_update NULL update_request_object_list\n");
+        return NULL;
+    }
+
+    /* There must be at least 3 objects:
+     * These 3 are mandatory: SRP, LSP, and ERO. The ERO may be empty */
+    if (update_request_object_list->num_entries < 3)
+    {
+        fprintf(stderr, "pcep_msg_create_update there must be at least 3 update objects\n");
+        return NULL;
+    }
+
+    double_linked_list_node *node = update_request_object_list->head;
+    struct pcep_object_header *obj_hdr = (struct pcep_object_header*) node->data;
+
+    /* Check for the mandatory first SRP object */
+    if (obj_hdr->object_class != PCEP_OBJ_CLASS_SRP)
+    {
+        /* If the SRP object is missing, the receiving PCC MUST send a PCErr
+         * message with Error-type=6 (Mandatory Object missing) and Error-value=10
+         * (SRP object missing). */
+        fprintf(stderr, "pcep_msg_create_update missing mandatory first SRP object\n");
+        return NULL;
+    }
+
+    /* Check for the mandatory 2nd LSP object */
+    node = node->next_node;
+    obj_hdr = (struct pcep_object_header*) node->data;
+    if (obj_hdr->object_class != PCEP_OBJ_CLASS_LSP)
+    {
+        /* If the LSP object is missing, the receiving PCC MUST send a PCErr
+         * message with Error-type=6 (Mandatory Object missing) and Error-value=8
+         * (LSP object missing). */
+        fprintf(stderr, "pcep_msg_create_update missing mandatory second LSP object\n");
+        return NULL;
+    }
+
+    /* Check for the mandatory 3rd ERO object */
+    node = node->next_node;
+    obj_hdr = (struct pcep_object_header*) node->data;
+    if (obj_hdr->object_class != PCEP_OBJ_CLASS_ERO)
+    {
+        /* If the ERO object is missing, the receiving PCC MUST send a PCErr
+         * message with Error-type=6 (Mandatory Object missing) and Error-value=9
+         * (ERO object missing). */
+        fprintf(stderr, "pcep_msg_create_update missing mandatory third ERO object\n");
+        return NULL;
+    }
+
+    struct pcep_header* update =
+            pcep_msg_create_from_object_list(update_request_object_list, NULL);
+    if (update != NULL)
+    {
+        update->type = PCEP_TYPE_UPDATE;
+    }
+
+    return update;
+}
+
+struct pcep_header*
+pcep_msg_create_initiate(double_linked_list *lsp_object_list, double_linked_list *tlv_list)
+{
+    if (lsp_object_list == NULL)
+    {
+        fprintf(stderr, "pcep_msg_create_initiate NULL update_request_object_list\n");
+        return NULL;
+    }
+
+    /* There must be at least 2 objects: SRP and LSP. */
+    if (lsp_object_list->num_entries < 2)
+    {
+        fprintf(stderr, "pcep_msg_create_initiate there must be at least 2 objects\n");
+        return NULL;
+    }
+
+    double_linked_list_node *node = lsp_object_list->head;
+    struct pcep_object_header *obj_hdr = (struct pcep_object_header*) node->data;
+
+    /* Check for the mandatory first SRP object */
+    if (obj_hdr->object_class != PCEP_OBJ_CLASS_SRP)
+    {
+        fprintf(stderr, "pcep_msg_create_initiate missing mandatory first SRP object\n");
+        return NULL;
+    }
+
+    /* Check for the mandatory 2nd LSP object */
+    node = node->next_node;
+    obj_hdr = (struct pcep_object_header*) node->data;
+    if (obj_hdr->object_class != PCEP_OBJ_CLASS_LSP)
+    {
+        fprintf(stderr, "pcep_msg_create_initiate missing mandatory second LSP object\n");
+        return NULL;
+    }
+
+    struct pcep_header* initiate =
+            pcep_msg_create_from_object_list(lsp_object_list, tlv_list);
+    if (initiate != NULL)
+    {
+        initiate->type = PCEP_TYPE_INITIATE;
+    }
+
+    return initiate;
+}
+
 void
 pcep_unpack_msg_header(struct pcep_header* hdr)
 {

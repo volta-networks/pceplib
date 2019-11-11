@@ -9,6 +9,7 @@
 
 #include <CUnit/CUnit.h>
 
+#include "pcep_utils_double_linked_list.h"
 #include "pcep-objects.h"
 #include "pcep-messages.h"
 
@@ -197,3 +198,130 @@ void test_pcep_msg_create_keepalive()
     CU_ASSERT_EQUAL(ka_msg->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
     free(ka_msg);
 }
+
+void test_pcep_msg_create_report()
+{
+    double_linked_list *obj_list = dll_initialize();
+    double_linked_list *tlv_list = dll_initialize();
+
+    struct pcep_header* report_msg = pcep_msg_create_report(NULL, NULL);
+    CU_ASSERT_PTR_NULL(report_msg);
+
+    report_msg = pcep_msg_create_report(NULL, tlv_list);
+    CU_ASSERT_PTR_NULL(report_msg);
+
+    /* Should return NULL if obj_list is empty */
+    report_msg = pcep_msg_create_report(obj_list, tlv_list);
+    CU_ASSERT_PTR_NULL(report_msg);
+
+    struct pcep_object_lsp* lsp = pcep_obj_create_lsp(100, PCEP_LSP_OPERATIONAL_UP, true, true, true, true, true);
+    dll_append(obj_list, lsp);
+    report_msg = pcep_msg_create_report(obj_list, tlv_list);
+    CU_ASSERT_PTR_NOT_NULL(report_msg);
+    CU_ASSERT_EQUAL(ntohs(report_msg->length),
+            sizeof(struct pcep_header) + ntohs(lsp->header.object_length));
+    CU_ASSERT_EQUAL(report_msg->type, PCEP_TYPE_REPORT);
+    CU_ASSERT_EQUAL(report_msg->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
+    free(report_msg);
+
+    struct pcep_object_tlv *tlv =
+            pcep_tlv_create_lsp_error_code(PCEP_TLV_LSP_ERROR_CODE_LSP_LIMIT_REACHED);
+    dll_append(tlv_list, tlv);
+    report_msg = pcep_msg_create_report(obj_list, tlv_list);
+    CU_ASSERT_PTR_NOT_NULL(report_msg);
+    CU_ASSERT_EQUAL(ntohs(report_msg->length),
+            sizeof(struct pcep_header) +
+            ntohs(lsp->header.object_length) +
+            ntohs(tlv->header.length) + sizeof(struct pcep_object_tlv_header));
+    CU_ASSERT_EQUAL(report_msg->type, PCEP_TYPE_REPORT);
+    CU_ASSERT_EQUAL(report_msg->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
+    free(tlv);
+    free(lsp);
+    free(report_msg);
+    dll_destroy(obj_list);
+    dll_destroy(tlv_list);
+}
+
+void test_pcep_msg_create_update()
+{
+    double_linked_list *obj_list = dll_initialize();
+    double_linked_list *ero_subobj_list = dll_initialize();
+
+    struct pcep_header* update_msg = pcep_msg_create_update(NULL);
+    CU_ASSERT_PTR_NULL(update_msg);
+
+    /* Should return NULL if obj_list is empty */
+    update_msg = pcep_msg_create_update(obj_list);
+    CU_ASSERT_PTR_NULL(update_msg);
+
+    struct pcep_object_srp* srp = pcep_obj_create_srp(false, 100);
+    struct pcep_object_lsp* lsp = pcep_obj_create_lsp(100, PCEP_LSP_OPERATIONAL_UP, true, true, true, true, true);
+    dll_append(ero_subobj_list, pcep_obj_create_ro_subobj_asn(0x0102));
+    struct pcep_object_ro*  ero = pcep_obj_create_eroute_object(ero_subobj_list);
+
+    /* Should return NULL if obj_list does not have 3 entries */
+    dll_append(obj_list, srp);
+    dll_append(obj_list, lsp);
+    update_msg = pcep_msg_create_update(obj_list);
+    CU_ASSERT_PTR_NULL(update_msg);
+
+    dll_append(obj_list, ero);
+    update_msg = pcep_msg_create_update(obj_list);
+    CU_ASSERT_PTR_NOT_NULL(update_msg);
+    CU_ASSERT_EQUAL(ntohs(update_msg->length),
+            sizeof(struct pcep_header) +
+            ntohs(srp->header.object_length) +
+            ntohs(lsp->header.object_length) +
+            ntohs(ero->header.object_length));
+    CU_ASSERT_EQUAL(update_msg->type, PCEP_TYPE_UPDATE);
+    CU_ASSERT_EQUAL(update_msg->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
+
+    dll_destroy_with_data(ero_subobj_list);
+    dll_destroy_with_data(obj_list);
+    free(update_msg);
+}
+
+void test_pcep_msg_create_initiate()
+{
+    double_linked_list *obj_list = dll_initialize();
+    double_linked_list *tlv_list = dll_initialize();
+    double_linked_list *ero_subobj_list = dll_initialize();
+
+    struct pcep_header* initiate_msg = pcep_msg_create_initiate(NULL, NULL);
+    CU_ASSERT_PTR_NULL(initiate_msg);
+
+    initiate_msg = pcep_msg_create_initiate(NULL, tlv_list);
+    CU_ASSERT_PTR_NULL(initiate_msg);
+
+    /* Should return NULL if obj_list is empty */
+    initiate_msg = pcep_msg_create_initiate(obj_list, tlv_list);
+    CU_ASSERT_PTR_NULL(initiate_msg);
+
+    struct pcep_object_srp* srp = pcep_obj_create_srp(false, 100);
+    struct pcep_object_lsp* lsp = pcep_obj_create_lsp(100, PCEP_LSP_OPERATIONAL_UP, true, true, true, true, true);
+    dll_append(ero_subobj_list, pcep_obj_create_ro_subobj_asn(0x0102));
+    struct pcep_object_ro*  ero = pcep_obj_create_eroute_object(ero_subobj_list);
+
+    /* Should return NULL if obj_list does not have 2 entries */
+    dll_append(obj_list, srp);
+    initiate_msg = pcep_msg_create_initiate(obj_list, tlv_list);
+    CU_ASSERT_PTR_NULL(initiate_msg);
+
+    dll_append(obj_list, lsp);
+    dll_append(obj_list, ero);
+    initiate_msg = pcep_msg_create_initiate(obj_list, tlv_list);
+    CU_ASSERT_PTR_NOT_NULL(initiate_msg);
+    CU_ASSERT_EQUAL(ntohs(initiate_msg->length),
+            sizeof(struct pcep_header) +
+            ntohs(srp->header.object_length) +
+            ntohs(lsp->header.object_length) +
+            ntohs(ero->header.object_length));
+    CU_ASSERT_EQUAL(initiate_msg->type, PCEP_TYPE_INITIATE);
+    CU_ASSERT_EQUAL(initiate_msg->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
+
+    dll_destroy_with_data(ero_subobj_list);
+    dll_destroy_with_data(obj_list);
+    dll_destroy(tlv_list);
+    free(initiate_msg);
+}
+

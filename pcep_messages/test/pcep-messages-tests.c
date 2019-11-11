@@ -9,7 +9,7 @@
 #include <CUnit/CUnit.h>
 #include <CUnit/TestDB.h>
 
-/* functions to be tested in pcep-messages.c */
+/* functions to be tested from pcep-messages.c */
 extern void test_pcep_msg_create_open(void);
 extern void test_pcep_msg_create_request(void);
 extern void test_pcep_msg_create_request_svec(void);
@@ -18,8 +18,11 @@ extern void test_pcep_msg_create_reply(void);
 extern void test_pcep_msg_create_close(void);
 extern void test_pcep_msg_create_error(void);
 extern void test_pcep_msg_create_keepalive(void);
+extern void test_pcep_msg_create_report(void);
+extern void test_pcep_msg_create_update(void);
+extern void test_pcep_msg_create_initiate(void);
 
-/* functions to be tested in pcep-tlvs.c */
+/* functions to be tested from pcep-tlvs.c */
 extern void test_pcep_tlv_create_stateful_pce_capability(void);
 extern void test_pcep_tlv_create_speaker_entity_id(void);
 extern void test_pcep_tlv_create_lsp_db_version(void);
@@ -32,7 +35,7 @@ extern void test_pcep_tlv_create_lsp_error_code(void);
 extern void test_pcep_tlv_create_rsvp_ipv4_error_spec(void);
 extern void test_pcep_tlv_create_rsvp_ipv6_error_spec(void);
 
-/* functions to be tested in pcep-objects.c */
+/* functions to be tested from pcep-objects.c */
 extern void test_pcep_obj_create_open(void);
 extern void test_pcep_obj_create_rp(void);
 extern void test_pcep_obj_create_nopath(void);
@@ -79,6 +82,9 @@ int main(int argc, char **argv)
     CU_add_test(messages_suite, "test_pcep_msg_create_close", test_pcep_msg_create_close);
     CU_add_test(messages_suite, "test_pcep_msg_create_error", test_pcep_msg_create_error);
     CU_add_test(messages_suite, "test_pcep_msg_create_keepalive", test_pcep_msg_create_keepalive);
+    CU_add_test(messages_suite, "test_pcep_msg_create_report", test_pcep_msg_create_report);
+    CU_add_test(messages_suite, "test_pcep_msg_create_update", test_pcep_msg_create_update);
+    CU_add_test(messages_suite, "test_pcep_msg_create_initiate", test_pcep_msg_create_initiate);
 
     CU_pSuite tlvs_suite = CU_add_suite("PCEP TLVs Test Suite", NULL, NULL);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_stateful_pce_capability", test_pcep_tlv_create_stateful_pce_capability);
