@@ -498,10 +498,23 @@ pcep_obj_create_ro_subobj_asn(uint16_t asn)
 /* Internal util function to create pcep_object_ro_subobj sub-objects */
 static struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_sr_common(uint8_t extra_length, enum pcep_sr_subobj_nai nai,
-        bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag)
+        bool loose_hop, bool f_flag, bool s_flag, bool c_flag_in, bool m_flag_in)
 {
     uint8_t *buffer = malloc(sizeof(struct pcep_object_ro_subobj) + extra_length);
     bzero(buffer, sizeof(struct pcep_object_ro_subobj));
+
+    /* Flag logic according to draft-ietf-pce-segment-routing-16 */
+    bool c_flag = c_flag_in;
+    bool m_flag = m_flag_in;
+    if (s_flag)
+    {
+        c_flag = m_flag = false;
+    }
+
+    if (m_flag == false)
+    {
+        c_flag = false;
+    }
 
     struct pcep_object_ro_subobj *obj = (struct pcep_object_ro_subobj*) buffer;
 
@@ -523,122 +536,191 @@ pcep_obj_create_ro_subobj_sr_common(uint8_t extra_length, enum pcep_sr_subobj_na
 }
 
 struct pcep_object_ro_subobj*
-pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag)
+pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, uint32_t sid)
 {
-    return pcep_obj_create_ro_subobj_sr_common(
-            0, PCEP_SR_SUBOBJ_NAI_ABSENT, loose_hop, f_flag, s_flag, c_flag, m_flag);
+    /* According to draft-ietf-pce-segment-routing-16#section-5.2.1
+     * If NT=0, the F bit MUST be 1, the S bit MUST be zero and the
+     * Length MUST be 8. */
+    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
+            sizeof(uint32_t), PCEP_SR_SUBOBJ_NAI_ABSENT,
+            loose_hop, true, false, false, false);
+    obj->subobj.sr.sid_nai[0] = htonl(sid);
+
+    return obj;
 }
 
 struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_sr_ipv4_node(
-        bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
-        struct in_addr *ipv4_node_id)
+        bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
+        uint32_t sid, struct in_addr *ipv4_node_id)
 {
     if (ipv4_node_id == NULL)
     {
         return NULL;
     }
 
-    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
-            sizeof(struct in_addr), PCEP_SR_SUBOBJ_NAI_IPV4_NODE,
-            loose_hop, f_flag, s_flag, c_flag, m_flag);
+    uint8_t extra_buf_len = (sid_absent ? sizeof(uint32_t) : sizeof(uint32_t) * 2);
 
-    obj->subobj.sr.sid_nai[0] = htonl(ipv4_node_id->s_addr);
+    /* According to draft-ietf-pce-segment-routing-16#section-5.2.1
+     * If NT=1, the F bit MUST be zero.  If the S bit is 1, the Length
+     * MUST be 8, otherwise the Length MUST be 12 */
+    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
+            extra_buf_len, PCEP_SR_SUBOBJ_NAI_IPV4_NODE,
+            loose_hop, false, sid_absent, c_flag, m_flag);
+
+    int index = 0;
+    if (! sid_absent)
+    {
+        obj->subobj.sr.sid_nai[index++] = htonl(sid);
+    }
+    obj->subobj.sr.sid_nai[index] = htonl(ipv4_node_id->s_addr);
 
     return obj;
 }
 
 struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_sr_ipv6_node(
-        bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
-        struct in6_addr *ipv6_node_id)
+        bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
+        uint32_t sid, struct in6_addr *ipv6_node_id)
 {
     if (ipv6_node_id == NULL)
     {
         return NULL;
     }
 
-    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
-            sizeof(struct in6_addr), PCEP_SR_SUBOBJ_NAI_IPV6_NODE,
-            loose_hop, f_flag, s_flag, c_flag, m_flag);
+    uint8_t extra_buf_len = sizeof(struct in6_addr);
+    if (!sid_absent)
+    {
+        extra_buf_len += sizeof(uint32_t);
+    }
 
-    obj->subobj.sr.sid_nai[0] = htonl(ipv6_node_id->__in6_u.__u6_addr32[0]);
-    obj->subobj.sr.sid_nai[1] = htonl(ipv6_node_id->__in6_u.__u6_addr32[1]);
-    obj->subobj.sr.sid_nai[2] = htonl(ipv6_node_id->__in6_u.__u6_addr32[2]);
-    obj->subobj.sr.sid_nai[3] = htonl(ipv6_node_id->__in6_u.__u6_addr32[3]);
+    /* According to draft-ietf-pce-segment-routing-16#section-5.2.1
+     * If NT=2, the F bit MUST be zero.  If the S bit is 1, the Length
+     * MUST be 20, otherwise the Length MUST be 24. */
+    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
+            extra_buf_len, PCEP_SR_SUBOBJ_NAI_IPV6_NODE,
+            loose_hop, false, sid_absent, c_flag, m_flag);
+
+    int index = 0;
+    if (! sid_absent)
+    {
+        obj->subobj.sr.sid_nai[index++] = htonl(sid);
+    }
+    obj->subobj.sr.sid_nai[index++] = htonl(ipv6_node_id->__in6_u.__u6_addr32[0]);
+    obj->subobj.sr.sid_nai[index++] = htonl(ipv6_node_id->__in6_u.__u6_addr32[1]);
+    obj->subobj.sr.sid_nai[index++] = htonl(ipv6_node_id->__in6_u.__u6_addr32[2]);
+    obj->subobj.sr.sid_nai[index]   = htonl(ipv6_node_id->__in6_u.__u6_addr32[3]);
 
     return obj;
 }
 
 struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_sr_ipv4_adj(
-        bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
-        struct in_addr *local_ipv4, struct in_addr *remote_ipv4)
+        bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
+        uint32_t sid, struct in_addr *local_ipv4, struct in_addr *remote_ipv4)
 {
     if (local_ipv4 == NULL || remote_ipv4 == NULL)
     {
         return NULL;
     }
 
-    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
-            sizeof(struct in_addr) * 2, PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY,
-            loose_hop, f_flag, s_flag, c_flag, m_flag);
+    uint8_t extra_buf_len = sizeof(struct in_addr) * 2;
+    if (!sid_absent)
+    {
+        extra_buf_len += sizeof(uint32_t);
+    }
 
-    obj->subobj.sr.sid_nai[0] = htonl(local_ipv4->s_addr);
-    obj->subobj.sr.sid_nai[1] = htonl(remote_ipv4->s_addr);
+    /* According to draft-ietf-pce-segment-routing-16#section-5.2.1
+     * If NT=3, the F bit MUST be zero.  If the S bit is 1, the Length
+     * MUST be 12, otherwise the Length MUST be 16 */
+    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
+            extra_buf_len, PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY,
+            loose_hop, false, sid_absent, c_flag, m_flag);
+
+    int index = 0;
+    if (! sid_absent)
+    {
+        obj->subobj.sr.sid_nai[index++] = htonl(sid);
+    }
+    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv4->s_addr);
+    obj->subobj.sr.sid_nai[index]   = htonl(remote_ipv4->s_addr);
 
     return obj;
 }
 
 struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_sr_ipv6_adj(
-        bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
-        struct in6_addr *local_ipv6, struct in6_addr *remote_ipv6)
+        bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
+        uint32_t sid, struct in6_addr *local_ipv6, struct in6_addr *remote_ipv6)
 {
     if (local_ipv6 == NULL || remote_ipv6 == NULL)
     {
         return NULL;
     }
 
+    uint8_t extra_buf_len = sizeof(struct in6_addr) * 2;
+    if (!sid_absent)
+    {
+        extra_buf_len += sizeof(uint32_t);
+    }
+
+    /* According to draft-ietf-pce-segment-routing-16#section-5.2.1
+     * If NT=4, the F bit MUST be zero.  If the S bit is 1, the Length
+     * MUST be 36, otherwise the Length MUST be 40 */
     struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
-            sizeof(struct in6_addr) * 2, PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY,
-            loose_hop, f_flag, s_flag, c_flag, m_flag);
+            extra_buf_len, PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY,
+            loose_hop, false, sid_absent, c_flag, m_flag);
 
-    obj->subobj.sr.sid_nai[0] = htonl(local_ipv6->__in6_u.__u6_addr32[0]);
-    obj->subobj.sr.sid_nai[1] = htonl(local_ipv6->__in6_u.__u6_addr32[1]);
-    obj->subobj.sr.sid_nai[2] = htonl(local_ipv6->__in6_u.__u6_addr32[2]);
-    obj->subobj.sr.sid_nai[3] = htonl(local_ipv6->__in6_u.__u6_addr32[3]);
+    int index = 0;
+    if (! sid_absent)
+    {
+        obj->subobj.sr.sid_nai[index++] = htonl(sid);
+    }
+    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv6->__in6_u.__u6_addr32[0]);
+    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv6->__in6_u.__u6_addr32[1]);
+    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv6->__in6_u.__u6_addr32[2]);
+    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv6->__in6_u.__u6_addr32[3]);
 
-    obj->subobj.sr.sid_nai[4] = htonl(remote_ipv6->__in6_u.__u6_addr32[0]);
-    obj->subobj.sr.sid_nai[5] = htonl(remote_ipv6->__in6_u.__u6_addr32[1]);
-    obj->subobj.sr.sid_nai[6] = htonl(remote_ipv6->__in6_u.__u6_addr32[2]);
-    obj->subobj.sr.sid_nai[7] = htonl(remote_ipv6->__in6_u.__u6_addr32[3]);
+    obj->subobj.sr.sid_nai[index++] = htonl(remote_ipv6->__in6_u.__u6_addr32[0]);
+    obj->subobj.sr.sid_nai[index++] = htonl(remote_ipv6->__in6_u.__u6_addr32[1]);
+    obj->subobj.sr.sid_nai[index++] = htonl(remote_ipv6->__in6_u.__u6_addr32[2]);
+    obj->subobj.sr.sid_nai[index]   = htonl(remote_ipv6->__in6_u.__u6_addr32[3]);
 
     return obj;
 }
 
 struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(
-        bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
-        uint32_t local_node_id, uint32_t local_if_id,
+        bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
+        uint32_t sid, uint32_t local_node_id, uint32_t local_if_id,
         uint32_t remote_node_id, uint32_t remote_if_id)
 {
-    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
-            sizeof(uint32_t) * 4, PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY,
-            loose_hop, f_flag, s_flag, c_flag, m_flag);
+    uint8_t extra_buf_len = (sid_absent ? sizeof(uint32_t) * 4 : sizeof(uint32_t) * 5);
 
-    obj->subobj.sr.sid_nai[0] = htonl(local_node_id);
-    obj->subobj.sr.sid_nai[1] = htonl(local_if_id);
-    obj->subobj.sr.sid_nai[2] = htonl(remote_node_id);
-    obj->subobj.sr.sid_nai[3] = htonl(remote_if_id);
+    /* According to draft-ietf-pce-segment-routing-16#section-5.2.1
+     * If NT=5, the F bit MUST be zero.  If the S bit is 1, the Length
+     * MUST be 20, otherwise the Length MUST be 24. */
+    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
+            extra_buf_len, PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY,
+            loose_hop, false, sid_absent, c_flag, m_flag);
+
+    int index = 0;
+    if (! sid_absent)
+    {
+        obj->subobj.sr.sid_nai[index++] = htonl(sid);
+    }
+    obj->subobj.sr.sid_nai[index++] = htonl(local_node_id);
+    obj->subobj.sr.sid_nai[index++] = htonl(local_if_id);
+    obj->subobj.sr.sid_nai[index++] = htonl(remote_node_id);
+    obj->subobj.sr.sid_nai[index]   = htonl(remote_if_id);
 
     return obj;
 }
 
 struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
-        bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
-        struct in6_addr *local_ipv6, uint32_t local_if_id,
+        bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
+        uint32_t sid, struct in6_addr *local_ipv6, uint32_t local_if_id,
         struct in6_addr *remote_ipv6, uint32_t remote_if_id)
 {
     if (local_ipv6 == NULL || remote_ipv6 == NULL)
@@ -646,22 +728,35 @@ pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
         return NULL;
     }
 
+    uint8_t extra_buf_len = (sizeof(struct in6_addr) * 2) + (sizeof(uint32_t) * 2);
+    if (!sid_absent)
+    {
+        extra_buf_len += sizeof(uint32_t);
+    }
+
+    /* According to draft-ietf-pce-segment-routing-16#section-5.2.1
+     * If NT=6, the F bit MUST be zero.  If the S bit is 1, the Length
+     * MUST be 44, otherwise the Length MUST be 48 */
     struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
-            (sizeof(struct in6_addr) * 2) + (sizeof(uint32_t) * 2),
-            PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY,
-            loose_hop, f_flag, s_flag, c_flag, m_flag);
+            extra_buf_len, PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY,
+            loose_hop, false, sid_absent, c_flag, m_flag);
 
-    obj->subobj.sr.sid_nai[0] = htonl(local_ipv6->__in6_u.__u6_addr32[0]);
-    obj->subobj.sr.sid_nai[1] = htonl(local_ipv6->__in6_u.__u6_addr32[1]);
-    obj->subobj.sr.sid_nai[2] = htonl(local_ipv6->__in6_u.__u6_addr32[2]);
-    obj->subobj.sr.sid_nai[3] = htonl(local_ipv6->__in6_u.__u6_addr32[3]);
-    obj->subobj.sr.sid_nai[4] = htonl(local_if_id);
+    int index = 0;
+    if (! sid_absent)
+    {
+        obj->subobj.sr.sid_nai[index++] = htonl(sid);
+    }
+    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv6->__in6_u.__u6_addr32[0]);
+    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv6->__in6_u.__u6_addr32[1]);
+    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv6->__in6_u.__u6_addr32[2]);
+    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv6->__in6_u.__u6_addr32[3]);
+    obj->subobj.sr.sid_nai[index++] = htonl(local_if_id);
 
-    obj->subobj.sr.sid_nai[5] = htonl(remote_ipv6->__in6_u.__u6_addr32[0]);
-    obj->subobj.sr.sid_nai[6] = htonl(remote_ipv6->__in6_u.__u6_addr32[1]);
-    obj->subobj.sr.sid_nai[7] = htonl(remote_ipv6->__in6_u.__u6_addr32[2]);
-    obj->subobj.sr.sid_nai[8] = htonl(remote_ipv6->__in6_u.__u6_addr32[3]);
-    obj->subobj.sr.sid_nai[9] = htonl(remote_if_id);
+    obj->subobj.sr.sid_nai[index++] = htonl(remote_ipv6->__in6_u.__u6_addr32[0]);
+    obj->subobj.sr.sid_nai[index++] = htonl(remote_ipv6->__in6_u.__u6_addr32[1]);
+    obj->subobj.sr.sid_nai[index++] = htonl(remote_ipv6->__in6_u.__u6_addr32[2]);
+    obj->subobj.sr.sid_nai[index++] = htonl(remote_ipv6->__in6_u.__u6_addr32[3]);
+    obj->subobj.sr.sid_nai[index]   = htonl(remote_if_id);
 
     return obj;
 }
@@ -789,24 +884,25 @@ pcep_unpack_obj_ro(struct pcep_object_ro *obj)
             switch (sr_subobj->nai_type)
             {
             case PCEP_SR_SUBOBJ_NAI_IPV4_NODE:
-                words_to_convert = 1;
+                /* If the sid_absent flag is true, then dont convert the sid */
+                words_to_convert = (sr_subobj->s_flag == true ? 1 : 2);
                 break;
 
             case PCEP_SR_SUBOBJ_NAI_IPV6_NODE:
             case PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY:
-                words_to_convert = 4;
+                words_to_convert = (sr_subobj->s_flag == true ? 4 : 5);
                 break;
 
             case PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY:
-                words_to_convert = 2;
+                words_to_convert = (sr_subobj->s_flag == true ? 2 : 3);
                 break;
 
             case PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY:
-                words_to_convert = 8;
+                words_to_convert = (sr_subobj->s_flag == true ? 8 : 9);
                 break;
 
             case PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY:
-                words_to_convert = 10;
+                words_to_convert = (sr_subobj->s_flag == true ? 10 : 11);
                 break;
 
             case PCEP_SR_SUBOBJ_NAI_ABSENT:
