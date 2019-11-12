@@ -467,23 +467,39 @@ struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_unnum    (struct in_
 struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_32label  (uint8_t dir, uint32_t label);
 struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_border   (uint8_t direction, uint8_t swcap_from, uint8_t swcap_to);
 struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_asn      (uint16_t asn);
-/* sr ero and sr rro creation functions.
- * The loose_hop must always be false for sr rro.
- * The NAI value will be set internally, depending on which function is used. */
-struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag);
-struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_ipv4_node(bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
-                                                                         struct in_addr *ipv4_node_id);
-struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_ipv6_node(bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
-                                                                         struct in6_addr *ipv6_node_id);
-struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_ipv4_adj(bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
-                                                                        struct in_addr *local_ipv4, struct in_addr *remote_ipv4);
-struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_ipv6_adj(bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
-                                                                        struct in6_addr *local_ipv6, struct in6_addr *remote_ipv6);
-struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
-                                                                                   uint32_t local_node_id, uint32_t local_if_id,
+
+/* SR ERO and SR RRO creation functions for different NAI (Node/Adj ID) types.
+ *  - The loose_hop is only used for sr ero and must always be false for sr rro.
+ *  - The NAI value will be set internally, depending on which function is used.
+ * m_flag:
+ *  - If this flag is true, the SID value represents an MPLS label stack
+ *    entry as specified in [RFC3032].  Otherwise, the SID value is an
+ *    administratively configured value which represents an index into
+ *    an MPLS label space (either SRGB or SRLB) per [RFC8402].
+ * c_flag:
+ *  - If the M flag and the C flag are both true, then the TC, S, and TTL
+ *    fields in the MPLS label stack entry are specified by the PCE.  However,
+ *    a PCC MAY choose to override these values according to its local policy
+ *    and MPLS forwarding rules.
+ *  - If the M flag is true but the C flag is false, then the TC, S, and TTL
+ *    fields MUST be ignored by the PCC.
+ *  - The PCC MUST set these fields according to its local policy and MPLS
+ *    forwarding rules.
+ *  - If the M flag is false then the C bit MUST be false. */
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, uint32_t sid);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_ipv4_node(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
+                                                                         uint32_t sid, struct in_addr *ipv4_node_id);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_ipv6_node(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
+                                                                         uint32_t sid, struct in6_addr *ipv6_node_id);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_ipv4_adj(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
+                                                                        uint32_t sid, struct in_addr *local_ipv4, struct in_addr *remote_ipv4);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_ipv6_adj(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
+                                                                        uint32_t sid, struct in6_addr *local_ipv6, struct in6_addr *remote_ipv6);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
+                                                                                   uint32_t sid, uint32_t local_node_id, uint32_t local_if_id,
                                                                                    uint32_t remote_node_id, uint32_t remote_if_id);
-struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(bool loose_hop, bool f_flag, bool s_flag, bool c_flag, bool m_flag,
-                                                                                  struct in6_addr *local_ipv6, uint32_t local_if_id,
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
+                                                                                  uint32_t sid, struct in6_addr *local_ipv6, uint32_t local_if_id,
                                                                                   struct in6_addr *remote_ipv6, uint32_t remote_if_id);
 
 uint32_t*       pcep_obj_svec_get       (struct pcep_object_svec* obj, uint16_t *length);
