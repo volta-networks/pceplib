@@ -274,6 +274,7 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
                 session->pcc_config.dead_timer_seconds,
                 session->session_id,
                 tlv_list);
+        dll_destroy_with_data(tlv_list);
     }
     else
     {

@@ -13,8 +13,8 @@
 extern void test_pcep_msg_create_open(void);
 extern void test_pcep_msg_create_request(void);
 extern void test_pcep_msg_create_request_svec(void);
-extern void test_pcep_msg_create_response_nopath(void);
-extern void test_pcep_msg_create_response(void);
+extern void test_pcep_msg_create_reply_nopath(void);
+extern void test_pcep_msg_create_reply(void);
 extern void test_pcep_msg_create_close(void);
 extern void test_pcep_msg_create_error(void);
 extern void test_pcep_msg_create_keepalive(void);
@@ -74,8 +74,8 @@ int main(int argc, char **argv)
     CU_add_test(messages_suite, "test_pcep_msg_create_open", test_pcep_msg_create_open);
     CU_add_test(messages_suite, "test_pcep_msg_create_request", test_pcep_msg_create_request);
     CU_add_test(messages_suite, "test_pcep_msg_create_request_svec", test_pcep_msg_create_request_svec);
-    CU_add_test(messages_suite, "test_pcep_msg_create_response_nopath", test_pcep_msg_create_response_nopath);
-    CU_add_test(messages_suite, "test_pcep_msg_create_response", test_pcep_msg_create_response);
+    CU_add_test(messages_suite, "test_pcep_msg_create_reply_nopath", test_pcep_msg_create_reply_nopath);
+    CU_add_test(messages_suite, "test_pcep_msg_create_reply", test_pcep_msg_create_reply);
     CU_add_test(messages_suite, "test_pcep_msg_create_close", test_pcep_msg_create_close);
     CU_add_test(messages_suite, "test_pcep_msg_create_error", test_pcep_msg_create_error);
     CU_add_test(messages_suite, "test_pcep_msg_create_keepalive", test_pcep_msg_create_keepalive);

@@ -103,14 +103,12 @@ typedef struct pcep_pce_request_
     struct pcep_object_metric *metrics;
 
     /* Reported Route Object
-     * Populate with pcep_obj_create_rro()
-     * TODO not supported yet, need to implement */
-    double_linked_list *rro_list;
+     * Populate with pcep_obj_create_rro() */
+    struct pcep_object_ro *rro;
 
     /* Include Route Object
-     * Populate with pcep_obj_create_iro()
-     * TODO not supported yet, need to implement */
-    double_linked_list *iro_list;
+     * Populate with pcep_obj_create_iro() */
+    struct pcep_object_ro *iro;
 
     /* Populate with pcep_obj_create_load_balancing() */
     struct pcep_object_load_balancing *load_balancing;

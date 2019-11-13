@@ -50,6 +50,27 @@ void dll_destroy(double_linked_list *handle)
 }
 
 
+void dll_destroy_with_data(double_linked_list *handle)
+{
+    if (handle == NULL)
+    {
+        fprintf(stderr, "ERROR dll_destroy_with_data cannot destroy NULL handle\n");
+        return;
+    }
+
+    double_linked_list_node *node = handle->head;
+    while(node != NULL)
+    {
+        double_linked_list_node *node_to_delete = node;
+        free(node->data);
+        node = node->next_node;
+        free(node_to_delete);
+    }
+
+    free(handle);
+}
+
+
 /* Creates a node and adds it as the first item in the list */
 double_linked_list_node *dll_prepend(double_linked_list *handle, void *data)
 {

@@ -320,41 +320,36 @@ void test_pcep_obj_create_lsp()
  * pcep_obj_create_iroute_object(), and pcep_obj_create_rroute_object() is the object_class
  * and the object_type.
  */
-typedef struct pcep_object_route_object* (*ro_func)(double_linked_list*);
+typedef struct pcep_object_ro* (*ro_func)(double_linked_list*);
 static void test_pcep_obj_create_object_common(ro_func func_to_test, uint8_t object_class, uint8_t object_type)
 {
     double_linked_list *ero_list = dll_initialize();
 
-    struct pcep_object_route_object *ero = func_to_test(NULL);
+    struct pcep_object_ro *ero = func_to_test(NULL);
     CU_ASSERT_PTR_NOT_NULL(ero);
-    CU_ASSERT_EQUAL(ero->ro_hdr.header.object_class, object_class);
-    CU_ASSERT_EQUAL(ero->ro_hdr.header.object_type, object_type);
-    CU_ASSERT_EQUAL(ero->ro_hdr.header.object_flags, 0);
-    CU_ASSERT_EQUAL(ero->ro_hdr.header.object_length, ntohs(sizeof(struct pcep_object_ro)));
-    CU_ASSERT_PTR_NULL(ero->ro_list);
+    CU_ASSERT_EQUAL(ero->header.object_class, object_class);
+    CU_ASSERT_EQUAL(ero->header.object_type, object_type);
+    CU_ASSERT_EQUAL(ero->header.object_flags, 0);
+    CU_ASSERT_EQUAL(ero->header.object_length, ntohs(sizeof(struct pcep_object_ro)));
     free(ero);
 
     ero = func_to_test(ero_list);
     CU_ASSERT_PTR_NOT_NULL(ero);
-    CU_ASSERT_EQUAL(ero->ro_hdr.header.object_class, object_class);
-    CU_ASSERT_EQUAL(ero->ro_hdr.header.object_type, object_type);
-    CU_ASSERT_EQUAL(ero->ro_hdr.header.object_flags, 0);
-    CU_ASSERT_EQUAL(ero->ro_hdr.header.object_length, ntohs(sizeof(struct pcep_object_ro)));
-    CU_ASSERT_PTR_NOT_NULL(ero->ro_list);
-    CU_ASSERT_EQUAL(ero->ro_list->num_entries, 0);
+    CU_ASSERT_EQUAL(ero->header.object_class, object_class);
+    CU_ASSERT_EQUAL(ero->header.object_type, object_type);
+    CU_ASSERT_EQUAL(ero->header.object_flags, 0);
+    CU_ASSERT_EQUAL(ero->header.object_length, ntohs(sizeof(struct pcep_object_ro)));
     free(ero);
 
     struct pcep_object_ro_subobj *ro_subobj = pcep_obj_create_ro_subobj_32label(0, 101);
     dll_append(ero_list, ro_subobj);
     ero = func_to_test(ero_list);
     CU_ASSERT_PTR_NOT_NULL(ero);
-    CU_ASSERT_EQUAL(ero->ro_hdr.header.object_class, object_class);
-    CU_ASSERT_EQUAL(ero->ro_hdr.header.object_type, object_type);
-    CU_ASSERT_EQUAL(ero->ro_hdr.header.object_flags, 0);
-    CU_ASSERT_EQUAL(ero->ro_hdr.header.object_length,
+    CU_ASSERT_EQUAL(ero->header.object_class, object_class);
+    CU_ASSERT_EQUAL(ero->header.object_type, object_type);
+    CU_ASSERT_EQUAL(ero->header.object_flags, 0);
+    CU_ASSERT_EQUAL(ero->header.object_length,
             ntohs(sizeof(struct pcep_object_ro) + ro_subobj->subobj.label.header.length));
-    CU_ASSERT_PTR_NOT_NULL(ero->ro_list);
-    CU_ASSERT_EQUAL(ero->ro_list->num_entries, 1);
     free(ro_subobj);
     free(ero);
     dll_destroy(ero_list);

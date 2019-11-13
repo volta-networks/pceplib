@@ -33,6 +33,9 @@ double_linked_list *dll_initialize();
  * user data will not be freed, and may be leaked if not handled
  * externally. */
 void dll_destroy(double_linked_list *handle);
+/* Destroy a double linked list, by freeing the handle and nodes,
+ * and the user data. */
+void dll_destroy_with_data(double_linked_list *handle);
 
 /* Creates a node and adds it as the first item in the list */
 double_linked_list_node *dll_prepend(double_linked_list *handle, void *data);

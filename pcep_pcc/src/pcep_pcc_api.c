@@ -178,27 +178,13 @@ pcep_pce_reply *request_path_computation_async(pcep_session *session, pcep_pce_r
     {
         message_size += ntohs(pce_req->metrics->header.object_length);
     }
-    if (pce_req->rro_list != NULL)
+    if (pce_req->rro != NULL)
     {
-        double_linked_list_node *rros_node;
-        for (rros_node = pce_req->rro_list->head;
-                rros_node != NULL;
-                rros_node = rros_node->next_node)
-        {
-            struct pcep_object_route_object *rros_item = rros_node->data;
-            message_size += ntohs(rros_item->ro_hdr.header.object_length);
-        }
+        message_size += ntohs(pce_req->rro->header.object_length);
     }
-    if (pce_req->iro_list != NULL)
+    if (pce_req->iro != NULL)
     {
-        double_linked_list_node *iros_node;
-        for (iros_node = pce_req->iro_list->head;
-                iros_node != NULL;
-                iros_node = iros_node->next_node)
-        {
-            struct pcep_object_route_object *iros_item = iros_node->data;
-            message_size += ntohs(iros_item->ro_hdr.header.object_length);
-        }
+        message_size += ntohs(pce_req->iro->header.object_length);
     }
     if (pce_req->load_balancing != NULL)
     {
@@ -256,61 +242,19 @@ pcep_pce_reply *request_path_computation_async(pcep_session *session, pcep_pce_r
     }
 
     /* RRO */
-    if (pce_req->rro_list != NULL)
+    if (pce_req->rro != NULL)
     {
-        double_linked_list_node *rro_node;
-        for (rro_node = pce_req->rro_list->head;
-                rro_node != NULL;
-                rro_node = rro_node->next_node)
-        {
-            /* For each RRO, copy the header to the buffer,
-             * then iterate the RRO sub-objects and copy each to the buffer */
-            struct pcep_object_route_object *rro_item = rro_node->data;
-            memcpy(message_buffer + index, &(rro_item->ro_hdr.header), sizeof(struct pcep_object_header));
-            index += sizeof(struct pcep_object_header);
-
-            double_linked_list_node *rro_subobj_node;
-            for (rro_subobj_node = rro_item->ro_list->head;
-                    rro_subobj_node != NULL;
-                    rro_subobj_node = rro_subobj_node->next_node)
-            {
-                struct pcep_object_ro_subobj *rro_subobj_item = rro_subobj_node->data;
-                /* All of the ro subobj structures start with the header, so just using
-                 * the ipv4 subobj here, even though it could be any of the sub objects */
-                memcpy(message_buffer + index, rro_subobj_item, rro_subobj_item->subobj.ipv4.header.length);
-                index += rro_subobj_item->subobj.ipv4.header.length;
-            }
-        }
-        pcep_obj_free_ro(pce_req->rro_list);
+        memcpy(message_buffer + index, pce_req->rro, ntohs(pce_req->rro->header.object_length));
+        index += ntohs(pce_req->rro->header.object_length);
+        free(pce_req->rro);
     }
 
     /* IRO */
-    if (pce_req->iro_list != NULL)
+    if (pce_req->iro != NULL)
     {
-        double_linked_list_node *iro_node;
-        for (iro_node = pce_req->iro_list->head;
-             iro_node != NULL;
-             iro_node = iro_node->next_node)
-        {
-            /* For each IRO, copy the header to the buffer,
-             * then iterate the IRO sub-objects and copy each to the buffer */
-            struct pcep_object_route_object *iro_item = iro_node->data;
-            memcpy(message_buffer + index, &(iro_item->ro_hdr.header), sizeof(struct pcep_object_header));
-            index += sizeof(struct pcep_object_header);
-
-            double_linked_list_node *iro_subobj_node;
-            for (iro_subobj_node = iro_item->ro_list->head;
-                    iro_subobj_node != NULL;
-                    iro_subobj_node = iro_subobj_node->next_node)
-            {
-                struct pcep_object_ro_subobj *iro_subobj_item = iro_subobj_node->data;
-                /* All of the ro subobj structures start with the header, so just using
-                 * the ipv4 subobj here, even though it could be any of the sub objects */
-                memcpy(message_buffer + index, iro_subobj_item, ntohs(iro_subobj_item->subobj.ipv4.header.length));
-                index += ntohs(iro_subobj_item->subobj.ipv4.header.length);
-            }
-        }
-        pcep_obj_free_ro(pce_req->iro_list);
+        memcpy(message_buffer + index, pce_req->iro, ntohs(pce_req->iro->header.object_length));
+        index += ntohs(pce_req->iro->header.object_length);
+        free(pce_req->iro);
     }
 
     /* load balancing */

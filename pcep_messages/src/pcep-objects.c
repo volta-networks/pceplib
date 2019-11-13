@@ -312,12 +312,10 @@ pcep_obj_create_lsp(uint32_t plsp_id, enum pcep_lsp_operational_status status,
  *     pcep_obj_create_eroute_object()
  *     pcep_obj_create_iroute_object()
  *     pcep_obj_create_rroute_object() */
-static struct pcep_object_route_object*
+static struct pcep_object_ro*
 pcep_obj_create_common_route_object(double_linked_list* ro_list)
 {
-    uint16_t buffer_len = 0;
-    struct pcep_object_route_object *route_object = malloc(sizeof(struct pcep_object_route_object));
-    bzero(route_object, sizeof(struct pcep_object_route_object));
+    uint16_t buffer_len = sizeof(struct pcep_object_ro);
 
     if (ro_list != NULL)
     {
@@ -329,46 +327,58 @@ pcep_obj_create_common_route_object(double_linked_list* ro_list)
         }
     }
 
-    buffer_len += sizeof(struct pcep_object_ro);
+    uint8_t *buffer = malloc(buffer_len);
+    bzero(buffer, buffer_len);
 
     /* object_class and object_type MUST be set by calling functions */
-    route_object->ro_hdr.header.object_flags = 0;
-    route_object->ro_hdr.header.object_length = htons(buffer_len);
+    struct pcep_object_ro *route_object = (struct pcep_object_ro *) buffer;
+    route_object->header.object_flags = 0;
+    route_object->header.object_length = htons(buffer_len);
 
-    route_object->ro_list = ro_list;
+    if (ro_list != NULL)
+    {
+        uint8_t index = sizeof(struct pcep_object_ro);
+        double_linked_list_node *node;
+        for (node = ro_list->head; node != NULL; node = node->next_node)
+        {
+            struct pcep_ro_subobj_hdr *subobj = (struct pcep_ro_subobj_hdr*) node->data;
+            memcpy(buffer + index, subobj, subobj->length);
+            index += subobj->length;
+        }
+    }
 
     return route_object;
 }
 
 /* Wrap a list of ro subobjects in a structure with an object header */
-struct pcep_object_route_object*
+struct pcep_object_ro*
 pcep_obj_create_eroute_object(double_linked_list* ero_list)
 {
-    struct pcep_object_route_object *ero = pcep_obj_create_common_route_object(ero_list);
-    ero->ro_hdr.header.object_class = PCEP_OBJ_CLASS_ERO;
-    ero->ro_hdr.header.object_type = PCEP_OBJ_TYPE_ERO;
+    struct pcep_object_ro *ero = pcep_obj_create_common_route_object(ero_list);
+    ero->header.object_class = PCEP_OBJ_CLASS_ERO;
+    ero->header.object_type = PCEP_OBJ_TYPE_ERO;
 
     return ero;
 }
 
 /* Wrap a list of ro subobjects in a structure with an object header */
-struct pcep_object_route_object*
+struct pcep_object_ro*
 pcep_obj_create_iroute_object(double_linked_list* iro_list)
 {
-    struct pcep_object_route_object *iro = pcep_obj_create_common_route_object(iro_list);
-    iro->ro_hdr.header.object_class = PCEP_OBJ_CLASS_IRO;
-    iro->ro_hdr.header.object_type = PCEP_OBJ_TYPE_IRO;
+    struct pcep_object_ro *iro = pcep_obj_create_common_route_object(iro_list);
+    iro->header.object_class = PCEP_OBJ_CLASS_IRO;
+    iro->header.object_type = PCEP_OBJ_TYPE_IRO;
 
     return iro;
 }
 
 /* Wrap a list of ro subobjects in a structure with an object header */
-struct pcep_object_route_object*
+struct pcep_object_ro*
 pcep_obj_create_rroute_object(double_linked_list* rro_list)
 {
-    struct pcep_object_route_object *rro = pcep_obj_create_common_route_object(rro_list);
-    rro->ro_hdr.header.object_class = PCEP_OBJ_CLASS_RRO;
-    rro->ro_hdr.header.object_type = PCEP_OBJ_TYPE_RRO;
+    struct pcep_object_ro *rro = pcep_obj_create_common_route_object(rro_list);
+    rro->header.object_class = PCEP_OBJ_CLASS_RRO;
+    rro->header.object_type = PCEP_OBJ_TYPE_RRO;
 
     return rro;
 }
@@ -991,32 +1001,4 @@ pcep_obj_get_tlvs(struct pcep_object_header *base, struct pcep_object_tlv *first
     }
 
     return tlv_list;
-}
-
-void
-pcep_obj_free_ro(double_linked_list *route_object_list)
-{
-    if(route_object_list == NULL) return;
-
-    /* Iterate the route object items and free each one */
-    struct pcep_object_route_object *eros = (struct pcep_object_route_object *) dll_delete_first_node(route_object_list);
-    while (eros != NULL) {
-        pcep_obj_free_ro_hop(eros->ro_list);
-        free(eros);
-        eros = (struct pcep_object_route_object *) dll_delete_first_node(route_object_list);
-    }
-    dll_destroy(route_object_list);
-}
-
-void
-pcep_obj_free_ro_hop(double_linked_list *hop_list)
-{
-    /* Iterate the ero items and free each one */
-    struct pcep_object_ro *ro = (struct pcep_object_ro *) dll_delete_first_node(hop_list);
-    while (ro != NULL) {
-        free(ro);
-        ro = (struct pcep_object_ro *) dll_delete_first_node(hop_list);
-    }
-
-    dll_destroy(hop_list);
 }

@@ -301,12 +301,6 @@ struct pcep_object_ro_subobj
     } subobj;
 };
 
-struct pcep_object_route_object
-{
-    struct pcep_object_ro ro_hdr;
-    double_linked_list *ro_list;
-};
-
 struct pcep_object_lspa
 {
     struct pcep_object_header header;
@@ -457,9 +451,9 @@ struct pcep_object_lsp*                 pcep_obj_create_lsp         (uint32_t pl
 /* Route Object (Explicit ero, Reported rro, and Include iro) functions
  * First, the sub-objects should be created and appended to a double_linked_list,
  * then call one of these Route Object creation functions with the subobj list */
-struct pcep_object_route_object*  pcep_obj_create_eroute_object      (double_linked_list* ero_list);
-struct pcep_object_route_object*  pcep_obj_create_rroute_object      (double_linked_list* rro_list);
-struct pcep_object_route_object*  pcep_obj_create_iroute_object      (double_linked_list* iro_list);
+struct pcep_object_ro*            pcep_obj_create_eroute_object      (double_linked_list* ero_list);
+struct pcep_object_ro*            pcep_obj_create_rroute_object      (double_linked_list* rro_list);
+struct pcep_object_ro*            pcep_obj_create_iroute_object      (double_linked_list* iro_list);
 /* Route Object sub-object creation functions */
 struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_ipv4     (bool loose_hop, const struct in_addr* ro_ipv4, uint8_t prefix_len);
 struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_ipv6     (bool loose_hop, const struct in6_addr* ro_ipv6, uint8_t prefix_len);
@@ -521,9 +515,6 @@ void pcep_unpack_obj_error(struct pcep_object_error *error);
 void pcep_unpack_obj_close(struct pcep_object_close *close);
 void pcep_unpack_obj_srp(struct pcep_object_srp *srp);
 void pcep_unpack_obj_lsp(struct pcep_object_lsp *lsp);
-
-void pcep_obj_free_ro          (double_linked_list* ro_list);
-void pcep_obj_free_ro_hop      (double_linked_list* hop_list);
 
 bool pcep_obj_has_tlv(struct pcep_object_header* hdr, uint16_t obj_len);
 struct pcep_object_tlv* pcep_obj_get_next_tlv(struct pcep_object_header *base, struct pcep_object_tlv *current_tlv);

@@ -72,65 +72,66 @@ void test_pcep_msg_create_request_svec()
 }
 
 
-void test_pcep_msg_create_response_nopath()
+void test_pcep_msg_create_reply_nopath()
 {
     /* First test with NULL nopath and rp objects */
-    struct pcep_header* response_msg = pcep_msg_create_response_nopath(NULL, NULL);
+    struct pcep_header* reply_msg = pcep_msg_create_reply_nopath(NULL, NULL);
 
-    CU_ASSERT_PTR_NOT_NULL(response_msg);
-    CU_ASSERT_EQUAL(ntohs(response_msg->length), sizeof(struct pcep_header));
-    CU_ASSERT_EQUAL(response_msg->type, PCEP_TYPE_PCREP);
-    CU_ASSERT_EQUAL(response_msg->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
-    free(response_msg);
+    CU_ASSERT_PTR_NOT_NULL(reply_msg);
+    CU_ASSERT_EQUAL(ntohs(reply_msg->length), sizeof(struct pcep_header));
+    CU_ASSERT_EQUAL(reply_msg->type, PCEP_TYPE_PCREP);
+    CU_ASSERT_EQUAL(reply_msg->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
+    free(reply_msg);
 
     struct pcep_object_rp *rp_obj = pcep_obj_create_rp(0, 0, 0);
     struct pcep_object_nopath *nopath_obj = pcep_obj_create_nopath(0, 0, 0, 0);
-    response_msg = pcep_msg_create_response_nopath(rp_obj, nopath_obj);
+    reply_msg = pcep_msg_create_reply_nopath(rp_obj, nopath_obj);
 
-    CU_ASSERT_PTR_NOT_NULL(response_msg);
-    CU_ASSERT_EQUAL(ntohs(response_msg->length),
+    CU_ASSERT_PTR_NOT_NULL(reply_msg);
+    CU_ASSERT_EQUAL(ntohs(reply_msg->length),
             (sizeof(struct pcep_header) +
              sizeof(struct pcep_object_rp) +
              sizeof(struct pcep_object_nopath) +
              sizeof(uint32_t))); /* Add 4 for the TLV value */
-    CU_ASSERT_EQUAL(response_msg->type, PCEP_TYPE_PCREP);
-    CU_ASSERT_EQUAL(response_msg->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
-    free(response_msg);
+    CU_ASSERT_EQUAL(reply_msg->type, PCEP_TYPE_PCREP);
+    CU_ASSERT_EQUAL(reply_msg->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
+    free(reply_msg);
     free(rp_obj);
     free(nopath_obj);
 }
 
 
-void test_pcep_msg_create_response()
+void test_pcep_msg_create_reply()
 {
-    /* First test with NULL eros and rp objects */
-    struct pcep_header* response_msg = pcep_msg_create_response(NULL, NULL);
+    /* First test with NULL ero and rp objects */
+    struct pcep_header* reply_msg = pcep_msg_create_reply(NULL, NULL);
 
-    CU_ASSERT_PTR_NOT_NULL(response_msg);
-    CU_ASSERT_EQUAL(ntohs(response_msg->length), sizeof(struct pcep_header));
-    CU_ASSERT_EQUAL(response_msg->type, PCEP_TYPE_PCREP);
-    CU_ASSERT_EQUAL(response_msg->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
-    free(response_msg);
+    CU_ASSERT_PTR_NOT_NULL(reply_msg);
+    CU_ASSERT_EQUAL(ntohs(reply_msg->length), sizeof(struct pcep_header));
+    CU_ASSERT_EQUAL(reply_msg->type, PCEP_TYPE_PCREP);
+    CU_ASSERT_EQUAL(reply_msg->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
+    free(reply_msg);
 
-    struct pcep_object_rp *rp_obj = pcep_obj_create_rp(0, 0, 0);
     double_linked_list *ero_subobj_list = dll_initialize();
     struct pcep_object_ro_subobj *ero_subobj = pcep_obj_create_ro_subobj_32label(1, 10);
     dll_append(ero_subobj_list, ero_subobj);
-    struct pcep_object_route_object *eros = pcep_obj_create_eroute_object(ero_subobj_list);
+    struct pcep_object_ro *ero = pcep_obj_create_eroute_object(ero_subobj_list);
 
-    double_linked_list *eros_list = dll_initialize();
-    dll_append(eros_list, eros);
-    response_msg = pcep_msg_create_response(rp_obj, eros_list);
+    double_linked_list *object_list = dll_initialize();
+    dll_append(object_list, ero);
+    struct pcep_object_rp *rp_obj = pcep_obj_create_rp(0, 0, 0);
+    reply_msg = pcep_msg_create_reply(rp_obj, object_list);
 
-    CU_ASSERT_PTR_NOT_NULL(response_msg);
-    CU_ASSERT_EQUAL(ntohs(response_msg->length),
+    CU_ASSERT_PTR_NOT_NULL(reply_msg);
+    CU_ASSERT_EQUAL(ntohs(reply_msg->length),
             sizeof(struct pcep_header) + sizeof(struct pcep_object_rp) +
             sizeof(struct pcep_object_ro) + sizeof(struct pcep_ro_subobj_32label));
-    CU_ASSERT_EQUAL(response_msg->type, PCEP_TYPE_PCREP);
-    CU_ASSERT_EQUAL(response_msg->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
-    pcep_obj_free_ro(eros_list);
+    CU_ASSERT_EQUAL(reply_msg->type, PCEP_TYPE_PCREP);
+    CU_ASSERT_EQUAL(reply_msg->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
+    dll_destroy_with_data(ero_subobj_list);
+    dll_destroy_with_data(object_list);
     free(rp_obj);
-    free(response_msg);
+    free(reply_msg);
 }
 
 

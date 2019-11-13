@@ -72,9 +72,7 @@ void send_pce_req_message_sync(pcep_session *session)
     dll_append(rro_subobj_list, pcep_obj_create_ro_subobj_32label(0, 10));
     inet_pton(AF_INET, "172.100.80.10", &rro_ip);
     dll_append(rro_subobj_list, pcep_obj_create_ro_subobj_ipv4(false, &rro_ip, 24));
-    double_linked_list *rro_list = dll_initialize();
-    dll_append(rro_list, pcep_obj_create_rroute_object(rro_subobj_list));
-    pce_req->rro_list = rro_list;
+    pce_req->rro = pcep_obj_create_rroute_object(rro_subobj_list);
 
     pcep_pce_reply *pce_reply = request_path_computation(session, pce_req, 1500);
 
@@ -92,6 +90,7 @@ void send_pce_req_message_sync(pcep_session *session)
                 pce_reply->elapsed_time_milli_seconds);
     }
 
+    dll_destroy_with_data(rro_subobj_list);
     free(pce_req);
     free(pce_reply);
 }
