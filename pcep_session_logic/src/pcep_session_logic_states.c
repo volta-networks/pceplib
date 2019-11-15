@@ -221,7 +221,7 @@ bool verify_pcep_open(pcep_session *session, struct pcep_object_open *open_objec
                 if (session->pce_config.support_stateful_pce_lsp_update == false)
                 {
                     /* Turn off the U bit, as it is not supported */
-                    printf("WARN rejecting unsupported Open STATEFUL-PCE-CAPABILITY TLV\n");
+                    printf("WARN rejecting unsupported Open STATEFUL-PCE-CAPABILITY TLV U flag\n");
                     tlv->value[0] &= ~PCEP_TLV_FLAG_LSP_UPDATE_CAPABILITY;
                     retval = false;
                 }
@@ -232,8 +232,33 @@ bool verify_pcep_open(pcep_session *session, struct pcep_object_open *open_objec
                             session->session_id);
                 }
             }
-            /* TODO TODO how to handle unrecognized TLV ??
-            else { } */
+            /* TODO the rest of the flags are not implemented yet */
+            else if (tlv->value[0] & PCEP_TLV_FLAG_INCLUDE_DB_VERSION)
+            {
+                printf("Ignoring Open STATEFUL-PCE-CAPABILITY TLV S flag\n");
+            }
+            else if (tlv->value[0] & PCEP_TLV_FLAG_LSP_INSTANTIATION)
+            {
+                printf("Ignoring Open STATEFUL-PCE-CAPABILITY TLV I flag\n");
+            }
+            else if (tlv->value[0] & PCEP_TLV_FLAG_TRIGGERED_RESYNC)
+            {
+                printf("Ignoring Open STATEFUL-PCE-CAPABILITY TLV T flag\n");
+            }
+            else if (tlv->value[0] & PCEP_TLV_FLAG_DELTA_LSP_SYNC)
+            {
+                printf("Ignoring Open STATEFUL-PCE-CAPABILITY TLV D flag\n");
+            }
+            else if (tlv->value[0] & PCEP_TLV_FLAG_TRIGGERED_INITIAL_SYNC)
+            {
+                printf("Ignoring Open STATEFUL-PCE-CAPABILITY TLV F flag\n");
+            }
+        }
+        else
+        {
+            /* TODO TODO how to handle unrecognized TLV ?? */
+            printf("Unhandled OPEN TLV type: %d, length %d\n",
+                    tlv->header.type, tlv->header.length);
         }
     }
     dll_destroy(tlv_list);
@@ -290,10 +315,110 @@ void handle_pcep_open(pcep_session *session, pcep_message *open_msg)
     session->pce_config.dead_timer_seconds = open_object->open_deadtimer;
     session->pce_config.keep_alive_seconds = open_object->open_keepalive;
     session->pcep_open_received = true;
-    reset_dead_timer(session);
     send_keep_alive(session);
 }
 
+
+void handle_pcep_update(pcep_session *session, pcep_message *upd_msg)
+{
+    if (upd_msg->obj_list == NULL)
+    {
+        /* TODO reply with error */
+        fprintf(stderr, "Invalid PcUpd message: Message has no objects\n");
+    }
+
+    if (upd_msg->obj_list->num_entries < 3)
+    {
+        /* TODO reply with error */
+        fprintf(stderr, "Invalid PcUpd message: Message only has [%d] objects, minimum 3 required\n",
+                upd_msg->obj_list->num_entries);
+    }
+
+    double_linked_list_node *node = upd_msg->obj_list->head;
+    struct pcep_object_srp *srp_object = (struct pcep_object_srp *) node->data;
+    if (srp_object->header.object_class != PCEP_OBJ_CLASS_SRP)
+    {
+        /* TODO reply with error */
+        fprintf(stderr, "Invalid PcUpd message: First object must be an SRP, found [%d]\n",
+                srp_object->header.object_class);
+    }
+
+    node = node->next_node;
+    struct pcep_object_lsp *lsp_object = (struct pcep_object_lsp *) node->data;
+    if (lsp_object->header.object_class != PCEP_OBJ_CLASS_LSP)
+    {
+        /* TODO reply with error */
+        fprintf(stderr, "Invalid PcUpd message: Second object must be an LSP, found [%d]\n",
+                lsp_object->header.object_class);
+    }
+
+    node = node->next_node;
+    struct pcep_object_ro *ero_object = node->data;
+    if (ero_object->header.object_class != PCEP_OBJ_CLASS_ERO)
+    {
+        /* TODO reply with error */
+        fprintf(stderr, "Invalid PcUpd message: Third object must be an ERO, found [%d]\n",
+                ero_object->header.object_class);
+    }
+
+    /* TODO finish this */
+
+    if (upd_msg->obj_list->num_entries > 3)
+    {
+        for (; node != NULL; node = node->next_node)
+        {
+            struct pcep_object_header *object = node->data;
+            printf("Extra PcUpd object: Class [%d] Type [%d] len [%d]\n",
+                   object->object_class, object->object_type, object->object_length);
+        }
+    }
+}
+
+void handle_pcep_initiate(pcep_session *session, pcep_message *init_msg)
+{
+    if (init_msg->obj_list == NULL)
+    {
+        /* TODO reply with error */
+        fprintf(stderr, "Invalid PcInitiate message: Message has no objects\n");
+    }
+
+    if (init_msg->obj_list->num_entries < 2)
+    {
+        /* TODO reply with error */
+        fprintf(stderr, "Invalid PcInitiate message: Message only has [%d] objects, minimum 2 required\n",
+                init_msg->obj_list->num_entries);
+    }
+
+    double_linked_list_node *node = init_msg->obj_list->head;
+    struct pcep_object_srp *srp_object = (struct pcep_object_srp *) node->data;
+    if (srp_object->header.object_class != PCEP_OBJ_CLASS_SRP)
+    {
+        /* TODO reply with error */
+        fprintf(stderr, "Invalid PcInitiate message: First object must be an SRP, found [%d]\n",
+                srp_object->header.object_class);
+    }
+
+    node = node->next_node;
+    struct pcep_object_lsp *lsp_object = (struct pcep_object_lsp *) node->data;
+    if (lsp_object->header.object_class != PCEP_OBJ_CLASS_LSP)
+    {
+        /* TODO reply with error */
+        fprintf(stderr, "Invalid PcInitiate message: Second object must be an LSP, found [%d]\n",
+                lsp_object->header.object_class);
+    }
+
+    /* TODO finish this */
+
+    if (init_msg->obj_list->num_entries > 3)
+    {
+        for (; node != NULL; node = node->next_node)
+        {
+            struct pcep_object_header *object = node->data;
+            printf("Extra PcInitiate object: Class [%d] Type [%d] len [%d]\n",
+                   object->object_class, object->object_type, object->object_length);
+        }
+    }
+}
 
 /*
  * these functions are called by session_logic_loop() from pcep_session_logic_loop.c
@@ -406,6 +531,7 @@ void handle_socket_comm_event(pcep_session_event *event)
          msg_node = msg_node->next_node)
     {
         pcep_message *msg = (pcep_message *) msg_node->data;
+        reset_dead_timer(session);
 
         switch (msg->header.type)
         {
@@ -417,7 +543,6 @@ void handle_socket_comm_event(pcep_session_event *event)
 
         case PCEP_TYPE_KEEPALIVE:
             printf("\t PCEP_KEEPALIVE message\n");
-            reset_dead_timer(session);
             if (session->session_state == SESSION_STATE_TCP_CONNECTED)
             {
                 session->session_state = SESSION_STATE_OPENED;
@@ -428,7 +553,6 @@ void handle_socket_comm_event(pcep_session_event *event)
 
         case PCEP_TYPE_PCREP:
             printf("\t PCEP_PCREP message\n");
-            reset_dead_timer(session);
             update_response_message(session, msg);
             if (session->session_state == SESSION_STATE_WAIT_PCREQ)
             {
@@ -456,17 +580,36 @@ void handle_socket_comm_event(pcep_session_event *event)
             session->num_erroneous_messages++;
             break;
 
+        case PCEP_TYPE_REPORT:
+            printf("\t PCEP_PCRPT message\n");
+            /* TODO when this reaches a MAX, need to react.
+             *      reply with pcep_error msg. */
+            session->num_erroneous_messages++;
+            break;
+
+        case PCEP_TYPE_UPDATE:
+            printf("\t PCEP_PCUPD message\n");
+            /* Should reply with a PcRpt */
+            handle_pcep_update(session, msg);
+            break;
+
+        case PCEP_TYPE_INITIATE:
+            printf("\t PCEP_PCInitiate message\n");
+            /* Should reply with a PcRpt */
+            handle_pcep_initiate(session, msg);
+            break;
+
         case PCEP_TYPE_PCNOTF:
             printf("\t PCEP_PCNOTF message\n");
-            reset_dead_timer(session);
             /* TODO implement this */
             break;
         case PCEP_TYPE_ERROR:
             printf("\t PCEP_ERROR message\n");
-            reset_dead_timer(session);
             /* TODO implement this */
             break;
+
         default:
+            printf("\t UnSupported message\n");
             break;
         }
     }

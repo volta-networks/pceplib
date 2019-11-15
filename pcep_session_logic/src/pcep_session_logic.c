@@ -26,6 +26,7 @@
 pcep_session_logic_handle *session_logic_handle_ = NULL;
 int session_id_ = 0;
 
+void create_and_send_open(pcep_session *session); /* forward decl */
 
 int session_id_compare_function(void *list_entry, void *new_entry)
 {
@@ -229,6 +230,7 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
     session->pcep_open_received = false;
     session->pcep_open_rejected = false;
     session->destroy_session_after_write = false;
+    session->lsp_db_version = config->lsp_db_version;
     memcpy(&(session->pcc_config), config, sizeof(pcep_configuration));
     /* copy the pcc_config to the pce_config until we receive the open keep_alive response */
     memcpy(&(session->pce_config), config, sizeof(pcep_configuration));
@@ -258,38 +260,7 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
     }
     session->session_state = SESSION_STATE_TCP_CONNECTED;
 
-    /* create and send PCEP open
-     * with PCEP, the PCC sends the config the PCE should use in the open message,
-     * and the PCE will send an open with the config the PCC should use. */
-    struct pcep_header* open_msg;
-    if (session->pcc_config.support_stateful_pcc_lsp_update == true)
-    {
-        double_linked_list *tlv_list = dll_initialize();
-        dll_append(tlv_list,
-            pcep_tlv_create_stateful_pce_capability(PCEP_TLV_FLAG_LSP_UPDATE_CAPABILITY));
-        dll_append(tlv_list,
-            pcep_tlv_create_sr_pce_capability(PCEP_TLV_FLAG_NO_MSD_LIMITS, 8));
-        open_msg = pcep_msg_create_open_with_tlvs(
-                session->pcc_config.keep_alive_seconds,
-                session->pcc_config.dead_timer_seconds,
-                session->session_id,
-                tlv_list);
-        dll_destroy_with_data(tlv_list);
-    }
-    else
-    {
-        open_msg = pcep_msg_create_open(session->pcc_config.keep_alive_seconds,
-                                        session->pcc_config.dead_timer_seconds,
-                                        session->session_id);
-    }
-
-    printf("[%ld-%ld] pcep_session_logic send open message len [%d] for session_id [%d]\n",
-            time(NULL), pthread_self(), ntohs(open_msg->length), session->session_id);
-
-    socket_comm_session_send_message(session->socket_comm_session,
-                                     (char *) open_msg,
-                                     ntohs(open_msg->length),
-                                     true);
+    create_and_send_open(session);
 
     session->timer_id_open_keep_wait = create_timer(config->keep_alive_seconds, session);
     //session->session_state = SESSION_STATE_OPENED;
@@ -515,4 +486,94 @@ bool wait_for_response_message(pcep_message_response *msg_response)
     pthread_mutex_unlock(&msg_response->response_mutex);
 
     return false;
+}
+
+void create_and_send_open(pcep_session *session)
+{
+    /* create and send PCEP open
+     * with PCEP, the PCC sends the config the PCE should use in the open message,
+     * and the PCE will send an open with the config the PCC should use. */
+    struct pcep_header* open_msg;
+    double_linked_list *tlv_list = dll_initialize();
+    uint8_t stateful_tlv_flags = 0;
+    if (session->pcc_config.support_stateful_pce_lsp_update)
+    {
+        stateful_tlv_flags |= PCEP_TLV_FLAG_LSP_UPDATE_CAPABILITY;
+    }
+    if (session->pcc_config.support_pce_lsp_instantiation)
+    {
+        stateful_tlv_flags |= PCEP_TLV_FLAG_LSP_INSTANTIATION;
+    }
+    if (session->pcc_config.support_include_db_version)
+    {
+        stateful_tlv_flags |= PCEP_TLV_FLAG_INCLUDE_DB_VERSION;
+        if (session->pcc_config.lsp_db_version != 0)
+        {
+            dll_append(tlv_list,
+                    pcep_tlv_create_lsp_db_version(session->pcc_config.lsp_db_version));
+        }
+    }
+    if (session->pcc_config.support_lsp_triggered_resync)
+    {
+        stateful_tlv_flags |= PCEP_TLV_FLAG_TRIGGERED_RESYNC;
+    }
+    if (session->pcc_config.support_lsp_delta_sync)
+    {
+        stateful_tlv_flags |= PCEP_TLV_FLAG_DELTA_LSP_SYNC;
+    }
+    if (session->pcc_config.support_pce_triggered_initial_sync)
+    {
+        stateful_tlv_flags |= PCEP_TLV_FLAG_TRIGGERED_INITIAL_SYNC;
+    }
+
+    if (stateful_tlv_flags != 0)
+    {
+        /* Prepend this TLV as the first in the list */
+        dll_prepend(tlv_list,
+            pcep_tlv_create_stateful_pce_capability(stateful_tlv_flags));
+    }
+
+    if (session->pcc_config.support_sr_te_pst)
+    {
+        uint8_t flags = (session->pcc_config.pcc_can_resolve_nai_to_sid == true ?
+                PCEP_TLV_FLAG_SR_PCE_CAPABILITY_NAI : 0);
+        flags |= (session->pcc_config.max_sid_depth == 0 ?
+                PCEP_TLV_FLAG_NO_MSD_LIMITS : 0);
+        double_linked_list *sub_tlv_list = dll_initialize();
+        dll_append(sub_tlv_list, pcep_tlv_create_sr_pce_capability(flags, session->pcc_config.max_sid_depth));
+
+        uint8_t pst = SR_TE_PST;
+        double_linked_list *pst_list = dll_initialize();
+        dll_append(pst_list, &pst);
+
+        dll_prepend(tlv_list, pcep_tlv_create_path_setup_type(pst_list, sub_tlv_list));
+
+        dll_destroy_with_data(sub_tlv_list);
+        dll_destroy(pst_list);
+    }
+
+    if (tlv_list->num_entries > 0)
+    {
+        open_msg = pcep_msg_create_open_with_tlvs(
+                session->pcc_config.keep_alive_seconds,
+                session->pcc_config.dead_timer_seconds,
+                session->session_id,
+                tlv_list);
+    }
+    else
+    {
+        open_msg = pcep_msg_create_open(session->pcc_config.keep_alive_seconds,
+                                        session->pcc_config.dead_timer_seconds,
+                                        session->session_id);
+    }
+
+    printf("[%ld-%ld] pcep_session_logic send open message: TLVs [%d] len [%d] for session_id [%d]\n",
+            time(NULL), pthread_self(), tlv_list->num_entries, ntohs(open_msg->length), session->session_id);
+
+    dll_destroy_with_data(tlv_list);
+
+    socket_comm_session_send_message(session->socket_comm_session,
+                                     (char *) open_msg,
+                                     ntohs(open_msg->length),
+                                     true);
 }

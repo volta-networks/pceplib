@@ -52,7 +52,70 @@ int setup_signals()
     return 0;
 }
 
+void send_pce_report_message(pcep_session *session)
+{
+    uint32_t srp_id_number = 0x10203040;
+    uint32_t plsp_id = 0x00050607;
+    enum pcep_lsp_operational_status lsp_status = PCEP_LSP_OPERATIONAL_ACTIVE;
+    bool c_flag = true;  /* Lsp was created by PcInitiate msg */
+    bool a_flag = true;  /* Admin state, active / inactive */
+    bool r_flag = false; /* true if LSP has been removed */
+    bool s_flag = true;  /* Syncronization */
+    bool d_flag = true;  /* Delegate LSP to PCE */
+    uint32_t label = 0x11223344;
+    double_linked_list *report_list = dll_initialize();
 
+    /* Create the SRP object */
+    struct pcep_object_header *obj =
+            (struct pcep_object_header*) pcep_obj_create_srp(false, srp_id_number);
+    if (obj == NULL)
+    {
+        fprintf(stderr, "send_pce_report_message SRP object was NULL\n");
+        return;
+    }
+    dll_append(report_list, obj);
+
+    /* Create the LSP object */
+    obj = (struct pcep_object_header *)
+            pcep_obj_create_lsp(plsp_id, lsp_status, c_flag, a_flag, r_flag, s_flag, d_flag);
+    if (obj == NULL)
+    {
+        fprintf(stderr, "send_pce_report_message LSP object was NULL\n");
+        return;
+    }
+    dll_append(report_list, obj);
+
+    /* Create the ERO sub-object */
+    double_linked_list* ero_subobj_list = dll_initialize();
+    struct pcep_object_ro_subobj *subobj = pcep_obj_create_ro_subobj_32label(true, label);
+    if (subobj == NULL)
+    {
+        fprintf(stderr, "send_pce_report_message ERO sub-object was NULL\n");
+        return;
+    }
+    dll_append(ero_subobj_list, subobj);
+
+    /* Create the ERO object */
+    obj = (struct pcep_object_header *) pcep_obj_create_eroute_object(ero_subobj_list);
+    if (obj == NULL)
+    {
+        fprintf(stderr, "send_pce_report_message ERO object was NULL\n");
+        return;
+    }
+    dll_append(report_list, obj);
+
+    /* Create and send the report message */
+    struct pcep_header *report_msg = pcep_msg_create_report(report_list, NULL);
+    socket_comm_session_send_message(session->socket_comm_session,
+                                     (char *) report_msg,
+                                     ntohs(report_msg->length),
+                                     true);
+
+    dll_destroy_with_data(report_list);
+    dll_destroy_with_data(ero_subobj_list);
+}
+
+/* Example function showing how to send a Synchronous PcReq message */
 void send_pce_req_message_sync(pcep_session *session)
 {
     pcep_pce_request *pce_req = malloc(sizeof(pcep_pce_request));
@@ -95,6 +158,7 @@ void send_pce_req_message_sync(pcep_session *session)
     free(pce_reply);
 }
 
+/* Example function showing how to send an Asynchronous PcReq message */
 void send_pce_req_message_async(pcep_session *session)
 {
     pcep_pce_request *pce_req = malloc(sizeof(pcep_pce_request));
@@ -182,8 +246,7 @@ int main(int argc, char **argv)
 
     sleep(5);
 
-    send_pce_req_message_async(session);
-    send_pce_req_message_sync(session);
+    send_pce_report_message(session);
 
     /* Sleep for a while to let the timers expire */
     sleep(30);

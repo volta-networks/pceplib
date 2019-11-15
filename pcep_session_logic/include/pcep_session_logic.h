@@ -36,10 +36,45 @@ typedef struct pcep_configuration_
     int max_dead_timer_seconds;
 
     /* Set if the PCE/PCC will support stateful PCE LSP Updates
-     * according to RCF8231, section 7.1.1, defaults to true */
+     * according to RCF8231, section 7.1.1, defaults to true.
+     * Will cause an additional TLV to be sent from the PCC in
+     * the PCEP Open */
     bool support_stateful_pce_lsp_update;
-    /* Send an additional TLV in PCEP Open */
-    bool support_stateful_pcc_lsp_update;
+
+    /* RFC 8281: I-bit, the PCC allows instantiation of an LSP by a PCE */
+    bool support_pce_lsp_instantiation;
+
+    /* RFC 8232: S-bit, the PCC will include the LSP-DB-VERSION
+     * TLV in each LSP object */
+    bool support_include_db_version;
+
+    /* Only set if support_include_db_version is true and if the LDP-DB
+     * survived a restart and is available. If this has a value other than
+     * 0, then a LSP-DB-VERSION TLV will be sent in the OPEN object. This
+     * value will be copied over to the pcep_session upon init. */
+    uint64_t lsp_db_version;
+
+    /* RFC 8232: T-bit, the PCE can trigger resynchronization of
+     * LSPs at any point in the life of the session */
+    bool support_lsp_triggered_resync;
+
+    /* RFC 8232: D-bit, the PCEP speaker allows incremental (delta)
+     * State Synchronization */
+    bool support_lsp_delta_sync;
+
+    /* RFC 8232: F-bit, the PCE SHOULD trigger initial (first)
+     * State Synchronization */
+    bool support_pce_triggered_initial_sync;
+
+    /* draft-ietf-pce-segment-routing-16: Send a SR PCE Capability
+     * sub-TLV in a Path Setup Type Capability TLV with a PST = 1,
+     * Path is setup using SR TE.
+     */
+    bool support_sr_te_pst;
+    /* Used in the SR TE Capability sub-TLV */
+    bool pcc_can_resolve_nai_to_sid;
+    /* Used in the SR TE Capability sub-TLV, 0 means there are no max sid limits */
+    uint8_t max_sid_depth;
 
 } pcep_configuration;
 
@@ -142,6 +177,7 @@ typedef struct pcep_session_
     bool pcep_open_received;
     bool pcep_open_rejected;
     bool stateful_pce;
+    uint64_t lsp_db_version;
     int num_erroneous_messages;
     /* set this flag when finalizing the session */
     bool destroy_session_after_write;

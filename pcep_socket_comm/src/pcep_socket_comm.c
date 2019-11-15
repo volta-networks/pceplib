@@ -162,7 +162,6 @@ bool socket_comm_session_connect_tcp(pcep_socket_comm_session *socket_comm_sessi
     if (retval == -1) {
         fprintf(stderr, "ERROR: TCP connect failed on socket_fd [%d].\n",
                 socket_comm_session->socket_fd);
-        socket_comm_session_teardown(socket_comm_session);
 
         return false;
     }

@@ -96,7 +96,7 @@ void test_pcep_tlv_create_path_setup_type()
 
     pcep_unpack_obj_tlv(tlv);
     CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE);
-    CU_ASSERT_EQUAL(tlv->header.length, 3);
+    CU_ASSERT_EQUAL(tlv->header.length, sizeof(uint32_t) * 2);
     CU_ASSERT_EQUAL(tlv->value[0], 0x00000003);
     CU_ASSERT_EQUAL(tlv->value[1], htonl(0x01020300));
     free(tlv);
@@ -110,7 +110,7 @@ void test_pcep_tlv_create_path_setup_type()
     pcep_unpack_obj_tlv(tlv);
     CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE);
     CU_ASSERT_EQUAL(tlv->header.length,
-            3 + sizeof(struct pcep_object_tlv_header) + ntohs(sub_tlv->header.length));
+            sizeof(uint32_t) * 2 + sizeof(struct pcep_object_tlv_header) + ntohs(sub_tlv->header.length));
     CU_ASSERT_EQUAL(tlv->value[0], 0x00000003);
     CU_ASSERT_EQUAL(tlv->value[1], htonl(0x01020300));
     struct pcep_object_tlv *sub_tlv_ptr = (struct pcep_object_tlv*) &(tlv->value[2]);

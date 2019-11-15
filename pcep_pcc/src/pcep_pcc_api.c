@@ -78,7 +78,15 @@ pcep_configuration *create_default_pcep_configuration()
     config->max_unknown_requests = DEFAULT_CONFIG_MAX_UNKNOWN_REQUESTS;
 
     config->support_stateful_pce_lsp_update = true;
-    config->support_stateful_pcc_lsp_update = true;
+    config->support_pce_lsp_instantiation = true;
+    config->support_include_db_version = true;
+    config->lsp_db_version = 0;
+    config->support_lsp_triggered_resync = true;
+    config->support_lsp_delta_sync = true;
+    config->support_pce_triggered_initial_sync = true;
+    config->support_sr_te_pst = true;
+    config->pcc_can_resolve_nai_to_sid = true;
+    config->max_sid_depth = 0;
 
     return config;
 }

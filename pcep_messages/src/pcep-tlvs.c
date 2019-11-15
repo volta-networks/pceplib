@@ -95,7 +95,7 @@ pcep_tlv_create_path_setup_type(double_linked_list *pst_list, double_linked_list
     /*
      * pst_list is a double list of uint8_t* and sub_tlv_list
      * is a double list of struct pcep_object_tlv*
-     * The Rub TLVs are optional.
+     * The sub TLVs are optional.
      */
 
     /* Calculate the length of the psts */
@@ -120,8 +120,9 @@ pcep_tlv_create_path_setup_type(double_linked_list *pst_list, double_linked_list
     struct pcep_object_tlv *tlv = malloc(sizeof(struct pcep_object_tlv_header) + buffer_length);
     bzero(tlv, sizeof(struct pcep_object_tlv_header) + buffer_length);
 
-    /* The TLV length does not include padding */
-    tlv->header.length = htons(pst_list->num_entries + sub_tlv_length);
+    /* The TLV length should not include padding, but that doesnt parse in Wireshark */
+    /*tlv->header.length = htons(pst_list->num_entries + sizeof(uint32_t) + sub_tlv_length); */
+    tlv->header.length = htons(buffer_length);
     tlv->header.type = htons(PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE);
 
     /* Write the number of PSTs */
@@ -161,7 +162,7 @@ pcep_tlv_create_sr_pce_capability(uint8_t flags, uint8_t max_sid_depth)
     bzero(tlv, sizeof(struct pcep_object_tlv_header) + 4);
 
     tlv->header.type = htons(PCEP_OBJ_TLV_TYPE_SR_PCE_CAPABILITY);
-    tlv->header.length = htons(4);
+    tlv->header.length = htons(sizeof(uint32_t));
     tlv->value[0] = htonl((flags << 8) | max_sid_depth);
 
     return tlv;

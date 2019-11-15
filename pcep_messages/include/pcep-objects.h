@@ -419,6 +419,8 @@ enum pcep_lsp_operational_status
 };
 
 /* Label Switched Path Object */
+#define MAX_PLSP_ID 0x000fffff  /* The plsp_id is only 20 bits */
+#define MAX_LSP_STATUS 7        /* The status is only 3 bits */
 struct pcep_object_lsp
 {
     struct pcep_object_header header;
@@ -431,7 +433,6 @@ struct pcep_object_lsp
     uint32_t s_flag:1;
     uint32_t d_flag:1;
 }__attribute__((packed));
-
 
 struct pcep_object_open*                pcep_obj_create_open        (uint8_t keepalive, uint8_t deadtimer, uint8_t sid);
 struct pcep_object_rp*                  pcep_obj_create_rp          (uint8_t obj_hdr_flags, uint32_t obj_flags, uint32_t reqid);

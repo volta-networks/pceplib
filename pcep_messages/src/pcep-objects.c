@@ -280,14 +280,18 @@ pcep_obj_create_lsp(uint32_t plsp_id, enum pcep_lsp_operational_status status,
                     bool c_flag, bool a_flag, bool r_flag, bool s_flag, bool d_flag)
 {
     /* The plsp_id is only 20 bits */
-    if (plsp_id > 0x000fffff)
+    if (plsp_id > MAX_PLSP_ID)
     {
+        fprintf(stderr, "pcep_obj_create_lsp invalid plsp_id [%d] max value [%d]\n",
+                plsp_id, MAX_PLSP_ID);
         return NULL;
     }
 
-    /* The status is only 20 bits */
-    if (status > 7)
+    /* The status is only 3 bits */
+    if (status > MAX_LSP_STATUS)
     {
+        fprintf(stderr, "pcep_obj_create_lsp invalid status [%d] max value [%d]\n",
+                plsp_id, MAX_PLSP_ID);
         return NULL;
     }
 

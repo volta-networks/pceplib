@@ -88,6 +88,10 @@ enum pcep_tlv_flags_stateful_pce_capability {
     PCEP_TLV_FLAG_TRIGGERED_INITIAL_SYNC  = (1 << 5),  /* F flag - RFC 8281 */
 };
 
+/* Can be used with pcep_tlv_create_path_setup_type() when a sub-tlv is
+ * created with pcep_tlv_create_sr_pce_capability() */
+#define SR_TE_PST 1;
+
 enum pcep_tlv_flags_sr_pce_capability {
     PCEP_TLV_FLAG_NO_MSD_LIMITS           = (1 << 0),  /* SR PCE CAPABILITY X flag - draft-ietf-pce-segment-routing-16 */
     PCEP_TLV_FLAG_SR_PCE_CAPABILITY_NAI   = (1 << 1)   /* SR PCE CAPABILITY N flag - draft-ietf-pce-segment-routing-16 */
