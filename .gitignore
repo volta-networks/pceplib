@@ -7,4 +7,5 @@
 **/valgrind*.log
 **/obj
 build/*
+install/*
 /build/
