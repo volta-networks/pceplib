@@ -36,7 +36,7 @@ typedef struct pcep_socket_comm_queued_message_
 {
     char *unmarshalled_message;
     int msg_length;
-    bool delete_after_send;
+    bool free_after_send;
 
 } pcep_socket_comm_queued_message;
 

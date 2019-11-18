@@ -84,19 +84,17 @@ struct pcep_header*     pcep_msg_create_error           (uint8_t error_type, uin
 struct pcep_header*     pcep_msg_create_keepalive       ();
 /* Message defined in RFC 8231 section 6.1. Expecting double_linked_list of
  * struct pcep_object_header* objects of type SRP, LSP, or path (ERO, Bandwidth,
- * metrics, and RRO objects). The tlv_list is optional */
-struct pcep_header*     pcep_msg_create_report          (double_linked_list *state_report_object_list, double_linked_list *tlv_list);
+ * metrics, and RRO objects). */
+struct pcep_header*     pcep_msg_create_report          (double_linked_list *state_report_object_list);
 /* Message defined in RFC 8231. Expecting double_linked_list of at least 3
  * struct pcep_object_header* objects of type SRP, LSP, and path (ERO and
  * intended-attribute-list). The ERO must be present, but may be empty if
- * the PCE cannot find a valid path for a delegated LSP. No TLVs are defined
- * for this message. */
+ * the PCE cannot find a valid path for a delegated LSP. */
 struct pcep_header*     pcep_msg_create_update          (double_linked_list *update_request_object_list);
 /* Message defined in RFC 8281. Expecting double_linked_list of at least 2
  * struct pcep_object_header* objects of type SRP and LSP for LSP deletion, and
- * may also contain Endpoints, ERO and an attribute list for LSP creation. The
- * tlv_list is optional. */
-struct pcep_header*     pcep_msg_create_initiate        (double_linked_list *lsp_object_list, double_linked_list *tlv_list);
+ * may also contain Endpoints, ERO and an attribute list for LSP creation. */
+struct pcep_header*     pcep_msg_create_initiate        (double_linked_list *lsp_object_list);
 
 void pcep_unpack_msg_header(struct pcep_header* hdr);
 

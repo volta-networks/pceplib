@@ -17,13 +17,13 @@ void test_pcep_obj_create_open()
     uint8_t keepalive = 30;
     uint8_t sid = 1;
 
-    struct pcep_object_open *open = pcep_obj_create_open(30, 60, 1);
+    struct pcep_object_open *open = pcep_obj_create_open(keepalive, deadtimer, sid, NULL);
 
     CU_ASSERT_PTR_NOT_NULL(open);
     CU_ASSERT_EQUAL(open->header.object_class, PCEP_OBJ_CLASS_OPEN);
     CU_ASSERT_EQUAL(open->header.object_type, PCEP_OBJ_TYPE_OPEN);
     CU_ASSERT_EQUAL(open->header.object_flags, 0);
-    CU_ASSERT_EQUAL(open->header.object_length, ntohs(sizeof(struct pcep_object_open)));
+    CU_ASSERT_EQUAL(ntohs(open->header.object_length), sizeof(struct pcep_object_open));
 
     CU_ASSERT_EQUAL(open->open_deadtimer, deadtimer);
     CU_ASSERT_EQUAL(open->open_keepalive, keepalive);
@@ -33,13 +33,44 @@ void test_pcep_obj_create_open()
     free(open);
 }
 
+void test_pcep_obj_create_open_with_tlvs()
+{
+    uint8_t deadtimer = 60;
+    uint8_t keepalive = 30;
+    uint8_t sid = 1;
+    double_linked_list *tlv_list = dll_initialize();
+
+    struct pcep_object_tlv *tlv =
+            pcep_tlv_create_stateful_pce_capability(PCEP_TLV_FLAG_LSP_UPDATE_CAPABILITY);
+    dll_append(tlv_list, tlv);
+    struct pcep_object_open *open = pcep_obj_create_open(keepalive, deadtimer, sid, tlv_list);
+
+    CU_ASSERT_PTR_NOT_NULL(open);
+    CU_ASSERT_EQUAL(open->header.object_class, PCEP_OBJ_CLASS_OPEN);
+    CU_ASSERT_EQUAL(open->header.object_type, PCEP_OBJ_TYPE_OPEN);
+    CU_ASSERT_EQUAL(open->header.object_flags, 0);
+    CU_ASSERT_EQUAL(ntohs(open->header.object_length),
+            sizeof(struct pcep_object_open) +
+            sizeof(struct pcep_object_tlv_header) +
+            ntohs(tlv->header.length));
+
+    CU_ASSERT_EQUAL(open->open_deadtimer, deadtimer);
+    CU_ASSERT_EQUAL(open->open_keepalive, keepalive);
+    CU_ASSERT_EQUAL(open->open_sid, sid);
+    CU_ASSERT_EQUAL(open->open_ver_flags, 0x20);
+
+    dll_destroy(tlv_list);
+    free(tlv);
+    free(open);
+}
+
 void test_pcep_obj_create_rp()
 {
     uint8_t hdrflags = 0x0f;
     uint32_t objflags = 8;
     uint32_t reqid = 15;
 
-    struct pcep_object_rp *rp = pcep_obj_create_rp(hdrflags, objflags, reqid);
+    struct pcep_object_rp *rp = pcep_obj_create_rp(hdrflags, objflags, reqid, NULL);
 
     CU_ASSERT_PTR_NOT_NULL(rp);
     CU_ASSERT_EQUAL(rp->header.object_class, PCEP_OBJ_CLASS_RP);
@@ -269,7 +300,7 @@ void test_pcep_obj_create_srp()
 {
     bool lsp_remove = true;
     uint32_t srp_id_number = 0x89674523;
-    struct pcep_object_srp *srp = pcep_obj_create_srp(lsp_remove, srp_id_number);
+    struct pcep_object_srp *srp = pcep_obj_create_srp(lsp_remove, srp_id_number, NULL);
 
     CU_ASSERT_PTR_NOT_NULL(srp);
     CU_ASSERT_EQUAL(srp->header.object_class, PCEP_OBJ_CLASS_SRP);
@@ -293,13 +324,13 @@ void test_pcep_obj_create_lsp()
     bool d_flag = true;
 
     struct pcep_object_lsp *lsp =
-            pcep_obj_create_lsp(0x001fffff, status, c_flag, a_flag, r_flag, s_flag, d_flag);
+            pcep_obj_create_lsp(0x001fffff, status, c_flag, a_flag, r_flag, s_flag, d_flag, NULL);
     CU_ASSERT_PTR_NULL(lsp);
 
-    lsp = pcep_obj_create_lsp(plsp_id, 8, c_flag, a_flag, r_flag, s_flag, d_flag);
+    lsp = pcep_obj_create_lsp(plsp_id, 8, c_flag, a_flag, r_flag, s_flag, d_flag, NULL);
     CU_ASSERT_PTR_NULL(lsp);
 
-    lsp = pcep_obj_create_lsp(plsp_id, status, c_flag, a_flag, r_flag, s_flag, d_flag);
+    lsp = pcep_obj_create_lsp(plsp_id, status, c_flag, a_flag, r_flag, s_flag, d_flag, NULL);
 
     CU_ASSERT_PTR_NOT_NULL(lsp);
     CU_ASSERT_EQUAL(lsp->header.object_class, PCEP_OBJ_CLASS_LSP);
@@ -316,8 +347,8 @@ void test_pcep_obj_create_lsp()
     free(lsp);
 }
 
-/* Internal test function. The only difference between pcep_obj_create_eroute_object(),
- * pcep_obj_create_iroute_object(), and pcep_obj_create_rroute_object() is the object_class
+/* Internal test function. The only difference between pcep_obj_create_ero(),
+ * pcep_obj_create_iro(), and pcep_obj_create_rro() is the object_class
  * and the object_type.
  */
 typedef struct pcep_object_ro* (*ro_func)(double_linked_list*);
@@ -355,22 +386,22 @@ static void test_pcep_obj_create_object_common(ro_func func_to_test, uint8_t obj
     dll_destroy(ero_list);
 }
 
-void test_pcep_obj_create_eroute_object()
+void test_pcep_obj_create_ero()
 {
     test_pcep_obj_create_object_common(
-            pcep_obj_create_eroute_object, PCEP_OBJ_CLASS_ERO, PCEP_OBJ_TYPE_ERO);
+            pcep_obj_create_ero, PCEP_OBJ_CLASS_ERO, PCEP_OBJ_TYPE_ERO);
 }
 
-void test_pcep_obj_create_rroute_object()
+void test_pcep_obj_create_rro()
 {
     test_pcep_obj_create_object_common(
-            pcep_obj_create_rroute_object, PCEP_OBJ_CLASS_RRO, PCEP_OBJ_TYPE_RRO);
+            pcep_obj_create_rro, PCEP_OBJ_CLASS_RRO, PCEP_OBJ_TYPE_RRO);
 }
 
-void test_pcep_obj_create_iroute_object()
+void test_pcep_obj_create_iro()
 {
     test_pcep_obj_create_object_common(
-            pcep_obj_create_iroute_object, PCEP_OBJ_CLASS_IRO, PCEP_OBJ_TYPE_IRO);
+            pcep_obj_create_iro, PCEP_OBJ_CLASS_IRO, PCEP_OBJ_TYPE_IRO);
 }
 
 void test_pcep_obj_create_ro_subobj_ipv4()

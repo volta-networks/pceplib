@@ -18,13 +18,6 @@ extern void test_session_logic_without_run(void);
 extern void test_create_pcep_session_null_params(void);
 extern void test_create_destroy_pcep_session(void);
 extern void test_destroy_pcep_session_null_session(void);
-extern void test_register_message_null_params(void);
-extern void test_register_destroy_response_message(void);
-extern void test_destroy_message_null_params(void);
-extern void test_query_message_null_params(void);
-extern void test_query_message(void);
-extern void test_wait_for_response_null_params(void);
-extern void test_wait_for_response(void);
 
 /* Test functions defined in pcep_session_logic_loop_test.c */
 extern void pcep_session_logic_loop_test_setup(void);
@@ -38,9 +31,6 @@ extern void test_session_logic_timer_expire_handler(void);
 /* Test functions defined in pcep_session_logic_states_test.c */
 extern void pcep_session_logic_states_test_setup(void);
 extern void pcep_session_logic_states_test_teardown(void);
-extern void test_update_response_message_null_params(void);
-extern void test_update_response_message_not_registered(void);
-extern void test_update_response_message(void);
 extern void test_handle_timer_event_dead_timer(void);
 extern void test_handle_timer_event_keep_alive(void);
 extern void test_handle_timer_event_open_keep_wait(void);
@@ -83,27 +73,6 @@ int main(int argc, char **argv)
     CU_add_test(test_session_logic_suite,
                 "test_destroy_pcep_session_null_session",
                 test_destroy_pcep_session_null_session);
-    CU_add_test(test_session_logic_suite,
-                "test_register_message_null_params",
-                test_register_message_null_params);
-    CU_add_test(test_session_logic_suite,
-                "test_register_destroy_response_message",
-                test_register_destroy_response_message);
-    CU_add_test(test_session_logic_suite,
-                "test_destroy_message_null_params",
-                test_destroy_message_null_params);
-    CU_add_test(test_session_logic_suite,
-                "test_query_message_null_params",
-                test_query_message_null_params);
-    CU_add_test(test_session_logic_suite,
-                "test_query_message",
-                test_query_message);
-    CU_add_test(test_session_logic_suite,
-                "test_wait_for_response_null_params",
-                test_wait_for_response_null_params);
-    CU_add_test(test_session_logic_suite,
-                "test_wait_for_response",
-                test_wait_for_response);
 
     CU_pSuite test_session_logic_loop_suite = CU_add_suite_with_setup_and_teardown(
             "PCEP Session Logic Loop Test Suite",
@@ -133,15 +102,6 @@ int main(int argc, char **argv)
             pcep_session_logic_states_test_setup,     // test case setup function pointer
             pcep_session_logic_states_test_teardown); // test case teardown function pointer
 
-    CU_add_test(test_session_logic_states_suite,
-                "test_update_response_message_null_params",
-                test_update_response_message_null_params);
-    CU_add_test(test_session_logic_states_suite,
-                "test_update_response_message_not_registered",
-                test_update_response_message_not_registered);
-    CU_add_test(test_session_logic_states_suite,
-                "test_update_response_message",
-                test_update_response_message);
     CU_add_test(test_session_logic_states_suite,
                 "test_handle_timer_event_dead_timer",
                 test_handle_timer_event_dead_timer);

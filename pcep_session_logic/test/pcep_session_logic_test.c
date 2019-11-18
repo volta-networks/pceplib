@@ -49,13 +49,8 @@ void test_run_session_logic_twice()
 
 void test_session_logic_without_run()
 {
-    pcep_message_response rsp_message;
-    pcep_session session;
-
     /* Verify the functions that depend on run_session_logic() being called */
-    CU_ASSERT_PTR_NULL(register_response_message(&session, 1, 5));
     CU_ASSERT_FALSE(stop_session_logic());
-    destroy_response_message(&rsp_message);
 }
 
 
@@ -96,105 +91,4 @@ void test_destroy_pcep_session_null_session()
 {
     /* Just testing that it does not core dump */
     destroy_pcep_session(NULL);
-}
-
-
-void test_register_message_null_params()
-{
-    /* Just testing that it returns NULL and does not core dump */
-    CU_ASSERT_PTR_NULL(register_response_message(NULL, 1, 5));
-}
-
-
-void test_register_destroy_response_message()
-{
-    pcep_message_response *rsp_message;
-    pcep_session session;
-    bzero(&session, sizeof(pcep_session));
-
-    CU_ASSERT_TRUE(run_session_logic());
-    rsp_message = register_response_message(&session, 1, 5);
-    CU_ASSERT_PTR_NOT_NULL(rsp_message);
-    destroy_response_message(rsp_message);
-}
-
-
-void test_destroy_message_null_params()
-{
-    /* Just testing that it does not core dump */
-    destroy_response_message(NULL);
-}
-
-
-void test_query_message_null_params()
-{
-    /* Just testing that it does not core dump */
-    query_response_message(NULL);
-}
-
-
-void test_query_message()
-{
-    pcep_message_response rsp_message;
-    bzero(&rsp_message, sizeof(pcep_message_response));
-
-    /* If the status is READY, just return true */
-    rsp_message.response_status = RESPONSE_STATE_READY;
-    CU_ASSERT_TRUE(query_response_message(&rsp_message));
-
-    /* Different status, to represent a state change */
-    rsp_message.response_status = RESPONSE_STATE_TIMED_OUT;
-    rsp_message.prev_response_status = RESPONSE_STATE_WAITING;
-    CU_ASSERT_TRUE(query_response_message(&rsp_message));
-
-    /* Message timeout */
-    rsp_message.response_status = RESPONSE_STATE_WAITING;
-    rsp_message.prev_response_status = RESPONSE_STATE_WAITING;
-    rsp_message.max_wait_time_milli_seconds = 1500;
-    struct timespec time_now;
-    clock_gettime(CLOCK_REALTIME, &time_now);
-    rsp_message.time_request_registered.tv_sec = time_now.tv_sec - 2;
-    rsp_message.time_request_registered.tv_nsec = time_now.tv_nsec;
-    CU_ASSERT_TRUE(query_response_message(&rsp_message));
-    CU_ASSERT_EQUAL(rsp_message.response_status, RESPONSE_STATE_TIMED_OUT);
-
-    /* Still waiting for the response */
-    rsp_message.response_status = RESPONSE_STATE_WAITING;
-    rsp_message.prev_response_status = RESPONSE_STATE_WAITING;
-    rsp_message.max_wait_time_milli_seconds = 1500;
-    clock_gettime(CLOCK_REALTIME, &rsp_message.time_request_registered);
-    CU_ASSERT_FALSE(query_response_message(&rsp_message));
-    CU_ASSERT_EQUAL(rsp_message.prev_response_status, RESPONSE_STATE_WAITING);
-    CU_ASSERT_EQUAL(rsp_message.response_status, RESPONSE_STATE_WAITING);
-}
-
-
-void test_wait_for_response_null_params()
-{
-    /* Just testing that it does not core dump */
-    CU_ASSERT_FALSE(wait_for_response_message(NULL));
-}
-
-
-void test_wait_for_response()
-{
-    CU_ASSERT_TRUE(run_session_logic());
-
-    pcep_session session;
-    bzero(&session, sizeof(pcep_session));
-    pcep_message_response *rsp_message = register_response_message(&session, 1, 1);
-
-    /* If the status is READY, just return true */
-    rsp_message->response_status = RESPONSE_STATE_READY;
-    CU_ASSERT_TRUE(wait_for_response_message(rsp_message));
-
-    /* Message timeout */
-    rsp_message->response_status = RESPONSE_STATE_WAITING;
-    rsp_message->prev_response_status = RESPONSE_STATE_WAITING;
-    clock_gettime(CLOCK_REALTIME, &rsp_message->time_request_registered);
-    CU_ASSERT_FALSE(wait_for_response_message(rsp_message));
-    CU_ASSERT_EQUAL(rsp_message->prev_response_status, RESPONSE_STATE_WAITING);
-    CU_ASSERT_EQUAL(rsp_message->response_status, RESPONSE_STATE_TIMED_OUT);
-
-    destroy_response_message(rsp_message);
 }

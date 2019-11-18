@@ -84,7 +84,7 @@ bool socket_comm_session_close_tcp_after_write(pcep_socket_comm_session *socket_
 void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_session,
                                   char *unmarshalled_message,
                                   unsigned int msg_length,
-                                  bool delete_after_send);
+                                  bool free_after_send);
 
 /* the socket comm loop is started internally by socket_comm_session_initialize()
  * but needs to be explicitly stopped with this call. */

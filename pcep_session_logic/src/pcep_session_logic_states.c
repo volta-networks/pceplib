@@ -15,8 +15,9 @@
 #include "pcep_session_logic.h"
 #include "pcep_session_logic_internals.h"
 
-/* global var needed for message_responses */
-extern pcep_session_logic_handle *session_logic_handle_;
+
+/* Session Logic Handle managed in pcep_session_logic.c */
+extern pcep_event_queue *session_logic_event_queue_;
 
 /*
  * util functions called by the state handling below
@@ -101,58 +102,26 @@ void reset_dead_timer(pcep_session *session)
 }
 
 
-void update_response_message(pcep_session *session, pcep_message *received_msg)
+void enqueue_event(pcep_session *session, pcep_event_type event_type, struct pcep_message *message)
 {
-    if (session == NULL)
+    if (event_type == MESSAGE_RECEIVED && message == NULL)
     {
-        printf("WARN update_response_message NULL session\n");
+        fprintf(stderr, "enqueue_event cannot enqueue a NULL message\n");
         return;
     }
 
-    if (received_msg == NULL)
-    {
-        printf("WARN update_response_message NULL received_msg_list\n");
-        return;
-    }
+    pcep_event *event = malloc(sizeof(pcep_event));
+    bzero(event, sizeof(pcep_event));
 
-    /* iterate the message objects to get the RP object */
-    struct pcep_object_rp *rp_object =
-            (struct pcep_object_rp *) pcep_obj_get(received_msg->obj_list, PCEP_OBJ_CLASS_RP);
-    if (rp_object == NULL)
-    {
-        fprintf(stderr, "ERROR in PCREP message: cant find mandatory RP object\n");
-        /* TODO when this reaches a MAX, need to react */
-        session->num_erroneous_messages++;
-        return;
-    }
+    event->session = session;
+    event->event_type = event_type;
+    event->event_time = time(NULL);
+    event->message = message;
 
-    pcep_message_response msg_response_search;
-    msg_response_search.request_id = rp_object->rp_reqidnumb;
-    ordered_list_node *node =
-            ordered_list_find(session_logic_handle_->response_msg_list, &msg_response_search);
-    if (node == NULL)
-    {
-        fprintf(stderr, "WARN received a messages response id [%u] len [%d] class [%c] type [%c] that was not registered\n",
-                rp_object->rp_reqidnumb, ntohs(rp_object->header.object_length),
-                rp_object->header.object_class, rp_object->header.object_type);
-        return;
-    }
-    pcep_message_response *msg_response = node->data;
-    printf("[%ld-%ld] pcep_session_logic update_response_message response ready: session_id [%d] request_id [%d]\n",
-            time(NULL), pthread_self(), session->session_id, msg_response->request_id);
-
-    ordered_list_remove_first_node_equals(session_logic_handle_->response_msg_list, &msg_response_search);
-
-    pthread_mutex_lock(&msg_response->response_mutex);
-    msg_response->prev_response_status = msg_response->response_status;
-    msg_response->response_status = RESPONSE_STATE_READY;
-    msg_response->response_msg = received_msg;
-    msg_response->response_condition = true;
-    clock_gettime(CLOCK_REALTIME, &msg_response->time_response_received);
-    pthread_cond_signal(&msg_response->response_cond_var);
-    pthread_mutex_unlock(&msg_response->response_mutex);
+    pthread_mutex_lock(&session_logic_event_queue_->event_queue_mutex);
+    queue_enqueue(session_logic_event_queue_->event_queue, event);
+    pthread_mutex_unlock(&session_logic_event_queue_->event_queue_mutex);
 }
-
 
 /* Verify the received PCEP Open object parameters are acceptable. If not,
  * update the unacceptable value(s) with an acceptable value so it can be sent
@@ -444,6 +413,7 @@ void handle_timer_event(pcep_session_event *event)
     {
         session->timer_id_dead_timer = TIMER_ID_NOT_SET;
         close_pcep_session_with_reason(session, PCEP_CLOSE_REASON_DEADTIMER);
+        enqueue_event(session, PCE_DEAD_TIMER_EXPIRED, NULL);
         return;
     }
     else if(event->expired_timer_id == session->timer_id_keep_alive)
@@ -466,6 +436,7 @@ void handle_timer_event(pcep_session_event *event)
             socket_comm_session_close_tcp_after_write(session->socket_comm_session);
             session->session_state = SESSION_STATE_INITIALIZED;
             session->timer_id_open_keep_wait = TIMER_ID_NOT_SET;
+            enqueue_event(session, PCE_OPEN_KEEP_WAIT_TIMER_EXPIRED, NULL);
         }
         break;
 
@@ -476,6 +447,7 @@ void handle_timer_event(pcep_session_event *event)
             /* TODO is this the right reason?? */
             close_pcep_session_with_reason(session, PCEP_CLOSE_REASON_DEADTIMER);
             session->timer_id_pc_req_wait = TIMER_ID_NOT_SET;
+            enqueue_event(session, PCE_OPEN_KEEP_WAIT_TIMER_EXPIRED, NULL);
         }
         break;
 
@@ -517,6 +489,7 @@ void handle_socket_comm_event(pcep_session_event *event)
         printf("handle_socket_comm_event socket closed for session [%d]\n", session->session_id);
         session->session_state = SESSION_STATE_INITIALIZED;
         socket_comm_session_close_tcp(session->socket_comm_session);
+        enqueue_event(session, PCE_CLOSED_SOCKET, NULL);
         return;
     }
 
@@ -553,12 +526,12 @@ void handle_socket_comm_event(pcep_session_event *event)
 
         case PCEP_TYPE_PCREP:
             printf("\t PCEP_PCREP message\n");
-            update_response_message(session, msg);
             if (session->session_state == SESSION_STATE_WAIT_PCREQ)
             {
                 session->session_state = SESSION_STATE_IDLE;
                 cancel_timer(session->timer_id_pc_req_wait);
                 session->timer_id_pc_req_wait = TIMER_ID_NOT_SET;
+                enqueue_event(session, MESSAGE_RECEIVED, msg);
             }
             else
             {
@@ -571,6 +544,8 @@ void handle_socket_comm_event(pcep_session_event *event)
             printf("\t PCEP_CLOSE message\n");
             session->session_state = SESSION_STATE_INITIALIZED;
             socket_comm_session_close_tcp(session->socket_comm_session);
+            /* TODO should we also enqueue the message, so they can see the reasons?? */
+            enqueue_event(session, PCE_SENT_PCEP_CLOSE, NULL);
             break;
 
         case PCEP_TYPE_PCREQ:
@@ -591,21 +566,25 @@ void handle_socket_comm_event(pcep_session_event *event)
             printf("\t PCEP_PCUPD message\n");
             /* Should reply with a PcRpt */
             handle_pcep_update(session, msg);
+            enqueue_event(session, MESSAGE_RECEIVED, msg);
             break;
 
         case PCEP_TYPE_INITIATE:
             printf("\t PCEP_PCInitiate message\n");
             /* Should reply with a PcRpt */
             handle_pcep_initiate(session, msg);
+            enqueue_event(session, MESSAGE_RECEIVED, msg);
             break;
 
         case PCEP_TYPE_PCNOTF:
             printf("\t PCEP_PCNOTF message\n");
             /* TODO implement this */
+            enqueue_event(session, MESSAGE_RECEIVED, msg);
             break;
         case PCEP_TYPE_ERROR:
             printf("\t PCEP_ERROR message\n");
             /* TODO implement this */
+            enqueue_event(session, MESSAGE_RECEIVED, msg);
             break;
 
         default:
@@ -615,5 +594,5 @@ void handle_socket_comm_event(pcep_session_event *event)
     }
 
     /* Traverse the msg_list and free everything */
-    pcep_msg_free(event->received_msg_list);
+    pcep_msg_free_message_list(event->received_msg_list);
 }

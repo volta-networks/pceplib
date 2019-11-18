@@ -59,14 +59,14 @@ int session_logic_msg_ready_handler(void *data, int socket_fd)
     double_linked_list *msg_list = pcep_msg_read(socket_fd);
     if (msg_list == NULL || msg_list->num_entries == 0)
     {
-        fprintf(stderr, "Error marshalling PCEP message\n");
+        fprintf(stderr, "Error marshaling PCEP message\n");
         pthread_mutex_unlock(&(session_logic_handle_->session_logic_mutex));
         dll_destroy(msg_list);
 
         return -1;
     }
 
-    /* Just looking at the first of potentially several messages received */
+    /* Just logging the first of potentially several messages received */
     pcep_message *msg = ((pcep_message *) msg_list->head->data);
     printf("[%ld-%ld] session_logic_msg_ready_handler received message of type [%d] len [%d] on session_id [%d]\n",
             time(NULL), pthread_self(), msg->header.type, msg->header.length, session->session_id);

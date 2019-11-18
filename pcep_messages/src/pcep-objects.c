@@ -30,6 +30,7 @@
 
 #include "pcep_utils_double_linked_list.h"
 #include "pcep-objects.h"
+#include "pcep-tlvs.h"
 
 /* Internal common function used to create a pcep_object and populate the header */
 static struct pcep_object_header*
@@ -46,12 +47,51 @@ pcep_obj_create_common(uint16_t buffer_len, uint8_t object_class, uint8_t object
     return hdr;
 }
 
-struct pcep_object_open*
-pcep_obj_create_open(uint8_t keepalive, uint8_t deadtimer, uint8_t sid)
+static uint16_t get_tlvs_length(double_linked_list *tlv_list)
 {
+    if (tlv_list == NULL)
+    {
+        return 0;
+    }
+
+    uint16_t tlvs_length = 0;
+    double_linked_list_node *node = tlv_list->head;
+    for( ; node != NULL; node = node->next_node)
+    {
+        struct pcep_object_tlv_header *tlv = (struct pcep_object_tlv_header *) node->data;
+        /* The TLV length does not include the length of the header, but
+         * that needs to be included for the object length calculations. */
+        tlvs_length += ntohs(tlv->length) + sizeof(struct pcep_object_tlv_header);
+    }
+
+    return tlvs_length;
+}
+
+static void append_tlvs(struct pcep_object_header *obj, uint16_t index, double_linked_list *tlv_list)
+{
+    if (tlv_list == NULL)
+    {
+        return;
+    }
+
+    uint16_t buffer_index = index;
+    double_linked_list_node *node = tlv_list->head;
+    for( ; node != NULL; node = node->next_node)
+    {
+        struct pcep_object_tlv_header *tlv = (struct pcep_object_tlv_header *) node->data;
+        memcpy(((uint8_t *) obj) + buffer_index, tlv, ntohs(tlv->length) + sizeof(struct pcep_object_tlv_header));
+        buffer_index += ntohs(tlv->length) + sizeof(struct pcep_object_header);
+    }
+}
+
+struct pcep_object_open*
+pcep_obj_create_open(uint8_t keepalive, uint8_t deadtimer, uint8_t sid, double_linked_list *tlv_list)
+{
+    uint16_t tlv_length = get_tlvs_length(tlv_list);
+
     struct pcep_object_open *open =
             (struct pcep_object_open *) pcep_obj_create_common(
-                    sizeof(struct pcep_object_open),
+                    sizeof(struct pcep_object_open) + tlv_length,
                     PCEP_OBJ_CLASS_OPEN, PCEP_OBJ_TYPE_OPEN);
 
     open->open_ver_flags = 1<<5;        // PCEP version. Current version is 1 /No flags are currently defined.
@@ -59,20 +99,26 @@ pcep_obj_create_open(uint8_t keepalive, uint8_t deadtimer, uint8_t sid)
     open->open_deadtimer = deadtimer;   // Specifies the amount of time before closing the session down.
     open->open_sid = sid;               // PCEP session number that identifies the current session.
 
+    append_tlvs((struct pcep_object_header *) open, sizeof(struct pcep_object_open), tlv_list);
+
     return open;
 }
 
 struct pcep_object_rp*
-pcep_obj_create_rp(uint8_t obj_hdr_flags, uint32_t obj_flags, uint32_t reqid)
+pcep_obj_create_rp(uint8_t obj_hdr_flags, uint32_t obj_flags, uint32_t reqid, double_linked_list *tlv_list)
 {
+    uint16_t tlv_length = get_tlvs_length(tlv_list);
+
     struct pcep_object_rp *obj =
             (struct pcep_object_rp *) pcep_obj_create_common(
-                    sizeof(struct pcep_object_rp),
+                    sizeof(struct pcep_object_rp) + tlv_length,
                     PCEP_OBJ_CLASS_RP, PCEP_OBJ_TYPE_RP);
 
     obj->header.object_flags = obj_hdr_flags;
     obj->rp_flags = obj_flags;  //|O|B|R|Pri|
     obj->rp_reqidnumb = htonl(reqid); //Set the request id
+
+    append_tlvs((struct pcep_object_header *) obj, sizeof(struct pcep_object_rp), tlv_list);
 
     return obj;
 }
@@ -262,22 +308,27 @@ pcep_obj_create_close(uint8_t flags, uint8_t reason)
 }
 
 struct pcep_object_srp*
-pcep_obj_create_srp(bool lsp_remove, uint32_t srp_id_number)
+pcep_obj_create_srp(bool lsp_remove, uint32_t srp_id_number, double_linked_list *tlv_list)
 {
+    uint16_t tlv_length = get_tlvs_length(tlv_list);
+
     struct pcep_object_srp *obj =
             (struct pcep_object_srp*) pcep_obj_create_common(
-                    sizeof(struct pcep_object_srp),
+                    sizeof(struct pcep_object_srp) + tlv_length,
                     PCEP_OBJ_CLASS_SRP, PCEP_OBJ_TYPE_SRP);
 
     obj->lsp_remove = (lsp_remove == true ? 1 : 0);
     obj->srp_id_number = htonl(srp_id_number);
+
+    append_tlvs((struct pcep_object_header *) obj, sizeof(struct pcep_object_srp), tlv_list);
 
     return obj;
 }
 
 struct pcep_object_lsp*
 pcep_obj_create_lsp(uint32_t plsp_id, enum pcep_lsp_operational_status status,
-                    bool c_flag, bool a_flag, bool r_flag, bool s_flag, bool d_flag)
+                    bool c_flag, bool a_flag, bool r_flag, bool s_flag, bool d_flag,
+                    double_linked_list *tlv_list)
 {
     /* The plsp_id is only 20 bits */
     if (plsp_id > MAX_PLSP_ID)
@@ -295,9 +346,11 @@ pcep_obj_create_lsp(uint32_t plsp_id, enum pcep_lsp_operational_status status,
         return NULL;
     }
 
+    uint16_t tlv_length = get_tlvs_length(tlv_list);
+
     struct pcep_object_lsp *obj =
             (struct pcep_object_lsp*) pcep_obj_create_common(
-                    sizeof(struct pcep_object_lsp),
+                    sizeof(struct pcep_object_lsp) + tlv_length,
                     PCEP_OBJ_CLASS_LSP, PCEP_OBJ_TYPE_LSP);
 
     obj->plsp_id = plsp_id;
@@ -308,14 +361,16 @@ pcep_obj_create_lsp(uint32_t plsp_id, enum pcep_lsp_operational_status status,
     obj->s_flag = (s_flag == true ? 1 : 0);
     obj->d_flag = (d_flag == true ? 1 : 0);
 
+    append_tlvs((struct pcep_object_header *) obj, sizeof(struct pcep_object_lsp), tlv_list);
+
     return obj;
 }
 
 /* Internal common function used to create a pcep_object_route_object,
  * used internally by:
- *     pcep_obj_create_eroute_object()
- *     pcep_obj_create_iroute_object()
- *     pcep_obj_create_rroute_object() */
+ *     pcep_obj_create_ero()
+ *     pcep_obj_create_iro()
+ *     pcep_obj_create_rro() */
 static struct pcep_object_ro*
 pcep_obj_create_common_route_object(double_linked_list* ro_list)
 {
@@ -356,7 +411,7 @@ pcep_obj_create_common_route_object(double_linked_list* ro_list)
 
 /* Wrap a list of ro subobjects in a structure with an object header */
 struct pcep_object_ro*
-pcep_obj_create_eroute_object(double_linked_list* ero_list)
+pcep_obj_create_ero(double_linked_list* ero_list)
 {
     struct pcep_object_ro *ero = pcep_obj_create_common_route_object(ero_list);
     ero->header.object_class = PCEP_OBJ_CLASS_ERO;
@@ -367,7 +422,7 @@ pcep_obj_create_eroute_object(double_linked_list* ero_list)
 
 /* Wrap a list of ro subobjects in a structure with an object header */
 struct pcep_object_ro*
-pcep_obj_create_iroute_object(double_linked_list* iro_list)
+pcep_obj_create_iro(double_linked_list* iro_list)
 {
     struct pcep_object_ro *iro = pcep_obj_create_common_route_object(iro_list);
     iro->header.object_class = PCEP_OBJ_CLASS_IRO;
@@ -378,7 +433,7 @@ pcep_obj_create_iroute_object(double_linked_list* iro_list)
 
 /* Wrap a list of ro subobjects in a structure with an object header */
 struct pcep_object_ro*
-pcep_obj_create_rroute_object(double_linked_list* rro_list)
+pcep_obj_create_rro(double_linked_list* rro_list)
 {
     struct pcep_object_ro *rro = pcep_obj_create_common_route_object(rro_list);
     rro->header.object_class = PCEP_OBJ_CLASS_RRO;

@@ -21,7 +21,6 @@
 
 extern pcep_session_logic_handle *session_logic_handle_;
 extern int session_id_compare_function(void *list_entry, void *new_entry);
-extern int request_id_compare_function(void *list_entry, void *new_entry);
 
 
 /*
@@ -36,7 +35,6 @@ void pcep_session_logic_loop_test_setup()
     session_logic_handle_->active = true;
     session_logic_handle_->session_logic_condition = false;
     session_logic_handle_->session_list = ordered_list_initialize(session_id_compare_function);
-    session_logic_handle_->response_msg_list = ordered_list_initialize(request_id_compare_function);
     session_logic_handle_->session_event_queue = queue_initialize();
     pthread_cond_init(&(session_logic_handle_->session_logic_cond_var), NULL);
     pthread_mutex_init(&(session_logic_handle_->session_logic_mutex), NULL);
@@ -46,7 +44,6 @@ void pcep_session_logic_loop_test_setup()
 void pcep_session_logic_loop_test_teardown()
 {
     ordered_list_destroy(session_logic_handle_->session_list);
-    ordered_list_destroy(session_logic_handle_->response_msg_list);
     queue_destroy(session_logic_handle_->session_event_queue);
     pthread_mutex_unlock(&(session_logic_handle_->session_logic_mutex));
     pthread_mutex_destroy(&(session_logic_handle_->session_logic_mutex));
@@ -100,7 +97,7 @@ void test_session_logic_msg_ready_handler()
     CU_ASSERT_PTR_EQUAL(socket_event->session, &session);
     CU_ASSERT_EQUAL(socket_event->expired_timer_id, TIMER_ID_NOT_SET);
     CU_ASSERT_PTR_NOT_NULL(socket_event->received_msg_list);
-    pcep_msg_free(socket_event->received_msg_list);
+    pcep_msg_free_message_list(socket_event->received_msg_list);
     free(socket_event);
     free(keep_alive_msg);
     close(fd);

@@ -11,6 +11,7 @@
 
 /* functions to be tested from pcep-messages.c */
 extern void test_pcep_msg_create_open(void);
+extern void test_pcep_obj_create_open_with_tlvs(void);
 extern void test_pcep_msg_create_request(void);
 extern void test_pcep_msg_create_request_svec(void);
 extern void test_pcep_msg_create_reply_nopath(void);
@@ -49,9 +50,9 @@ extern void test_pcep_obj_create_error(void);
 extern void test_pcep_obj_create_close(void);
 extern void test_pcep_obj_create_srp(void);
 extern void test_pcep_obj_create_lsp(void);
-extern void test_pcep_obj_create_eroute_object(void);
-extern void test_pcep_obj_create_rroute_object(void);
-extern void test_pcep_obj_create_iroute_object(void);
+extern void test_pcep_obj_create_ero(void);
+extern void test_pcep_obj_create_rro(void);
+extern void test_pcep_obj_create_iro(void);
 extern void test_pcep_obj_create_ro_subobj_ipv4(void);
 extern void test_pcep_obj_create_ro_subobj_ipv6(void);
 extern void test_pcep_obj_create_ro_subobj_unnum(void);
@@ -75,6 +76,7 @@ int main(int argc, char **argv)
 
     CU_pSuite messages_suite = CU_add_suite("PCEP Messages Test Suite", NULL, NULL);
     CU_add_test(messages_suite, "test_pcep_msg_create_open", test_pcep_msg_create_open);
+    CU_add_test(messages_suite, "test_pcep_obj_create_open_with_tlvs", test_pcep_obj_create_open_with_tlvs);
     CU_add_test(messages_suite, "test_pcep_msg_create_request", test_pcep_msg_create_request);
     CU_add_test(messages_suite, "test_pcep_msg_create_request_svec", test_pcep_msg_create_request_svec);
     CU_add_test(messages_suite, "test_pcep_msg_create_reply_nopath", test_pcep_msg_create_reply_nopath);
@@ -116,9 +118,9 @@ int main(int argc, char **argv)
     CU_add_test(objects_suite, "test_pcep_unpack_obj_ro", test_pcep_unpack_obj_ro);
     CU_add_test(objects_suite, "test_pcep_unpack_obj_ro_sr", test_pcep_unpack_obj_ro_sr);
 
-    CU_add_test(objects_suite, "test_pcep_obj_create_eroute_object", test_pcep_obj_create_eroute_object);
-    CU_add_test(objects_suite, "test_pcep_obj_create_rroute_object", test_pcep_obj_create_rroute_object);
-    CU_add_test(objects_suite, "test_pcep_obj_create_iroute_object", test_pcep_obj_create_iroute_object);
+    CU_add_test(objects_suite, "test_pcep_obj_create_ero", test_pcep_obj_create_ero);
+    CU_add_test(objects_suite, "test_pcep_obj_create_rro", test_pcep_obj_create_rro);
+    CU_add_test(objects_suite, "test_pcep_obj_create_iro", test_pcep_obj_create_iro);
     CU_add_test(objects_suite, "test_pcep_obj_create_ro_subobj_ipv4", test_pcep_obj_create_ro_subobj_ipv4);
     CU_add_test(objects_suite, "test_pcep_obj_create_ro_subobj_ipv6", test_pcep_obj_create_ro_subobj_ipv6);
     CU_add_test(objects_suite, "test_pcep_obj_create_ro_subobj_unnum", test_pcep_obj_create_ro_subobj_unnum);

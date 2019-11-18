@@ -40,7 +40,7 @@ pcep_msg_create_open(uint8_t keepalive, uint8_t deadtimer, uint8_t sid)
     struct pcep_object_open *obj;
     struct pcep_header *hdr;
 
-    obj = pcep_obj_create_open(keepalive, deadtimer, sid);
+    obj = pcep_obj_create_open(keepalive, deadtimer, sid, NULL);
 
     buffer_len = sizeof(struct pcep_header) + ntohs(obj->header.object_length);
     buffer = malloc(sizeof(uint8_t) * buffer_len);
@@ -64,23 +64,13 @@ pcep_msg_create_open_with_tlvs(uint8_t keepalive, uint8_t deadtimer, uint8_t sid
 {
     uint8_t *buffer;
     uint16_t buffer_len;
-    uint16_t tlv_len = 0;
     struct pcep_object_open *obj;
     struct pcep_header *hdr;
 
-    /* Calculate the extra buffer size needed for the TLVs */
-    double_linked_list_node *tlv_node = tlv_list->head;
-    for(; tlv_node != NULL; tlv_node = tlv_node->next_node)
-    {
-        struct pcep_object_tlv *tlv = tlv_node->data;
-        tlv_len += sizeof(struct pcep_object_tlv_header) + ntohs(tlv->header.length);
-    }
-
-    obj = pcep_obj_create_open(keepalive, deadtimer, sid);
-    obj->header.object_length = htons(ntohs(obj->header.object_length) + tlv_len);
+    obj = pcep_obj_create_open(keepalive, deadtimer, sid, tlv_list);
 
     buffer_len = sizeof(struct pcep_header) + ntohs(obj->header.object_length);
-    buffer = malloc(sizeof(uint8_t) * buffer_len);
+    buffer = malloc(buffer_len);
     bzero(buffer, buffer_len);
 
     hdr = (struct pcep_header*) buffer;
@@ -88,19 +78,8 @@ pcep_msg_create_open_with_tlvs(uint8_t keepalive, uint8_t deadtimer, uint8_t sid
     hdr->type = PCEP_TYPE_OPEN;
     hdr->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
 
-    memcpy(buffer + sizeof(struct pcep_header), obj, sizeof(struct pcep_object_open));
-
-    /* memcpy the TLVs */
-    int index = sizeof(struct pcep_header) + sizeof(struct pcep_object_open);
-    tlv_node = tlv_list->head;
-    for(; tlv_node != NULL; tlv_node = tlv_node->next_node)
-    {
-        struct pcep_object_tlv *tlv = tlv_node->data;
-        memcpy(buffer + index, tlv,
-               sizeof(struct pcep_object_tlv_header) + ntohs(tlv->header.length));
-        index += sizeof(struct pcep_object_tlv_header) + ntohs(tlv->header.length);
-    }
-
+    /* Copy the Open object to the message buffer, and free the object */
+    memcpy(buffer + sizeof(struct pcep_header), obj, ntohs(obj->header.object_length));
     free(obj);
 
     return hdr;
@@ -404,10 +383,10 @@ pcep_msg_create_keepalive()
 }
 
 /* Common message creation function to handle double_linked_list of
- * objects, * used by pcep_msg_create_report(), pcep_msg_create_update(),
+ * objects, Used by pcep_msg_create_report(), pcep_msg_create_update(),
  * and pcep_msg_create_initiate() */
 static struct pcep_header*
-pcep_msg_create_from_object_list(double_linked_list *object_list, double_linked_list *tlv_list)
+pcep_msg_create_from_object_list(double_linked_list *object_list)
 {
     /* Messaged defined in RFC 8231 */
 
@@ -431,17 +410,6 @@ pcep_msg_create_from_object_list(double_linked_list *object_list, double_linked_
         buffer_len += ntohs(obj_hdr->object_length);
     }
 
-    if (tlv_list != NULL)
-    {
-        node = tlv_list->head;
-        for(; node != NULL; node = node->next_node)
-        {
-            struct pcep_object_tlv_header *tlv_hdr =
-                    (struct pcep_object_tlv_header*) node->data;
-            buffer_len += ntohs(tlv_hdr->length) + sizeof(struct pcep_object_tlv_header);
-        }
-    }
-
     uint8_t *buffer = malloc(buffer_len);
     struct pcep_header *hdr = (struct pcep_header *) buffer;
     hdr->length = htons(buffer_len);
@@ -457,27 +425,14 @@ pcep_msg_create_from_object_list(double_linked_list *object_list, double_linked_
         index += ntohs(obj_hdr->object_length);
     }
 
-    if (tlv_list != NULL)
-    {
-        node = tlv_list->head;
-        for(; node != NULL; node = node->next_node)
-        {
-            struct pcep_object_tlv_header *tlv_hdr =
-                    (struct pcep_object_tlv_header*) node->data;
-            buffer_len += ntohs(tlv_hdr->length) + sizeof(struct pcep_object_tlv_header);
-            memcpy(buffer + index, tlv_hdr, ntohs(tlv_hdr->length) + sizeof(struct pcep_object_tlv_header));
-            index += ntohs(tlv_hdr->length) + sizeof(struct pcep_object_tlv_header);
-        }
-    }
-
     return hdr;
 }
 
 struct pcep_header*
-pcep_msg_create_report(double_linked_list *state_report_object_list, double_linked_list *tlv_list)
+pcep_msg_create_report(double_linked_list *state_report_object_list)
 {
     struct pcep_header* report =
-            pcep_msg_create_from_object_list(state_report_object_list, tlv_list);
+            pcep_msg_create_from_object_list(state_report_object_list);
     if (report != NULL)
     {
         report->type = PCEP_TYPE_REPORT;
@@ -541,7 +496,7 @@ pcep_msg_create_update(double_linked_list *update_request_object_list)
     }
 
     struct pcep_header* update =
-            pcep_msg_create_from_object_list(update_request_object_list, NULL);
+            pcep_msg_create_from_object_list(update_request_object_list);
     if (update != NULL)
     {
         update->type = PCEP_TYPE_UPDATE;
@@ -551,7 +506,7 @@ pcep_msg_create_update(double_linked_list *update_request_object_list)
 }
 
 struct pcep_header*
-pcep_msg_create_initiate(double_linked_list *lsp_object_list, double_linked_list *tlv_list)
+pcep_msg_create_initiate(double_linked_list *lsp_object_list)
 {
     if (lsp_object_list == NULL)
     {
@@ -586,7 +541,7 @@ pcep_msg_create_initiate(double_linked_list *lsp_object_list, double_linked_list
     }
 
     struct pcep_header* initiate =
-            pcep_msg_create_from_object_list(lsp_object_list, tlv_list);
+            pcep_msg_create_from_object_list(lsp_object_list);
     if (initiate != NULL)
     {
         initiate->type = PCEP_TYPE_INITIATE;

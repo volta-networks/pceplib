@@ -67,7 +67,7 @@ void send_pce_report_message(pcep_session *session)
 
     /* Create the SRP object */
     struct pcep_object_header *obj =
-            (struct pcep_object_header*) pcep_obj_create_srp(false, srp_id_number);
+            (struct pcep_object_header*) pcep_obj_create_srp(false, srp_id_number, NULL);
     if (obj == NULL)
     {
         fprintf(stderr, "send_pce_report_message SRP object was NULL\n");
@@ -77,7 +77,7 @@ void send_pce_report_message(pcep_session *session)
 
     /* Create the LSP object */
     obj = (struct pcep_object_header *)
-            pcep_obj_create_lsp(plsp_id, lsp_status, c_flag, a_flag, r_flag, s_flag, d_flag);
+            pcep_obj_create_lsp(plsp_id, lsp_status, c_flag, a_flag, r_flag, s_flag, d_flag, NULL);
     if (obj == NULL)
     {
         fprintf(stderr, "send_pce_report_message LSP object was NULL\n");
@@ -96,7 +96,7 @@ void send_pce_report_message(pcep_session *session)
     dll_append(ero_subobj_list, subobj);
 
     /* Create the ERO object */
-    obj = (struct pcep_object_header *) pcep_obj_create_eroute_object(ero_subobj_list);
+    obj = (struct pcep_object_header *) pcep_obj_create_ero(ero_subobj_list);
     if (obj == NULL)
     {
         fprintf(stderr, "send_pce_report_message ERO object was NULL\n");
@@ -105,7 +105,7 @@ void send_pce_report_message(pcep_session *session)
     dll_append(report_list, obj);
 
     /* Create and send the report message */
-    struct pcep_header *report_msg = pcep_msg_create_report(report_list, NULL);
+    struct pcep_header *report_msg = pcep_msg_create_report(report_list);
     socket_comm_session_send_message(session->socket_comm_session,
                                      (char *) report_msg,
                                      ntohs(report_msg->length),
@@ -113,100 +113,6 @@ void send_pce_report_message(pcep_session *session)
 
     dll_destroy_with_data(report_list);
     dll_destroy_with_data(ero_subobj_list);
-}
-
-/* Example function showing how to send a Synchronous PcReq message */
-void send_pce_req_message_sync(pcep_session *session)
-{
-    pcep_pce_request *pce_req = malloc(sizeof(pcep_pce_request));
-    bzero(pce_req, sizeof(pcep_pce_request));
-    struct in_addr rro_ip;
-
-    /*
-    inet_pton(AF_INET, "192.168.10.33", &(pce_req->src_endpoint_ip.srcV4Endpoint_ip));
-    inet_pton(AF_INET, "172.100.80.56", &(pce_req->dst_endpoint_ip.dstV4Endpoint_ip));
-    */
-    /* These IPs are used with the Telefonica Open source PCE - it doesnt make sense they're in the same NW */
-    inet_pton(AF_INET, "192.168.1.1", &(pce_req->src_endpoint_ip.srcV4Endpoint_ip));
-    inet_pton(AF_INET, "192.168.1.3", &(pce_req->dst_endpoint_ip.dstV4Endpoint_ip));
-    pce_req->endpoint_ipVersion = IPPROTO_IP;
-
-    double_linked_list *rro_subobj_list = dll_initialize();
-    dll_append(rro_subobj_list, pcep_obj_create_ro_subobj_32label(0, 10));
-    inet_pton(AF_INET, "172.100.80.10", &rro_ip);
-    dll_append(rro_subobj_list, pcep_obj_create_ro_subobj_ipv4(false, &rro_ip, 24));
-    pce_req->rro = pcep_obj_create_rroute_object(rro_subobj_list);
-
-    pcep_pce_reply *pce_reply = request_path_computation(session, pce_req, 1500);
-
-    if (pce_reply->response_error)
-    {
-        fprintf(stderr, "ERROR pcep_pcc send_pce_req_message_sync response error\n");
-    }
-    else if (pce_reply->timed_out)
-    {
-        fprintf(stderr, "ERROR pcep_pcc send_pce_req_message_sync response timed-out\n");
-    }
-    else
-    {
-        printf("pcep_pcc send_pce_req_message_sync got a response, elapsed time [%d ms]\n",
-                pce_reply->elapsed_time_milli_seconds);
-    }
-
-    dll_destroy_with_data(rro_subobj_list);
-    free(pce_req);
-    free(pce_reply);
-}
-
-/* Example function showing how to send an Asynchronous PcReq message */
-void send_pce_req_message_async(pcep_session *session)
-{
-    pcep_pce_request *pce_req = malloc(sizeof(pcep_pce_request));
-    bzero(pce_req, sizeof(pcep_pce_request));
-
-    pce_req->endpoint_ipVersion = IPPROTO_IP;
-    inet_pton(AF_INET, "192.168.1.33", &(pce_req->src_endpoint_ip.srcV4Endpoint_ip));
-    inet_pton(AF_INET, "172.100.8.56", &(pce_req->dst_endpoint_ip.dstV4Endpoint_ip));
-
-    pcep_pce_reply *pce_reply = request_path_computation_async(session, pce_req, 1500);
-
-    bool retval;
-    bool keep_checking = true;
-    while (keep_checking)
-    {
-        retval = get_async_result(pce_reply);
-        if (retval)
-        {
-            printf("pcep_pcc send_pce_req_message_async got a response, elapsed time [%d ms]\n",
-                    pce_reply->elapsed_time_milli_seconds);
-            keep_checking = false;
-        }
-        else
-        {
-            if (pce_reply->response_error)
-            {
-                fprintf(stderr, "ERROR pcep_pcc send_pce_req_message_async response error\n");
-                keep_checking = false;
-            }
-            else if (pce_reply->timed_out)
-            {
-                fprintf(stderr, "ERROR pcep_pcc send_pce_req_message_async response timed-out\n");
-                keep_checking = false;
-            }
-            else
-            {
-                /* sleep 250 milliseconds */
-                struct timespec ts;
-                ts.tv_sec = 0;
-                ts.tv_nsec = 250 * 1000 * 1000;
-                nanosleep(&ts, &ts);
-                printf("pcep_pcc send_pce_req_message_async sleep while waiting for a response\n");
-            }
-        }
-    }
-
-    free(pce_req);
-    free(pce_reply);
 }
 
 
@@ -240,7 +146,7 @@ int main(int argc, char **argv)
     free(config);
     if (session == NULL)
     {
-        fprintf(stderr, "Error in create_nbi_pcep_session.\n");
+        fprintf(stderr, "Error in connect_pce.\n");
         return -1;
     }
 

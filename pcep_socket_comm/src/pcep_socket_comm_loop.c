@@ -216,7 +216,7 @@ void handle_writes(pcep_socket_comm_handle *socket_comm_handle)
                         comm_session->socket_fd,
                         queued_message->unmarshalled_message,
                         queued_message->msg_length);
-                if (queued_message->delete_after_send)
+                if (queued_message->free_after_send)
                 {
                     free(queued_message->unmarshalled_message);
                 }

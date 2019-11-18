@@ -24,6 +24,7 @@
  */
 
 pcep_session_logic_handle *session_logic_handle_ = NULL;
+pcep_event_queue *session_logic_event_queue_ = NULL;
 int session_id_ = 0;
 
 void create_and_send_open(pcep_session *session); /* forward decl */
@@ -37,12 +38,6 @@ int session_id_compare_function(void *list_entry, void *new_entry)
      */
 
     return ((pcep_session *) new_entry)->session_id - ((pcep_session *) list_entry)->session_id;
-}
-
-
-int request_id_compare_function(void *list_entry, void *new_entry)
-{
-    return ((pcep_message_response *) new_entry)->request_id - ((pcep_message_response *) list_entry)->request_id;
 }
 
 
@@ -60,8 +55,16 @@ bool run_session_logic()
     session_logic_handle_->active = true;
     session_logic_handle_->session_logic_condition = false;
     session_logic_handle_->session_list = ordered_list_initialize(session_id_compare_function);
-    session_logic_handle_->response_msg_list = ordered_list_initialize(request_id_compare_function);
     session_logic_handle_->session_event_queue = queue_initialize();
+
+    /* Initialize the event queue */
+    session_logic_event_queue_ = malloc(sizeof(pcep_event_queue));
+    session_logic_event_queue_->event_queue = queue_initialize();
+    if (pthread_mutex_init(&(session_logic_event_queue_->event_queue_mutex), NULL) != 0)
+    {
+        fprintf(stderr, "Cannot initialize session_logic event queue mutex.\n");
+        return false;
+    }
 
     if (!initialize_timers(session_logic_timer_expire_handler))
     {
@@ -120,8 +123,12 @@ bool stop_session_logic()
 
     pthread_mutex_destroy(&(session_logic_handle_->session_logic_mutex));
     ordered_list_destroy(session_logic_handle_->session_list);
-    ordered_list_destroy(session_logic_handle_->response_msg_list);
     queue_destroy(session_logic_handle_->session_event_queue);
+
+    /* destroy the event_queue */
+    pthread_mutex_destroy(&(session_logic_event_queue_->event_queue_mutex));
+    queue_destroy(session_logic_event_queue_->event_queue);
+    free(session_logic_event_queue_);
 
     /* Explicitly stop the socket comm loop started by the pcep_sessions */
     destroy_socket_comm_loop();
@@ -268,225 +275,6 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
     return session;
 }
 
-
-pcep_message_response *register_response_message(
-        pcep_session *session, int request_id, unsigned int max_wait_time_milli_seconds)
-{
-    /* the response will be updated in pcep_session_logic_states.c */
-
-    if (session == NULL)
-    {
-        printf("WARN cannot register with a NULL session\n");
-        return NULL;
-    }
-
-    if (session_logic_handle_ == NULL)
-    {
-        printf("WARN cannot register without first running the session logic\n");
-        return NULL;
-    }
-
-    printf("[%ld-%ld] register_response_message session [%d] request_id [%d] max_wait [%u]\n",
-            time(NULL), pthread_self(), session->session_id, request_id, max_wait_time_milli_seconds);
-
-    pcep_message_response *msg_response = malloc(sizeof(pcep_message_response));
-    msg_response->session = session;
-    msg_response->request_id = request_id;
-    msg_response->max_wait_time_milli_seconds = max_wait_time_milli_seconds;
-    msg_response->response_msg = NULL;
-    msg_response->prev_response_status = RESPONSE_STATE_WAITING;
-    msg_response->response_status = RESPONSE_STATE_WAITING;
-    clock_gettime(CLOCK_REALTIME, &msg_response->time_request_registered);
-    msg_response->time_response_received.tv_nsec =
-            msg_response->time_response_received.tv_sec = 0;
-    msg_response->response_condition = false;
-    pthread_mutex_init(&(msg_response->response_mutex), NULL);
-    pthread_cond_init(&(msg_response->response_cond_var), NULL);
-
-    /* TODO we should periodically check purge the list of timed-out responses */
-    pthread_mutex_lock(&(session_logic_handle_->session_logic_mutex));
-    session->session_state = SESSION_STATE_WAIT_PCREQ;
-    session->timer_id_pc_req_wait = create_timer(session->pce_config.request_time_seconds, session);
-    ordered_list_add_node(session_logic_handle_->response_msg_list, msg_response);
-    pthread_mutex_unlock(&(session_logic_handle_->session_logic_mutex));
-
-    return msg_response;
-}
-
-
-void destroy_response_message(pcep_message_response *msg_response)
-{
-    if (msg_response == NULL)
-    {
-        printf("WARN cannot destroy a NULL message response\n");
-        return;
-    }
-
-    if (session_logic_handle_ == NULL)
-    {
-        printf("WARN cannot destroy a message response without first running the session logic\n");
-        return;
-    }
-
-    pthread_mutex_destroy(&msg_response->response_mutex);
-    pthread_cond_destroy(&msg_response->response_cond_var);
-    ordered_list_remove_first_node_equals(session_logic_handle_->response_msg_list, msg_response);
-
-    free(msg_response);
-}
-
-/* internal util method to calculate time diffs */
-int timespec_diff(struct timespec *start, struct timespec *stop)
-{
-    int diff_millis;
-    if ((stop->tv_nsec - start->tv_nsec) < 0) {
-        diff_millis  = (stop->tv_sec  - start->tv_sec - 1) * 1000;
-        diff_millis += (stop->tv_nsec - start->tv_nsec + 1000000000) / 1000000;
-    } else {
-        diff_millis  = (stop->tv_sec  - start->tv_sec) * 1000;
-        diff_millis += (stop->tv_nsec - start->tv_nsec) / 1000000;
-    }
-
-    return diff_millis;
-}
-
-
-/* internal util method to add times */
-void add_millis_toTimespec(struct timespec *ts, int milli_seconds)
-{
-    static const int SEC_IN_NANOS   = 1000000000;
-    static const int MAX_NANO       =  999999999;
-    static const int MILLI_IN_NANOS =    1000000;
-    static const int SEC_IN_MILLIS  =       1000;
-    int seconds1 = 0, seconds2 = 0;
-    int nano_seconds = 0;
-
-    if (milli_seconds >= SEC_IN_MILLIS)
-    {
-        seconds1 = milli_seconds / SEC_IN_MILLIS;
-        nano_seconds = (milli_seconds - (seconds1 * SEC_IN_MILLIS)) * MILLI_IN_NANOS;
-    }
-    else
-    {
-        nano_seconds = milli_seconds * MILLI_IN_NANOS;
-    }
-
-    if ((ts->tv_nsec + nano_seconds) > MAX_NANO)
-    {
-        seconds2 = (ts->tv_nsec + nano_seconds) / SEC_IN_NANOS;
-        nano_seconds = (ts->tv_nsec + nano_seconds) - (seconds2 * SEC_IN_NANOS);
-    }
-    else
-    {
-        nano_seconds = ts->tv_nsec + nano_seconds;
-    }
-
-    ts->tv_sec += seconds1 + seconds2;
-    ts->tv_nsec = nano_seconds;
-}
-
-
-bool query_response_message(pcep_message_response *msg_response)
-{
-    if (msg_response == NULL)
-    {
-        printf("WARN query_response_message cannot query with NULL pcep_message_response\n");
-        return false;
-    }
-
-    pthread_mutex_lock(&msg_response->response_mutex);
-
-    /* if the message is already available, nothing else to do */
-    if (msg_response->response_status == RESPONSE_STATE_READY)
-    {
-        pthread_mutex_unlock(&msg_response->response_mutex);
-        return true;
-    }
-
-    /* if the status changed, then return true, nothing else to do */
-    if (msg_response->response_status != msg_response->prev_response_status)
-    {
-        pthread_mutex_unlock(&msg_response->response_mutex);
-
-        /* return true that the state changed */
-        return true;
-    }
-
-    /* check if it timed out */
-    struct timespec time_now;
-    clock_gettime(CLOCK_REALTIME, &time_now);
-    int time_diff_milli_seconds = timespec_diff(&msg_response->time_request_registered, &time_now);
-    if (time_diff_milli_seconds >= msg_response->max_wait_time_milli_seconds)
-    {
-        msg_response->prev_response_status = msg_response->response_status;
-        msg_response->response_status = RESPONSE_STATE_TIMED_OUT;
-        pthread_mutex_unlock(&msg_response->response_mutex);
-
-        /* return true that the state changed */
-        return true;
-    }
-
-    pthread_mutex_unlock(&msg_response->response_mutex);
-
-    return false;
-}
-
-
-bool wait_for_response_message(pcep_message_response *msg_response)
-{
-    if (msg_response == NULL)
-    {
-        printf("ERROR wait_for_response_message cannot query with NULL pcep_message_response\n");
-        return false;
-    }
-
-    pthread_mutex_lock(&msg_response->response_mutex);
-
-    /* if the message is already available, nothing else to do */
-    if (msg_response->response_status == RESPONSE_STATE_READY)
-    {
-        pthread_mutex_unlock(&msg_response->response_mutex);
-        return true;
-    }
-
-    int wait_retval = 0;
-    struct timespec ts;
-    clock_gettime(CLOCK_REALTIME, &ts);
-    add_millis_toTimespec(&ts, msg_response->max_wait_time_milli_seconds);
-
-    while (!msg_response->response_condition && wait_retval == 0)
-    {
-        wait_retval = pthread_cond_timedwait(
-                &msg_response->response_cond_var, &msg_response->response_mutex, &ts);
-    }
-
-    /* if the message is ready, just return now */
-    if (msg_response->response_status == RESPONSE_STATE_READY)
-    {
-        pthread_mutex_unlock(&msg_response->response_mutex);
-        return true;
-    }
-
-    if (wait_retval != 0)
-    {
-        if (wait_retval == ETIMEDOUT)
-        {
-            printf("WARN wait_for_response_message timed_out session [%d] request_id [%d]\n",
-                    msg_response->session->session_id, msg_response->request_id);
-            msg_response->prev_response_status = msg_response->response_status;
-            msg_response->response_status = RESPONSE_STATE_TIMED_OUT;
-        }
-        else
-        {
-            printf("WARN wait_for_response_message pthread_cond_timedwait returned error [%d] wait_time [%ld.%09ld] max_wait [%d]\n",
-                    wait_retval, ts.tv_sec, ts.tv_nsec, msg_response->max_wait_time_milli_seconds);
-        }
-    }
-
-    pthread_mutex_unlock(&msg_response->response_mutex);
-
-    return false;
-}
 
 void create_and_send_open(pcep_session *session)
 {

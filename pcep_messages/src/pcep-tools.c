@@ -100,8 +100,8 @@ pcep_msg_read(int sock_fd)
     uint8_t buffer[PCEP_MAX_SIZE];
     uint16_t buffer_read = 0;
     struct pcep_header* msg_hdr;
-    double_linked_list* head = dll_initialize();
-    struct pcep_message* item = NULL;
+    double_linked_list* msg_list = dll_initialize();
+    struct pcep_message* msg = NULL;
 
     bzero(&buffer, PCEP_MAX_SIZE);
 
@@ -131,18 +131,18 @@ pcep_msg_read(int sock_fd)
 
             if(read_ret != read_len) {
                 fprintf(stderr, "WARNING pcep_msg_read: Did not manage to read enough data (%d != %d)\n", read_ret, read_len);
-                return head;
+                return msg_list;
             }
         }
 
         buffer_read += msg_hdr->length;
 
-        item = (struct pcep_message*) malloc(sizeof(struct pcep_message));
+        msg = (struct pcep_message*) malloc(sizeof(struct pcep_message));
 
-        bzero(item, sizeof(struct pcep_message));
-        item->obj_list = dll_initialize();
+        bzero(msg, sizeof(struct pcep_message));
+        msg->obj_list = dll_initialize();
 
-        memcpy(&item->header, msg_hdr, sizeof(struct pcep_header));
+        memcpy(&msg->header, msg_hdr, sizeof(struct pcep_header));
 
         while((msg_hdr->length - obj_read) > sizeof(struct pcep_object_header)) {
             struct pcep_object_header* obj_hdr = (struct pcep_object_header*) (((uint8_t*)msg_hdr) + obj_read);
@@ -151,7 +151,7 @@ pcep_msg_read(int sock_fd)
             struct pcep_object_header* obj_item = pcep_obj_parse(obj_hdr);
 
             if(obj_item != NULL) {
-                dll_append(item->obj_list, obj_item);
+                dll_append(msg->obj_list, obj_item);
             } else {
                 err_count++;
             }
@@ -161,10 +161,10 @@ pcep_msg_read(int sock_fd)
             if(err_count > 5) break;
         };
 
-        dll_append(head, item);
+        dll_append(msg_list, msg);
     }
 
-    return head;
+    return msg_list;
 }
 
 pcep_message*
@@ -256,20 +256,29 @@ pcep_obj_get_next(double_linked_list* list, struct pcep_object_header* current, 
 }
 
 void
-pcep_msg_free(double_linked_list* list)
+pcep_msg_free_message(struct pcep_message *message)
+{
+    if (message->obj_list != NULL)
+    {
+        struct pcep_object_header *obj = (struct pcep_object_header *) dll_delete_first_node(message->obj_list);
+        while (obj != NULL) {
+            free(obj);
+            obj = (struct pcep_object_header *) dll_delete_first_node(message->obj_list);
+        }
+
+        dll_destroy(message->obj_list);
+    }
+
+    free(message);
+}
+
+void
+pcep_msg_free_message_list(double_linked_list* list)
 {
     /* Iterate the messages and free each one */
     pcep_message *msg = (pcep_message *) dll_delete_first_node(list);
     while (msg != NULL) {
-        /* Iterate the objects in the message and free each one */
-        struct pcep_object_header *obj = (struct pcep_object_header *) dll_delete_first_node(msg->obj_list);
-        while (obj != NULL) {
-            free(obj);
-            obj = (struct pcep_object_header *) dll_delete_first_node(msg->obj_list);
-        }
-
-        dll_destroy(msg->obj_list);
-        free(msg);
+        pcep_msg_free_message(msg);
         msg = (pcep_message *) dll_delete_first_node(list);
     }
     dll_destroy(list);

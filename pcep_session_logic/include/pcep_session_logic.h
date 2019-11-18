@@ -48,7 +48,7 @@ typedef struct pcep_configuration_
      * TLV in each LSP object */
     bool support_include_db_version;
 
-    /* Only set if support_include_db_version is true and if the LDP-DB
+    /* Only set if support_include_db_version is true and if the LSP-DB
      * survived a restart and is available. If this has a value other than
      * 0, then a LSP-DB-VERSION TLV will be sent in the OPEN object. This
      * value will be copied over to the pcep_session upon init. */
@@ -68,90 +68,14 @@ typedef struct pcep_configuration_
 
     /* draft-ietf-pce-segment-routing-16: Send a SR PCE Capability
      * sub-TLV in a Path Setup Type Capability TLV with a PST = 1,
-     * Path is setup using SR TE.
-     */
+     * Path is setup using SR TE. */
     bool support_sr_te_pst;
-    /* Used in the SR TE Capability sub-TLV */
+    /* Used in the SR PCE Capability sub-TLV */
     bool pcc_can_resolve_nai_to_sid;
     /* Used in the SR TE Capability sub-TLV, 0 means there are no max sid limits */
     uint8_t max_sid_depth;
 
 } pcep_configuration;
-
-/* The format of a PCReq message is as follows:
-       <PCReq message>::= <Common header>
-                          [<svec-list>]
-                          <request-list>
-
-   where:
-      <svec-list>::=<SVEC>[<svec-list>]
-      <request-list>::=<request>[<request-list>]
-
-      <request>::= <RP>
-                   <END-POINTS>
-                   [<LSPA>] label switched path attrs
-                   [<BANDWIDTH>]
-                   [<metric-list>]
-                   [<RRO>[<BANDWIDTH>]]
-                   [<IRO>]
-                   [<LOAD-BALANCING>]
-
-   where:
-      <metric-list>::=<METRIC>[<metric-list>]
- */
-/* path computation request */
-typedef struct pcep_pce_request_
-{
-    /* RP flags - mandatory field
-     * RP request_id is created internally */
-    bool rp_flag_reoptimization;
-    bool rp_flag_bidirectional;
-    bool rp_flag_loose_path;
-    char rp_flag_priority; /* 3 bits, values from 0 - 7 */
-
-    /* endpoints - mandatory field
-     * ip_version must be either IPPROTO_IP (for IPv4) or IPPROTO_IPV6,
-     * defined in netinet/in.h */
-    int endpoint_ipVersion;
-    union src_endpoint_ip_ {
-        struct in_addr srcV4Endpoint_ip;
-        struct in6_addr srcV6Endpoint_ip;
-    } src_endpoint_ip;
-    union dst_endpoint_ip_ {
-        struct in_addr dstV4Endpoint_ip;
-        struct in6_addr dstV6Endpoint_ip;
-    } dst_endpoint_ip;
-
-    /*
-     * The rest of these fields are optional
-     */
-
-    /* Populate with pcep_obj_create_bandwidth() */
-    struct pcep_object_bandwidth *bandwidth;
-
-    /* Label Switch Path Attributes
-     * populate with pcep_obj_create_lspa() */
-    struct pcep_object_lspa *lspa;
-
-    /* Contiguous group of metrics
-     * populate with pcep_obj_create_metric() */
-    struct pcep_object_metric *metrics;
-
-    /* Reported Route Object
-     * Populate with pcep_obj_create_rro() */
-    struct pcep_object_ro *rro;
-
-    /* Include Route Object
-     * Populate with pcep_obj_create_iro() */
-    struct pcep_object_ro *iro;
-
-    /* Populate with pcep_obj_create_load_balancing() */
-    struct pcep_object_load_balancing *load_balancing;
-
-    /* if path_count > 1, use svec: synchronization vector
-    int path_count; */
-
-} pcep_pce_request;
 
 
 typedef enum pcep_session_state_
@@ -190,32 +114,37 @@ typedef struct pcep_session_
 } pcep_session;
 
 
-typedef enum pcep_message_response_status_
+typedef enum pcep_event_type
 {
-    RESPONSE_STATE_UNKNOWN = 0,
-    RESPONSE_STATE_WAITING = 1,
-    RESPONSE_STATE_READY = 2,
-    RESPONSE_STATE_TIMED_OUT = 3,
-    RESPONSE_STATE_ERROR = 4
+    MESSAGE_RECEIVED = 0,
+    PCE_CLOSED_SOCKET = 1,
+    PCE_SENT_PCEP_CLOSE = 2,
+    PCE_DEAD_TIMER_EXPIRED = 3,
+    PCE_OPEN_KEEP_WAIT_TIMER_EXPIRED = 3,
+    PCC_PCEP_SESSION_CLOSED = 101,
+    PCC_RCVD_INVALID_OPEN = 102,
+    PCC_RCVD_MAX_INVALID_MSGS = 103,
+    PCC_RCVD_MAX_UNKOWN_MSGS = 104
 
-} pcep_message_response_status;
+} pcep_event_type;
 
-/* currently used when pcReq messages are sent to wait for pcRep responses */
-typedef struct pcep_message_response_
+
+typedef struct pcep_event
 {
-    int request_id;
-    pcep_message_response_status prev_response_status;
-    pcep_message_response_status response_status;
-    struct timespec time_request_registered;
-    struct timespec time_response_received;
-    int max_wait_time_milli_seconds;
+    enum pcep_event_type event_type;
+    time_t event_time;
+    struct pcep_message *message;
     pcep_session *session;
-    pcep_message *response_msg;
-    bool response_condition;
-    pthread_mutex_t response_mutex;
-    pthread_cond_t response_cond_var;
 
-} pcep_message_response;
+} pcep_event;
+
+
+typedef struct pcep_event_queue
+{
+    queue_handle *event_queue;
+    pthread_mutex_t event_queue_mutex;
+
+} pcep_event_queue;
 
 
 bool run_session_logic();
@@ -233,30 +162,5 @@ void close_pcep_session_with_reason(pcep_session *session, enum pcep_close_reaso
 /* Destroy the PCEP session, a PCEP close should have
  * already been sent with close_pcep_session() */
 void destroy_pcep_session(pcep_session *session);
-
-/* Register a Request Message request_id as having been sent, and internally
- * store the details. when and if a Reply is received with the request_id,
- * then the pcep_message_response object will be updated. intended to be used in
- * conjunction with either query_response_message() or wait_for_response_message()
- * returns a pointer to the registered pcep_message_response object.  */
-pcep_message_response *register_response_message(
-        pcep_session *session, int request_id, unsigned int max_wait_time_milli_seconds);
-
-/* Destroy a previously registered pcep_message_response object */
-void destroy_response_message(pcep_message_response *response);
-
-pcep_message_response *get_registered_response_message(int request_id);
-
-/* Query if a message Response is available
- * if one is available, the supplied pcep_message_response will be updated.
- * modification and querying of the msg_response is thread safe.
- * returns true if the message response is available or if there is a
- * change in the pcep_message_response status, false otherwise */
-bool query_response_message(pcep_message_response *msg_response);
-
-/* Wait for a message response until the response is available, or
- * until the pcep_message_response->max_wait_time_milli_seconds is reached.
- * returns true if a response was received, false otherwise. */
-bool wait_for_response_message(pcep_message_response *msg_response);
 
 #endif /* INCLUDE_PCEPSESSIONLOGIC_H_ */

@@ -434,8 +434,8 @@ struct pcep_object_lsp
     uint32_t d_flag:1;
 }__attribute__((packed));
 
-struct pcep_object_open*                pcep_obj_create_open        (uint8_t keepalive, uint8_t deadtimer, uint8_t sid);
-struct pcep_object_rp*                  pcep_obj_create_rp          (uint8_t obj_hdr_flags, uint32_t obj_flags, uint32_t reqid);
+struct pcep_object_open*                pcep_obj_create_open        (uint8_t keepalive, uint8_t deadtimer, uint8_t sid, double_linked_list *tlv_list);
+struct pcep_object_rp*                  pcep_obj_create_rp          (uint8_t obj_hdr_flags, uint32_t obj_flags, uint32_t reqid, double_linked_list *tlv_list);
 struct pcep_object_nopath*              pcep_obj_create_nopath      (uint8_t obj_hdr_flags, uint8_t ni, uint16_t obj_flags, uint32_t errorcode);
 struct pcep_object_endpoints_ipv4*      pcep_obj_create_enpoint_ipv4(const struct in_addr* src_ipv4, const struct in_addr* dst_ipv4);
 struct pcep_object_endpoints_ipv6*      pcep_obj_create_enpoint_ipv6(const struct in6_addr* src_ipv6, const struct in6_addr* dst_ipv6);
@@ -445,16 +445,17 @@ struct pcep_object_lspa*                pcep_obj_create_lspa        (uint8_t pri
 struct pcep_object_svec*                pcep_obj_create_svec        (bool srlg, bool node, bool link, uint16_t ids_count, uint32_t *ids);
 struct pcep_object_error*               pcep_obj_create_error       (uint8_t error_type, uint8_t error_value);
 struct pcep_object_close*               pcep_obj_create_close       (uint8_t flags, uint8_t reason);
-struct pcep_object_srp*                 pcep_obj_create_srp         (bool lsp_remove, uint32_t srp_id_number);
+struct pcep_object_srp*                 pcep_obj_create_srp         (bool lsp_remove, uint32_t srp_id_number, double_linked_list *tlv_list);
 struct pcep_object_lsp*                 pcep_obj_create_lsp         (uint32_t plsp_id, enum pcep_lsp_operational_status status,
-                                                                     bool c_flag, bool a_flag, bool r_flag, bool s_flag, bool d_flag);
+                                                                     bool c_flag, bool a_flag, bool r_flag, bool s_flag, bool d_flag,
+                                                                     double_linked_list *tlv_list);
 
 /* Route Object (Explicit ero, Reported rro, and Include iro) functions
  * First, the sub-objects should be created and appended to a double_linked_list,
  * then call one of these Route Object creation functions with the subobj list */
-struct pcep_object_ro*            pcep_obj_create_eroute_object      (double_linked_list* ero_list);
-struct pcep_object_ro*            pcep_obj_create_rroute_object      (double_linked_list* rro_list);
-struct pcep_object_ro*            pcep_obj_create_iroute_object      (double_linked_list* iro_list);
+struct pcep_object_ro*            pcep_obj_create_ero      (double_linked_list* ero_list);
+struct pcep_object_ro*            pcep_obj_create_rro      (double_linked_list* rro_list);
+struct pcep_object_ro*            pcep_obj_create_iro      (double_linked_list* iro_list);
 /* Route Object sub-object creation functions */
 struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_ipv4     (bool loose_hop, const struct in_addr* ro_ipv4, uint8_t prefix_len);
 struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_ipv6     (bool loose_hop, const struct in6_addr* ro_ipv6, uint8_t prefix_len);

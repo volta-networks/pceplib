@@ -21,9 +21,8 @@
 #include "pcep-tools.h"
 
 /* Functions being tested */
-extern void update_response_message(pcep_session *session, pcep_message *received_msg_list);
-extern int request_id_compare_function(void *list_entry, void *new_entry);
 extern pcep_session_logic_handle *session_logic_handle_;
+extern pcep_event_queue *session_logic_event_queue_;
 
 static pcep_session_event event;
 static pcep_session session;
@@ -42,8 +41,10 @@ void pcep_session_logic_states_test_setup()
 {
     session_logic_handle_ = malloc(sizeof(pcep_session_logic_handle));
     bzero(session_logic_handle_, sizeof(pcep_session_logic_handle));
-    session_logic_handle_->response_msg_list =
-            ordered_list_initialize(request_id_compare_function);
+
+    session_logic_event_queue_ = malloc(sizeof(pcep_event_queue));
+    bzero(session_logic_event_queue_, sizeof(pcep_event_queue));
+    session_logic_event_queue_->event_queue = queue_initialize();
 
     bzero(&session, sizeof(pcep_session));
     session.pcc_config.keep_alive_seconds = 5;
@@ -76,82 +77,19 @@ void pcep_session_logic_states_test_teardown()
     if (do_msg_free == true)
     {
         /* This will destroy both the msg_list and the obj_list */
-        pcep_msg_free(msg_list);
+        pcep_msg_free_message_list(msg_list);
     }
-    ordered_list_destroy(session_logic_handle_->response_msg_list);
     free(session_logic_handle_);
+    queue_destroy(session_logic_event_queue_->event_queue);
+    free(session_logic_event_queue_);
     session_logic_handle_ = NULL;
+    session_logic_event_queue_ = NULL;
 }
 
 
 /*
  * Test cases
  */
-
-void test_update_response_message_null_params()
-{
-    /* Verify that it does not core dump with NULL params */
-    update_response_message(NULL, msg_node);
-    update_response_message(&session, NULL);
-    update_response_message(NULL, NULL);
-
-    /* If the RP object is not in the msg_list, then it should be an erroneous message */
-    update_response_message(&session, msg_node);
-    CU_ASSERT_EQUAL(session.num_erroneous_messages, 1);
-}
-
-
-void test_update_response_message_not_registered()
-{
-    pcep_message_response registered_msg_response;
-    bzero(&registered_msg_response, sizeof(pcep_message_response));
-
-    /*
-     * If the received message was not registered, then nothing should happen.
-     * Simulating a message was received (msg_list) with reqid=1,
-     * but only a message was registered with reqid=2
-     */
-
-    dll_append(obj_list, pcep_obj_create_rp((uint8_t) 0, (uint32_t) 0, (uint32_t) 1));
-    registered_msg_response.request_id = 2;
-    ordered_list_add_node(session_logic_handle_->response_msg_list, &registered_msg_response);
-
-    update_response_message(&session, msg_node);
-    /* The registered message should NOT have been taken off the list */
-    CU_ASSERT_EQUAL(session_logic_handle_->response_msg_list->num_entries, 1);
-    CU_ASSERT_PTR_NULL(registered_msg_response.response_msg);
-    ordered_list_remove_first_node(session_logic_handle_->response_msg_list);
-}
-
-
-void test_update_response_message()
-{
-    pcep_message_response registered_msg_response;
-    bzero(&registered_msg_response, sizeof(pcep_message_response));
-
-    /*
-     * A message was received, and it was registered, so it should be
-     * removed from the session_logic_handle_->response_msg_list, and
-     * the appropriate pcep_message_response fields should be updated.
-     */
-
-    dll_append(obj_list, pcep_obj_create_rp((uint8_t) 0, (uint32_t) 0, (uint32_t) 1));
-    registered_msg_response.prev_response_status = RESPONSE_STATE_WAITING;
-    registered_msg_response.response_status = RESPONSE_STATE_WAITING;
-    registered_msg_response.request_id = htonl(1);
-    pthread_mutex_init(&registered_msg_response.response_mutex, NULL);
-    pthread_cond_init(&registered_msg_response.response_cond_var, NULL);
-    ordered_list_add_node(session_logic_handle_->response_msg_list, &registered_msg_response);
-
-    update_response_message(&session, msg_node);
-    CU_ASSERT_EQUAL(session_logic_handle_->response_msg_list->num_entries, 0);
-    CU_ASSERT_PTR_EQUAL(registered_msg_response.response_msg, msg_node);
-    CU_ASSERT_EQUAL(registered_msg_response.response_status, RESPONSE_STATE_READY);
-    CU_ASSERT_TRUE(registered_msg_response.response_condition);
-    CU_ASSERT_NOT_EQUAL(registered_msg_response.time_response_received.tv_sec, 0);
-    CU_ASSERT_NOT_EQUAL(registered_msg_response.time_response_received.tv_nsec, 0);
-}
-
 
 void test_handle_timer_event_dead_timer()
 {
@@ -162,8 +100,14 @@ void test_handle_timer_event_dead_timer()
 
     CU_ASSERT_EQUAL(session.timer_id_dead_timer, TIMER_ID_NOT_SET);
     CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_INITIALIZED);
+    CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 1);
+
+    pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
+    CU_ASSERT_EQUAL(PCE_DEAD_TIMER_EXPIRED, e->event_type);
+    free(e);
+
     /* verify_socket_comm_times_called(
-     *     int initialized, int teardown, int connect, int send_message, int close_after_write, int close, int destroy); */
+     *     initialized, teardown, connect, send_message, close_after_write, close, destroy); */
     verify_socket_comm_times_called(0, 0, 0, 1, 1, 0, 0);
 }
 
@@ -189,7 +133,12 @@ void test_handle_timer_event_open_keep_wait()
 
     CU_ASSERT_EQUAL(session.timer_id_open_keep_wait, TIMER_ID_NOT_SET);
     CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_INITIALIZED);
+    CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 1);
     verify_socket_comm_times_called(0, 0, 0, 0, 1, 0, 0);
+
+    pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
+    CU_ASSERT_EQUAL(PCE_OPEN_KEEP_WAIT_TIMER_EXPIRED, e->event_type);
+    free(e);
 
     /* If the state is not SESSION_STATE_TCP_CONNECTED, then nothing should happen */
     reset_mock_socket_comm_info();
@@ -212,7 +161,12 @@ void test_handle_timer_event_pc_req_wait()
 
     CU_ASSERT_EQUAL(session.timer_id_pc_req_wait, TIMER_ID_NOT_SET);
     CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_INITIALIZED);
+    CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 1);
     verify_socket_comm_times_called(0, 0, 0, 1, 1, 0, 0);
+
+    pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
+    CU_ASSERT_EQUAL(PCE_OPEN_KEEP_WAIT_TIMER_EXPIRED, e->event_type);
+    free(e);
 
     /* If the state is not SESSION_STATE_TCP_CONNECTED, then nothing should happen */
     reset_mock_socket_comm_info();
@@ -245,16 +199,18 @@ void test_handle_socket_comm_event_close()
     handle_socket_comm_event(&event);
 
     CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_INITIALIZED);
+    CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 1);
     verify_socket_comm_times_called(0, 0, 0, 0, 0, 1, 0);
+
+    pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
+    CU_ASSERT_EQUAL(PCE_CLOSED_SOCKET, e->event_type);
+    free(e);
 }
 
 
 void test_handle_socket_comm_event_open()
 {
-    pcep_message_response registered_msg_response;
-    bzero(&registered_msg_response, sizeof(pcep_message_response));
-
-    struct pcep_object_open *open_object = pcep_obj_create_open(1, 1, 1);
+    struct pcep_object_open *open_object = pcep_obj_create_open(1, 1, 1, NULL);
     pcep_unpack_obj_header((struct pcep_object_header*) open_object);
     dll_append(obj_list, open_object);
     msg_node->header.type = PCEP_TYPE_OPEN;
@@ -271,9 +227,6 @@ void test_handle_socket_comm_event_open()
 
 void test_handle_socket_comm_event_keep_alive()
 {
-    pcep_message_response registered_msg_response;
-    bzero(&registered_msg_response, sizeof(pcep_message_response));
-
     msg_node->header.type = PCEP_TYPE_KEEPALIVE;
     event.received_msg_list = msg_list;
     session.session_state = SESSION_STATE_TCP_CONNECTED;
@@ -291,10 +244,7 @@ void test_handle_socket_comm_event_keep_alive()
 
 void test_handle_socket_comm_event_pcrep()
 {
-    pcep_message_response registered_msg_response;
-    bzero(&registered_msg_response, sizeof(pcep_message_response));
-
-    dll_append(obj_list, pcep_obj_create_rp(1, 1, 1));
+    dll_append(obj_list, pcep_obj_create_rp(1, 1, 1, NULL));
     msg_node->header.type = PCEP_TYPE_PCREP;
     event.received_msg_list = msg_list;
     session.session_state = SESSION_STATE_WAIT_PCREQ;
@@ -303,6 +253,10 @@ void test_handle_socket_comm_event_pcrep()
 
     CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_IDLE);
     CU_ASSERT_EQUAL(session.timer_id_pc_req_wait, TIMER_ID_NOT_SET);
+    CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 1);
     verify_socket_comm_times_called(0, 0, 0, 0, 0, 0, 0);
+    pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
+    CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
+    free(e);
     do_msg_free = false;
 }

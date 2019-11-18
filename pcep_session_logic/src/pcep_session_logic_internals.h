@@ -28,12 +28,14 @@ typedef struct pcep_session_logic_handle_
     bool active;
 
     ordered_list_handle *session_list;
+    /* Internal timers and socket events */
     queue_handle *session_event_queue;
-    ordered_list_handle *response_msg_list;
 
 } pcep_session_logic_handle;
 
 
+/* Used internally for Session events: message received, timer expired,
+ * or socket closed */
 typedef struct pcep_session_event_
 {
     pcep_session *session;
