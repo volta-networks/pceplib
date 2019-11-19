@@ -1,7 +1,7 @@
 AR= ar
 ARFLAGS = rc
 CC= gcc
-CFLAGS = -I$(INC_DIR) -g -Wall -Werror
+CFLAGS = -I$(INC_DIR) -g -Wall -Werror -fPIC
 RANLIB = ranlib
 
 INC_DIR = include

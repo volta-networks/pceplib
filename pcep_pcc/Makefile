@@ -2,7 +2,7 @@ AR= ar
 ARFLAGS = rc
 RANLIB = ranlib
 CC= gcc
-CFLAGS = -g -Wall -Werror \
+CFLAGS = -g -Wall -Werror -fPIC \
  -I$(PCEP_SESSION_LOGIC_INC_DIR) \
  -I$(PCEP_UTILS_INC_DIR) \
  -I$(PCEP_MESSAGES_INC_DIR) \
