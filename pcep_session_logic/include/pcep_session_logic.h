@@ -35,6 +35,10 @@ typedef struct pcep_configuration_
     int min_dead_timer_seconds;
     int max_dead_timer_seconds;
 
+    /* Maximum amount of time to wait to connect to the
+     * PCE TCP socket before failing, in milliseconds. */
+    uint32_t socket_connect_timeout_millis;
+
     /* Set if the PCE/PCC will support stateful PCE LSP Updates
      * according to RCF8231, section 7.1.1, defaults to true.
      * Will cause an additional TLV to be sent from the PCC in

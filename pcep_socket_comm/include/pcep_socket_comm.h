@@ -43,6 +43,7 @@ typedef struct pcep_socket_comm_session_
     message_sent_notifier message_sent_handler;
     connection_except_notifier conn_except_notifier;
     struct sockaddr_in dest_sock_addr;
+    uint32_t connect_timeout_millis;
     int socket_fd;
     void *session_data;
     queue_handle *message_queue;
@@ -66,6 +67,7 @@ socket_comm_session_initialize(message_received_handler msg_rcv_handler,
                             connection_except_notifier notifier,
                             struct in_addr *host_ip,
                             short port,
+                            uint32_t connect_timeout_millis,
                             void *session_data);
 
 bool socket_comm_session_teardown(pcep_socket_comm_session *socket_comm_session);

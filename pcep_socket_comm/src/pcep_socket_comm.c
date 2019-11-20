@@ -8,6 +8,7 @@
  */
 
 
+#include <fcntl.h>
 #include <malloc.h>
 #include <netdb.h> // gethostbyname
 #include <stdbool.h>
@@ -91,6 +92,7 @@ socket_comm_session_initialize(message_received_handler message_handler,
                             connection_except_notifier notifier,
                             struct in_addr *host_ip,
                             short port,
+                            uint32_t connect_timeout_millis,
                             void *session_data)
 {
     /* check that not both message handlers were set */
@@ -137,6 +139,7 @@ socket_comm_session_initialize(message_received_handler message_handler,
     socket_comm_session->message_queue = queue_initialize();
     socket_comm_session->dest_sock_addr.sin_family = AF_INET;
     socket_comm_session->dest_sock_addr.sin_port = htons(port);
+    socket_comm_session->connect_timeout_millis = connect_timeout_millis;
     memcpy(&(socket_comm_session->dest_sock_addr.sin_addr), host_ip, sizeof(struct in_addr));
 
     /* dont connect to the destination yet, since the PCE will have a timer
@@ -155,14 +158,45 @@ bool socket_comm_session_connect_tcp(pcep_socket_comm_session *socket_comm_sessi
         return NULL;
     }
 
-    int retval = connect(socket_comm_session->socket_fd,
-                         (struct sockaddr *) &(socket_comm_session->dest_sock_addr),
-                         sizeof(struct sockaddr));
+    /* Set the socket to non-blocking, so connect() does not block */
+    fcntl(socket_comm_session->socket_fd, F_SETFL, O_NONBLOCK);
+    connect(socket_comm_session->socket_fd,
+            (struct sockaddr *) &(socket_comm_session->dest_sock_addr),
+            sizeof(struct sockaddr));
 
-    if (retval == -1) {
-        fprintf(stderr, "ERROR: TCP connect failed on socket_fd [%d].\n",
+    /* Calculate the configured timeout in seconds and microseconds */
+    struct timeval tv;
+    if (socket_comm_session->connect_timeout_millis > 1000)
+    {
+        tv.tv_sec = socket_comm_session->connect_timeout_millis / 1000;
+        tv.tv_usec = (socket_comm_session->connect_timeout_millis - (tv.tv_sec * 1000)) * 1000;
+    }
+    else
+    {
+        tv.tv_sec = 0;
+        tv.tv_usec = socket_comm_session->connect_timeout_millis * 1000;
+    }
+
+    /* Use select to wait a max timeout for connect */
+    fd_set fdset;
+    FD_ZERO(&fdset);
+    FD_SET(socket_comm_session->socket_fd, &fdset);
+    if (select(socket_comm_session->socket_fd + 1, NULL, &fdset, NULL, &tv) == 1)
+    {
+        int so_error;
+        socklen_t len = sizeof(so_error);
+        getsockopt(socket_comm_session->socket_fd, SOL_SOCKET, SO_ERROR, &so_error, &len);
+        if (so_error != 0)
+        {
+            fprintf(stderr, "ERROR: TCP connect failed on socket_fd [%d].\n",
+                    socket_comm_session->socket_fd);
+            return false;
+        }
+    }
+    else
+    {
+        fprintf(stderr, "ERROR: TCP connect timed-out on socket_fd [%d].\n",
                 socket_comm_session->socket_fd);
-
         return false;
     }
 

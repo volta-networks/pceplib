@@ -18,6 +18,7 @@ extern pcep_socket_comm_handle *socket_comm_handle_;
 static pcep_socket_comm_session *test_session = NULL;
 static struct in_addr test_host_ip;
 static short test_port = 4789;
+static uint32_t connect_timeout_millis = 500;
 
 /*
  * Unit Test Basic pcep_socket_comm API usage.
@@ -73,7 +74,7 @@ void test_pcep_socket_comm_initialize()
             NULL,
             NULL,
             test_connection_except_notifier,
-            &test_host_ip, test_port, NULL);
+            &test_host_ip, test_port, connect_timeout_millis, NULL);
     CU_ASSERT_PTR_NOT_NULL(test_session);
 }
 
@@ -88,7 +89,7 @@ void test_pcep_socket_comm_initialize_handlers()
             NULL,
             NULL,
             test_connection_except_notifier,
-            &test_host_ip, test_port, NULL);
+            &test_host_ip, test_port, connect_timeout_millis, NULL);
     CU_ASSERT_PTR_NULL(test_session);
 
     /* Both receive handlers cannot be set */
@@ -97,7 +98,7 @@ void test_pcep_socket_comm_initialize_handlers()
             test_message_ready_to_read_handler,
             test_message_sent_handler,
             test_connection_except_notifier,
-            &test_host_ip, test_port, NULL);
+            &test_host_ip, test_port, connect_timeout_millis, NULL);
     CU_ASSERT_PTR_NULL(test_session);
 
     /* Only one receive handler can be set */
@@ -106,7 +107,7 @@ void test_pcep_socket_comm_initialize_handlers()
             test_message_ready_to_read_handler,
             test_message_sent_handler,
             test_connection_except_notifier,
-            &test_host_ip, test_port, NULL);
+            &test_host_ip, test_port, connect_timeout_millis, NULL);
     CU_ASSERT_PTR_NOT_NULL(test_session);
 }
 
@@ -127,7 +128,7 @@ void test_pcep_socket_comm_session_destroy()
             NULL,
             test_message_sent_handler,
             test_connection_except_notifier,
-            &test_host_ip, test_port, NULL);
+            &test_host_ip, test_port, connect_timeout_millis, NULL);
     CU_ASSERT_PTR_NOT_NULL(test_session);
     CU_ASSERT_PTR_NOT_NULL(socket_comm_handle_);
     CU_ASSERT_EQUAL(socket_comm_handle_->num_active_sessions, 1);

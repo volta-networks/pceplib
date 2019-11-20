@@ -64,6 +64,7 @@ pcep_configuration *create_default_pcep_configuration()
     config->max_unknown_messages = DEFAULT_CONFIG_MAX_UNKNOWN_MESSAGES;
     config->max_unknown_requests = DEFAULT_CONFIG_MAX_UNKNOWN_REQUESTS;
 
+    config->socket_connect_timeout_millis = DEFAULT_TCP_CONNECT_TIMEOUT_MILLIS;
     config->support_stateful_pce_lsp_update = true;
     config->support_pce_lsp_instantiation = true;
     config->support_include_db_version = true;

@@ -72,6 +72,7 @@ socket_comm_session_initialize(message_received_handler msg_rcv_handler,
                             connection_except_notifier notifier,
                             struct in_addr *host_ip,
                             short port,
+                            uint32_t connect_timeout_millis,
                             void *session_data)
 {
     mock_socket_metadata.socket_comm_session_initialize_times_called++;
@@ -87,6 +88,7 @@ socket_comm_session_initialize(message_received_handler msg_rcv_handler,
     comm_session->close_after_write = false;
     comm_session->dest_sock_addr.sin_family = AF_INET;
     comm_session->dest_sock_addr.sin_port = htons(port);
+    comm_session->connect_timeout_millis = connect_timeout_millis;
     memcpy(&(comm_session->dest_sock_addr.sin_addr), host_ip, sizeof(struct in_addr));
 
     return comm_session;

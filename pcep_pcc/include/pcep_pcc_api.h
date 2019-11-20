@@ -18,6 +18,7 @@
 #define DEFAULT_CONFIG_REQUEST_TIME 30
 #define DEFAULT_CONFIG_MAX_UNKNOWN_REQUESTS 5
 #define DEFAULT_CONFIG_MAX_UNKNOWN_MESSAGES 5
+#define DEFAULT_TCP_CONNECT_TIMEOUT_MILLIS 250
 
 /* Acceptable MIN and MAX values used in deciding if the PCEP
  * Open received from a PCE should be accepted or rejected. */

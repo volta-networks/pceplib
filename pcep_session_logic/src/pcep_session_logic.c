@@ -249,6 +249,7 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
             session_logic_conn_except_notifier,
             pce_ip,
             port,
+            config->socket_connect_timeout_millis,
             session);
     if (session->socket_comm_session == NULL)
     {
