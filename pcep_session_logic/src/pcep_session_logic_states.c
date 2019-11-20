@@ -521,6 +521,7 @@ void handle_socket_comm_event(pcep_session_event *event)
                 session->session_state = SESSION_STATE_OPENED;
                 cancel_timer(session->timer_id_open_keep_wait);
                 session->timer_id_open_keep_wait = TIMER_ID_NOT_SET;
+                enqueue_event(session, PCC_CONNECTED_TO_PCE, NULL);
             }
             break;
 

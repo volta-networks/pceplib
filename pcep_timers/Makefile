@@ -49,7 +49,7 @@ $(TEST_DIR)/%.o: $(TEST_DIR)/%.c $(DEPS)
 
 test: $(TEST_BIN)
 	$(TEST_BIN)
-	$(VALGRIND) --log-file=valgrind.$(LIB_NAME).log $(TEST_BIN)
+	$(VALGRIND) --log-file=valgrind.$(LIB_NAME).log $(TEST_BIN) || ({ echo "Valgrind memory check error"; exit 1; })
 
 clean:
 	rm -f $(LIB) $(TEST_BIN) $(OBJ_DIR)/*.o $(TEST_DIR)/*.o valgrind*.log *~ core $(INC_DIR)/*~ $(SRC_DIR)/*~

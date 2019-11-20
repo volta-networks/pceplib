@@ -238,6 +238,11 @@ void test_handle_socket_comm_event_keep_alive()
     CU_ASSERT_EQUAL(session.timer_id_open_keep_wait, TIMER_ID_NOT_SET);
     CU_ASSERT_EQUAL(session.timer_id_dead_timer, 100);
     verify_socket_comm_times_called(0, 0, 0, 0, 0, 0, 0);
+
+    /* The session is considered connected, when the Keep Alive is received after the Open */
+    pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
+    CU_ASSERT_EQUAL(PCC_CONNECTED_TO_PCE, e->event_type);
+    free(e);
     do_msg_free = false;
 }
 
