@@ -503,6 +503,7 @@ void handle_socket_comm_event(pcep_session_event *event)
          msg_node != NULL;
          msg_node = msg_node->next_node)
     {
+        bool message_enqueued = false;
         pcep_message *msg = (pcep_message *) msg_node->data;
         reset_dead_timer(session);
 
@@ -533,6 +534,7 @@ void handle_socket_comm_event(pcep_session_event *event)
                 cancel_timer(session->timer_id_pc_req_wait);
                 session->timer_id_pc_req_wait = TIMER_ID_NOT_SET;
                 enqueue_event(session, MESSAGE_RECEIVED, msg);
+                message_enqueued = true;
             }
             else
             {
@@ -568,6 +570,7 @@ void handle_socket_comm_event(pcep_session_event *event)
             /* Should reply with a PcRpt */
             handle_pcep_update(session, msg);
             enqueue_event(session, MESSAGE_RECEIVED, msg);
+            message_enqueued = true;
             break;
 
         case PCEP_TYPE_INITIATE:
@@ -575,25 +578,30 @@ void handle_socket_comm_event(pcep_session_event *event)
             /* Should reply with a PcRpt */
             handle_pcep_initiate(session, msg);
             enqueue_event(session, MESSAGE_RECEIVED, msg);
+            message_enqueued = true;
             break;
 
         case PCEP_TYPE_PCNOTF:
             printf("\t PCEP_PCNOTF message\n");
             /* TODO implement this */
             enqueue_event(session, MESSAGE_RECEIVED, msg);
+            message_enqueued = true;
             break;
         case PCEP_TYPE_ERROR:
             printf("\t PCEP_ERROR message\n");
             /* TODO implement this */
             enqueue_event(session, MESSAGE_RECEIVED, msg);
+            message_enqueued = true;
             break;
 
         default:
             printf("\t UnSupported message\n");
             break;
         }
-    }
 
-    /* Traverse the msg_list and free everything */
-    pcep_msg_free_message_list(event->received_msg_list);
+        if (message_enqueued == false)
+        {
+            pcep_msg_free_message(msg);
+        }
+    }
 }

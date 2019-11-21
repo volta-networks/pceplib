@@ -258,17 +258,7 @@ pcep_obj_get_next(double_linked_list* list, struct pcep_object_header* current, 
 void
 pcep_msg_free_message(struct pcep_message *message)
 {
-    if (message->obj_list != NULL)
-    {
-        struct pcep_object_header *obj = (struct pcep_object_header *) dll_delete_first_node(message->obj_list);
-        while (obj != NULL) {
-            free(obj);
-            obj = (struct pcep_object_header *) dll_delete_first_node(message->obj_list);
-        }
-
-        dll_destroy(message->obj_list);
-    }
-
+    dll_destroy_with_data(message->obj_list);
     free(message);
 }
 

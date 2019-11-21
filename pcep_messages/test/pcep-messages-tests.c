@@ -69,6 +69,7 @@ extern void test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(void);
 extern void test_pcep_unpack_obj_ro(void);
 extern void test_pcep_unpack_obj_ro_sr(void);
 
+extern void pcep_msg_read_pcep_initiate_test(void);
 
 int main(int argc, char **argv)
 {
@@ -137,6 +138,10 @@ int main(int argc, char **argv)
             test_pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj);
     CU_add_test(objects_suite, "test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj",
             test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj);
+
+    CU_pSuite tools_suite = CU_add_suite("PCEP Tools Test Suite", NULL, NULL);
+    CU_add_test(tools_suite, "pcep_msg_read_pcep_initiate_test", pcep_msg_read_pcep_initiate_test);
+
 
     CU_basic_set_mode(CU_BRM_VERBOSE);
     CU_basic_run_tests();
