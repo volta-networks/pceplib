@@ -604,4 +604,5 @@ void handle_socket_comm_event(pcep_session_event *event)
             pcep_msg_free_message(msg);
         }
     }
+    dll_destroy(event->received_msg_list);
 }
