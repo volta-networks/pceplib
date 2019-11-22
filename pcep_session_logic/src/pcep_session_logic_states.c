@@ -165,16 +165,13 @@ bool verify_pcep_open(pcep_session *session, struct pcep_object_open *open_objec
     }
 
     /* Check for Open Object TLVs */
-    if (pcep_obj_has_tlv((struct pcep_object_header*) open_object, sizeof(struct pcep_object_open)) == false)
+    if (pcep_obj_has_tlv((struct pcep_object_header*) open_object) == false)
     {
         /* There are no TLVs, all done */
         return retval;
     }
 
-    double_linked_list *tlv_list = pcep_obj_get_tlvs(
-            (struct pcep_object_header *) open_object,
-            (struct pcep_object_tlv *) (((char *) open_object) + sizeof(struct pcep_object_open)));
-
+    double_linked_list *tlv_list = pcep_obj_get_tlvs((struct pcep_object_header *) open_object);
     double_linked_list_node *tlv_node = tlv_list->head;
     for (; tlv_node != NULL; tlv_node = tlv_node->next_node)
     {

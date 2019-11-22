@@ -67,7 +67,7 @@ void pcep_msg_read_pcep_initiate_test()
     CU_ASSERT_EQUAL(obj_hdr->object_class, PCEP_OBJ_CLASS_SRP);
     CU_ASSERT_EQUAL(obj_hdr->object_type, PCEP_OBJ_TYPE_SRP);
     CU_ASSERT_EQUAL(obj_hdr->object_length, sizeof(struct pcep_object_srp));
-    CU_ASSERT_FALSE(pcep_obj_has_tlv(obj_hdr, sizeof(struct pcep_object_srp)));
+    CU_ASSERT_FALSE(pcep_obj_has_tlv(obj_hdr));
 
     /* LSP object and its TLV*/
     node = node->next_node;
@@ -75,14 +75,13 @@ void pcep_msg_read_pcep_initiate_test()
     CU_ASSERT_EQUAL(obj_hdr->object_class, PCEP_OBJ_CLASS_LSP);
     CU_ASSERT_EQUAL(obj_hdr->object_type, PCEP_OBJ_TYPE_LSP);
     CU_ASSERT_EQUAL(obj_hdr->object_length, 20);
-    CU_ASSERT_TRUE(pcep_obj_has_tlv(obj_hdr, sizeof(struct pcep_object_lsp)));
-    double_linked_list *tlv_list =
-            pcep_obj_get_tlvs(obj_hdr,
-                    (struct pcep_object_tlv *) (((uint8_t *) obj_hdr) + sizeof(struct pcep_object_lsp)));
+    pcep_unpack_obj_lsp((struct pcep_object_lsp *) obj_hdr);
+    CU_ASSERT_TRUE(pcep_obj_has_tlv(obj_hdr));
+    double_linked_list *tlv_list = pcep_obj_get_tlvs(obj_hdr);
     CU_ASSERT_EQUAL(tlv_list->num_entries, 1);
     struct pcep_object_tlv *tlv = (struct pcep_object_tlv *) tlv_list->head->data;
-    CU_ASSERT_EQUAL(ntohs(tlv->header.type), PCEP_OBJ_TLV_TYPE_SYMBOLIC_PATH_NAME);
-    CU_ASSERT_EQUAL(ntohs(tlv->header.length), 8);
+    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_SYMBOLIC_PATH_NAME);
+    CU_ASSERT_EQUAL(tlv->header.length, 8);
     dll_destroy(tlv_list);
 
     /* Endpoints object */
@@ -91,7 +90,7 @@ void pcep_msg_read_pcep_initiate_test()
     CU_ASSERT_EQUAL(obj_hdr->object_class, PCEP_OBJ_CLASS_ENDPOINTS);
     CU_ASSERT_EQUAL(obj_hdr->object_type, PCEP_OBJ_TYPE_ENDPOINT_IPV4);
     CU_ASSERT_EQUAL(obj_hdr->object_length, sizeof(struct pcep_object_endpoints_ipv4));
-    CU_ASSERT_FALSE(pcep_obj_has_tlv(obj_hdr, sizeof(struct pcep_object_endpoints_ipv4)));
+    CU_ASSERT_FALSE(pcep_obj_has_tlv(obj_hdr));
 
     /* ERO object */
     node = node->next_node;
@@ -99,8 +98,20 @@ void pcep_msg_read_pcep_initiate_test()
     CU_ASSERT_EQUAL(obj_hdr->object_class, PCEP_OBJ_CLASS_ERO);
     CU_ASSERT_EQUAL(obj_hdr->object_type, PCEP_OBJ_TYPE_ERO);
     CU_ASSERT_EQUAL(obj_hdr->object_length, 20);
+    /* ERO Subobjects */
+    double_linked_list *ero_subobj_list = pcep_obj_get_ro_subobjects(obj_hdr);
+    CU_ASSERT_PTR_NOT_NULL(ero_subobj_list);
+    CU_ASSERT_EQUAL(ero_subobj_list->num_entries, 2);
+    double_linked_list_node *subobj_node = ero_subobj_list->head;
+    struct pcep_ro_subobj_hdr *subobj_hdr = (struct pcep_ro_subobj_hdr *) subobj_node->data;
+    CU_ASSERT_EQUAL(subobj_hdr->type, RO_SUBOBJ_TYPE_IPV4);
+    CU_ASSERT_EQUAL(subobj_hdr->length, 8);
+    subobj_hdr = (struct pcep_ro_subobj_hdr *) subobj_node->next_node->data;
+    CU_ASSERT_EQUAL(subobj_hdr->type, RO_SUBOBJ_TYPE_IPV4);
+    CU_ASSERT_EQUAL(subobj_hdr->length, 8);
 
     pcep_msg_free_message(msg);
+    dll_destroy(ero_subobj_list);
     dll_destroy(msg_list);
     close(fd);
 }

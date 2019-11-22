@@ -32,6 +32,16 @@
 #include "pcep-objects.h"
 #include "pcep-tlvs.h"
 
+static uint8_t pcep_object_class_lengths[] = {
+        0, sizeof(struct pcep_object_open), sizeof(struct pcep_object_rp), sizeof(struct pcep_object_nopath),
+        /* Setting PCEP_OBJ_CLASS_ENDPOINTS length to 0, since it could be ipv4 or ipv6 */
+        0, sizeof(struct pcep_object_bandwidth), sizeof(struct pcep_object_metric), sizeof(struct pcep_object_ro),
+        sizeof(struct pcep_object_ro), sizeof(struct pcep_object_lspa), sizeof(struct pcep_object_ro), sizeof(struct pcep_object_svec),
+        sizeof(struct pcep_object_notify), sizeof(struct pcep_object_error), 0, sizeof(struct pcep_object_close),
+        0, 0, 0, 0, 0, 0, 0, 0, /* Object classes 16 - 23 are not used */
+        0, 0, 0, 0, 0, 0, 0, 0, /* Object classes 24 - 31 are not used */
+        sizeof(struct pcep_object_lsp), sizeof(struct pcep_object_srp) };
+
 /* Internal common function used to create a pcep_object and populate the header */
 static struct pcep_object_header*
 pcep_obj_create_common(uint16_t buffer_len, uint8_t object_class, uint8_t object_type)
@@ -843,21 +853,7 @@ pcep_unpack_obj_header(struct pcep_object_header* hdr)
 void
 pcep_unpack_obj_open(struct pcep_object_open *obj)
 {
-    struct pcep_object_header* obj_header = (struct pcep_object_header*) obj;
-
-    /* Check if the Open has TLVs, and unpack them */
-    if (pcep_obj_has_tlv(obj_header, sizeof(struct pcep_object_open)) == false)
-    {
-        return;
-    }
-
-    struct pcep_object_tlv *tlv = (struct pcep_object_tlv *)
-               (((char *) obj) + sizeof(struct pcep_object_open));
-    while (tlv != NULL)
-    {
-        pcep_unpack_obj_tlv(tlv);
-        tlv = pcep_obj_get_next_tlv(obj_header, tlv);
-    }
+    /* TLVs will be unpacked in pcep_obj_get_tlvs() */
 }
 
 void
@@ -1028,36 +1024,99 @@ void pcep_unpack_obj_srp(struct pcep_object_srp *srp)
 
 void pcep_unpack_obj_lsp(struct pcep_object_lsp *lsp)
 {
-    // nothing to unpack.
+    /* TLVs will be unpacked in pcep_obj_get_tlvs() */
 }
 
 bool
-pcep_obj_has_tlv(struct pcep_object_header* hdr, uint16_t obj_len)
+pcep_obj_has_tlv(struct pcep_object_header* hdr)
 {
-    return (hdr->object_length - obj_len) > 0;
+    uint8_t object_length = pcep_object_class_lengths[hdr->object_class];
+    if (object_length == 0)
+    {
+        return false;
+    }
+
+    return (hdr->object_length - object_length) > 0;
 }
 
 struct pcep_object_tlv*
-pcep_obj_get_next_tlv(struct pcep_object_header *base, struct pcep_object_tlv *current_tlv)
+pcep_obj_get_next_tlv(struct pcep_object_header *hdr, uint8_t current_index)
 {
-    /* assuming ntohs() has already been called on the current_tlv->length */
-    /* The TLV length is the length of the value, need to also get past the TLV header */
-    char *next_tlv = ((char *) current_tlv) + current_tlv->header.length + 4;
-    return (next_tlv >= (((char *)base) + base->object_length)) ?
+    uint8_t *next_tlv = ((uint8_t *) hdr) + current_index;
+    return (next_tlv >= (((uint8_t *)hdr) + hdr->object_length)) ?
             NULL : (struct pcep_object_tlv*) next_tlv;
 }
 
 double_linked_list*
-pcep_obj_get_tlvs(struct pcep_object_header *base, struct pcep_object_tlv *first_tlv)
+pcep_obj_get_tlvs(struct pcep_object_header *obj)
 {
+    /* Get the size of the object, not including TLVs */
+    uint8_t object_length = pcep_object_class_lengths[obj->object_class];
+    if (object_length == 0)
+    {
+        if (obj->object_class == PCEP_OBJ_CLASS_ENDPOINTS)
+        {
+            if (obj->object_type == PCEP_OBJ_TYPE_ENDPOINT_IPV4)
+            {
+                object_length = sizeof(struct pcep_object_endpoints_ipv4);
+            }
+            else
+            {
+                object_length = sizeof(struct pcep_object_endpoints_ipv6);
+            }
+        }
+        else
+        {
+            return NULL;
+        }
+    }
+
     double_linked_list *tlv_list = dll_initialize();
-    struct pcep_object_tlv *next_tlv = first_tlv;
+    struct pcep_object_tlv *next_tlv = pcep_obj_get_next_tlv(obj, object_length);
 
     while (next_tlv != NULL)
     {
+        pcep_unpack_obj_tlv(next_tlv);
         dll_append(tlv_list, next_tlv);
-        next_tlv = pcep_obj_get_next_tlv(base, next_tlv);
+        /* The TLV length is the length of the value, need to also get past the TLV header */
+        object_length += next_tlv->header.length + 4;
+        next_tlv = pcep_obj_get_next_tlv(obj, object_length);
     }
 
     return tlv_list;
+}
+
+struct pcep_ro_subobj_hdr*
+pcep_obj_get_next_ro_subobject(struct pcep_object_header *base, uint8_t current_index)
+{
+    uint8_t *next_subobj = ((uint8_t *) base) + current_index;
+    return (next_subobj >= (((uint8_t *)base) + base->object_length)) ?
+            NULL : (struct pcep_ro_subobj_hdr*) next_subobj;
+}
+
+/* Used to get Sub-objects for PCEP_OBJ_CLASS_ERO, PCEP_OBJ_CLASS_IRO,
+ * and PCEP_OBJ_CLASS_RRO objects */
+double_linked_list*
+pcep_obj_get_ro_subobjects(struct pcep_object_header *ro_obj)
+{
+    if (ro_obj->object_class != PCEP_OBJ_CLASS_ERO &&
+        ro_obj->object_class != PCEP_OBJ_CLASS_RRO &&
+        ro_obj->object_class != PCEP_OBJ_CLASS_IRO)
+    {
+        return NULL;
+    }
+
+    double_linked_list *subobj_list = dll_initialize();
+    uint8_t base_length = sizeof(struct pcep_object_ro);
+    struct pcep_ro_subobj_hdr *next_subobj = pcep_obj_get_next_ro_subobject(ro_obj, base_length);
+
+    while (next_subobj != NULL)
+    {
+        dll_append(subobj_list, next_subobj);
+        /* assuming ntohs() has already been called on the next_subobj->length */
+        base_length += next_subobj->length;
+        next_subobj = pcep_obj_get_next_ro_subobject(ro_obj, base_length);
+    }
+
+    return subobj_list;
 }

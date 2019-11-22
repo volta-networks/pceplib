@@ -125,6 +125,27 @@ struct pcep_object_rp
     uint32_t rp_reqidnumb;      //The Request-id-number value combined with the source for PCC & PCE creates a uniquely number.
 }__attribute__((packed));
 
+enum pcep_notification_types {
+    PCEP_NOTIFY_TYPE_PENDING_REQUEST_CANCELLED = 1,
+    PCEP_NOTIFY_TYPE_PCE_OVERLOADED = 2
+};
+
+enum pcep_notification_values {
+    PCEP_NOTIFY_VALUE_PCC_CANCELLED_REQUEST = 1,
+    PCEP_NOTIFY_VALUE_PCE_CANCELLED_REQUEST = 2,
+    PCEP_NOTIFY_VALUE_PCE_CURRENTLY_OVERLOADED = 1,
+    PCEP_NOTIFY_VALUE_PCE_NO_LONGER_OVERLOADED = 2
+};
+
+struct pcep_object_notify
+{
+    struct pcep_object_header header;
+    uint8_t reserved;
+    uint8_t flags;    /* No flags currently defined */
+    uint8_t notification_type;
+    uint8_t notification_value;
+}__attribute__((packed));
+
 enum pcep_nopath_err_codes {
     PCEP_NOPATH_ERR_UNAVAILABLE = (1 << 0),
     PCEP_NOPATH_ERR_UNKNOWN_DST = (1 << 1),
@@ -518,9 +539,19 @@ void pcep_unpack_obj_close(struct pcep_object_close *close);
 void pcep_unpack_obj_srp(struct pcep_object_srp *srp);
 void pcep_unpack_obj_lsp(struct pcep_object_lsp *lsp);
 
-bool pcep_obj_has_tlv(struct pcep_object_header* hdr, uint16_t obj_len);
-struct pcep_object_tlv* pcep_obj_get_next_tlv(struct pcep_object_header *base, struct pcep_object_tlv *current_tlv);
-double_linked_list* pcep_obj_get_tlvs(struct pcep_object_header *base, struct pcep_object_tlv *first_tlv);
+/* Used to get Sub-objects for PCEP_OBJ_CLASS_ERO, PCEP_OBJ_CLASS_IRO,
+ * and PCEP_OBJ_CLASS_RRO objects. Will return NULL if the obj is not
+ * one of these classes. Returns a double linked list of pointers of
+ * type struct pcep_ro_subobj_hdr. Do not free these list entries, as
+ * they are just pointers into the object structure. */
+double_linked_list* pcep_obj_get_ro_subobjects(struct pcep_object_header *ro_obj);
+
+/* This function will unpack the TLVs.
+ * Returns a double linked list of pointers of type struct pcep_object_tlv.
+ * May return NULL for unrecognized object classes. Do not free these list
+ * entries, as they are just pointers into the object structure. */
+double_linked_list* pcep_obj_get_tlvs(struct pcep_object_header *hdr);
+bool pcep_obj_has_tlv(struct pcep_object_header* hdr);
 
 #ifdef __cplusplus
 }
