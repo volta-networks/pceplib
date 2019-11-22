@@ -546,11 +546,13 @@ void pcep_unpack_obj_lsp(struct pcep_object_lsp *lsp);
  * they are just pointers into the object structure. */
 double_linked_list* pcep_obj_get_ro_subobjects(struct pcep_object_header *ro_obj);
 
-/* This function will unpack the TLVs.
- * Returns a double linked list of pointers of type struct pcep_object_tlv.
+/* Returns a double linked list of pointers of type struct pcep_object_tlv.
  * May return NULL for unrecognized object classes. Do not free these list
  * entries, as they are just pointers into the object structure. */
 double_linked_list* pcep_obj_get_tlvs(struct pcep_object_header *hdr);
+/* Only used by pcep-tools when the tlvs are in network byte order.
+ * This version will unpack the TLVs. */
+double_linked_list* pcep_obj_get_packed_tlvs(struct pcep_object_header *hdr);
 bool pcep_obj_has_tlv(struct pcep_object_header* hdr);
 
 #ifdef __cplusplus

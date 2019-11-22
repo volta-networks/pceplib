@@ -84,6 +84,20 @@ pcep_obj_parse(struct pcep_object_header* hdr)
             return NULL;
     }
 
+    /* Unpack the TLVs, if the object has them, but not for Route
+     * Objects, since the sub-objects will be confused for TLVs. */
+    if (hdr->object_class != PCEP_OBJ_CLASS_ERO &&
+        hdr->object_class != PCEP_OBJ_CLASS_IRO &&
+        hdr->object_class != PCEP_OBJ_CLASS_RRO)
+    {
+        if (pcep_obj_has_tlv(hdr))
+        {
+            /* This function call unpacks the TLVs */
+            double_linked_list *tlv_list = pcep_obj_get_packed_tlvs(hdr);
+            dll_destroy(tlv_list);
+        }
+    }
+
     obj = malloc(hdr->object_length);
 
     bzero(obj, hdr->object_length);

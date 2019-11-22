@@ -75,7 +75,6 @@ void pcep_msg_read_pcep_initiate_test()
     CU_ASSERT_EQUAL(obj_hdr->object_class, PCEP_OBJ_CLASS_LSP);
     CU_ASSERT_EQUAL(obj_hdr->object_type, PCEP_OBJ_TYPE_LSP);
     CU_ASSERT_EQUAL(obj_hdr->object_length, 20);
-    pcep_unpack_obj_lsp((struct pcep_object_lsp *) obj_hdr);
     CU_ASSERT_TRUE(pcep_obj_has_tlv(obj_hdr));
     double_linked_list *tlv_list = pcep_obj_get_tlvs(obj_hdr);
     CU_ASSERT_EQUAL(tlv_list->num_entries, 1);
@@ -106,9 +105,17 @@ void pcep_msg_read_pcep_initiate_test()
     struct pcep_ro_subobj_hdr *subobj_hdr = (struct pcep_ro_subobj_hdr *) subobj_node->data;
     CU_ASSERT_EQUAL(subobj_hdr->type, RO_SUBOBJ_TYPE_IPV4);
     CU_ASSERT_EQUAL(subobj_hdr->length, 8);
+    struct in_addr ero_subobj_ip;
+    inet_pton(AF_INET, "10.0.1.1", &ero_subobj_ip);
+    CU_ASSERT_EQUAL(((struct pcep_ro_subobj_ipv4 *) subobj_hdr)->ip_addr.s_addr, ntohl(ero_subobj_ip.s_addr));
+    CU_ASSERT_EQUAL(((struct pcep_ro_subobj_ipv4 *) subobj_hdr)->prefix_length, 24);
+
     subobj_hdr = (struct pcep_ro_subobj_hdr *) subobj_node->next_node->data;
     CU_ASSERT_EQUAL(subobj_hdr->type, RO_SUBOBJ_TYPE_IPV4);
     CU_ASSERT_EQUAL(subobj_hdr->length, 8);
+    inet_pton(AF_INET, "10.0.7.4", &ero_subobj_ip);
+    CU_ASSERT_EQUAL(((struct pcep_ro_subobj_ipv4 *) subobj_hdr)->ip_addr.s_addr, ntohl(ero_subobj_ip.s_addr));
+    CU_ASSERT_EQUAL(((struct pcep_ro_subobj_ipv4 *) subobj_hdr)->prefix_length, 24);
 
     pcep_msg_free_message(msg);
     dll_destroy(ero_subobj_list);

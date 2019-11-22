@@ -1047,8 +1047,9 @@ pcep_obj_get_next_tlv(struct pcep_object_header *hdr, uint8_t current_index)
             NULL : (struct pcep_object_tlv*) next_tlv;
 }
 
-double_linked_list*
-pcep_obj_get_tlvs(struct pcep_object_header *obj)
+/* Internal util function used by pcep_obj_get_tlvs() and pcep_obj_get_packed_tlvs() */
+static double_linked_list*
+pcep_obj_get_tlvs_(struct pcep_object_header *obj, bool do_unpack)
 {
     /* Get the size of the object, not including TLVs */
     uint8_t object_length = pcep_object_class_lengths[obj->object_class];
@@ -1076,7 +1077,10 @@ pcep_obj_get_tlvs(struct pcep_object_header *obj)
 
     while (next_tlv != NULL)
     {
-        pcep_unpack_obj_tlv(next_tlv);
+        if (do_unpack == true)
+        {
+            pcep_unpack_obj_tlv(next_tlv);
+        }
         dll_append(tlv_list, next_tlv);
         /* The TLV length is the length of the value, need to also get past the TLV header */
         object_length += next_tlv->header.length + 4;
@@ -1084,6 +1088,18 @@ pcep_obj_get_tlvs(struct pcep_object_header *obj)
     }
 
     return tlv_list;
+}
+
+double_linked_list*
+pcep_obj_get_tlvs(struct pcep_object_header *obj)
+{
+    return pcep_obj_get_tlvs_(obj, false);
+}
+
+double_linked_list*
+pcep_obj_get_packed_tlvs(struct pcep_object_header *obj)
+{
+    return pcep_obj_get_tlvs_(obj, true);
 }
 
 struct pcep_ro_subobj_hdr*
