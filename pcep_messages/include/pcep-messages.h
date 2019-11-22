@@ -85,9 +85,14 @@ typedef struct pcep_message
 /* Set the version to 001 and flags to 00000 */
 #define PCEP_COMMON_HEADER_VER_FLAGS 0x20
 
+/*
+ * All created messages will be in Host byte order.
+ * They should be converted to Network byte order with pcep_pack_msg_header() before sending.
+ */
+
 struct pcep_message*  pcep_msg_create_open            (uint8_t keepalive, uint8_t deadtimer, uint8_t sid);
 struct pcep_message*  pcep_msg_create_open_with_tlvs  (uint8_t keepalive, uint8_t deadtimer, uint8_t sid, double_linked_list *tlv_list);
-struct pcep_message*  pcep_msg_create_request         (struct pcep_object_rp *rp,  struct pcep_object_endpoints_ipv4 *enpoints, struct pcep_object_bandwidth *bandwidth);
+struct pcep_message*  pcep_msg_create_request         (struct pcep_object_rp *rp,  struct pcep_object_endpoints_ipv4 *enpoints, double_linked_list *object_list);
 struct pcep_message*  pcep_msg_create_request_svec    (struct pcep_header **requests, uint16_t request_count, float disjointness);
 struct pcep_message*  pcep_msg_create_reply_nopath    (struct pcep_object_rp *rp,  struct pcep_object_nopath *nopath);
 struct pcep_message*  pcep_msg_create_reply           (struct pcep_object_rp *rp,  double_linked_list *object_list);
@@ -109,7 +114,10 @@ struct pcep_message*  pcep_msg_create_update          (double_linked_list *updat
  * may also contain Endpoints, ERO and an attribute list for LSP creation. */
 struct pcep_message*  pcep_msg_create_initiate        (double_linked_list *lsp_object_list);
 
-void pcep_unpack_msg_header(struct pcep_header* hdr);
+/* Called before sending messages to change to Network byte order.
+ * This function will also encode all objects in the message,
+ * and object TLVs. */
+void pcep_msg_encode(struct pcep_message *message);
 
 #ifdef __cplusplus
 }

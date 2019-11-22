@@ -130,9 +130,9 @@ void test_create_pcep_session_open_tlvs()
     /* Get and verify the Open object */
     open_obj = pcep_obj_get(obj_list, PCEP_OBJ_CLASS_OPEN);
     CU_ASSERT_PTR_NOT_NULL(open_obj);
-    pcep_unpack_obj_header(open_obj);
+    CU_ASSERT_TRUE(pcep_obj_parse_decode(open_obj));
     /* Get and verify the Open object TLVs */
-    tlv_list = pcep_obj_get_packed_tlvs(open_obj);
+    tlv_list = pcep_obj_get_tlvs(open_obj);
     CU_ASSERT_PTR_NOT_NULL(tlv_list);
     CU_ASSERT_EQUAL(tlv_list->num_entries, 1);
     CU_ASSERT_EQUAL(((struct pcep_object_tlv_header *) tlv_list->head->data)->type,
@@ -163,9 +163,9 @@ void test_create_pcep_session_open_tlvs()
     /* Get and verify the Open object */
     open_obj = pcep_obj_get(obj_list, PCEP_OBJ_CLASS_OPEN);
     CU_ASSERT_PTR_NOT_NULL(open_obj);
-    pcep_unpack_obj_header(open_obj);
+    CU_ASSERT_TRUE(pcep_obj_parse_decode(open_obj));
     /* Get and verify the Open object TLVs */
-    tlv_list = pcep_obj_get_packed_tlvs(open_obj);
+    tlv_list = pcep_obj_get_tlvs(open_obj);
     CU_ASSERT_PTR_NOT_NULL(tlv_list);
     CU_ASSERT_EQUAL(tlv_list->num_entries, 2);
     CU_ASSERT_EQUAL(((struct pcep_object_tlv_header *) tlv_list->head->data)->type,
@@ -200,9 +200,9 @@ void test_create_pcep_session_open_tlvs()
     /* Get and verify the Open object */
     open_obj = pcep_obj_get(obj_list, PCEP_OBJ_CLASS_OPEN);
     CU_ASSERT_PTR_NOT_NULL(open_obj);
-    pcep_unpack_obj_header(open_obj);
+    CU_ASSERT_TRUE(pcep_obj_parse_decode(open_obj));
     /* Get and verify the Open object TLVs */
-    tlv_list = pcep_obj_get_packed_tlvs(open_obj);
+    tlv_list = pcep_obj_get_tlvs(open_obj);
     CU_ASSERT_PTR_NOT_NULL(tlv_list);
     CU_ASSERT_EQUAL(tlv_list->num_entries, 3);
     double_linked_list_node *tlv_node = tlv_list->head;
@@ -241,9 +241,9 @@ void test_create_pcep_session_open_tlvs()
     /* Get and verify the Open object */
     open_obj = pcep_obj_get(obj_list, PCEP_OBJ_CLASS_OPEN);
     CU_ASSERT_PTR_NOT_NULL(open_obj);
-    pcep_unpack_obj_header(open_obj);
+    CU_ASSERT_TRUE(pcep_obj_parse_decode(open_obj));
     /* Get and verify the Open object TLVs */
-    tlv_list = pcep_obj_get_packed_tlvs(open_obj);
+    tlv_list = pcep_obj_get_tlvs(open_obj);
     CU_ASSERT_PTR_NOT_NULL(tlv_list);
     CU_ASSERT_EQUAL(tlv_list->num_entries, 4);
     tlv_node = tlv_list->head;

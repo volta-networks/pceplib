@@ -28,7 +28,7 @@ void send_keep_alive(pcep_session *session)
     struct pcep_message *keep_alive_msg = pcep_msg_create_keepalive();
 
     printf("[%ld-%ld] pcep_session_logic send keep_alive message len [%d] for session_id [%d]\n",
-            time(NULL), pthread_self(), ntohs(keep_alive_msg->header->length), session->session_id);
+            time(NULL), pthread_self(), keep_alive_msg->header->length, session->session_id);
 
     session_send_message(session, keep_alive_msg);
 
@@ -40,27 +40,28 @@ void send_keep_alive(pcep_session *session)
 /* Send an error message with the "corrected" open object */
 void send_pcep_open_error(pcep_session *session, struct pcep_object_open *open_obj)
 {
-    uint8_t *buffer;
-    uint16_t buffer_len;
-    struct pcep_object_error *error_obj;
-    struct pcep_header *hdr;
+    struct pcep_object_error *error_obj =
+            pcep_obj_create_error(PCEP_ERRT_SESSION_FAILURE, PCEP_ERRV_RECVD_INVALID_OPEN_MSG);
 
-    error_obj = pcep_obj_create_error(PCEP_ERRT_SESSION_FAILURE, PCEP_ERRV_RECVD_INVALID_OPEN_MSG);
-
-    buffer_len = sizeof(struct pcep_header) +
-            ntohs(open_obj->header.object_length) +
-            ntohs(error_obj->header.object_length);
-    buffer = malloc(sizeof(uint8_t) * buffer_len);
+    uint16_t buffer_len = sizeof(struct pcep_header) +
+            open_obj->header.object_length +
+            error_obj->header.object_length;
+    uint8_t *buffer = malloc(buffer_len);
     bzero(buffer, buffer_len);
 
-    hdr = (struct pcep_header*) buffer;
-    hdr->length = htons(buffer_len);
-    hdr->type = PCEP_TYPE_ERROR;
-    hdr->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
+    struct pcep_message *message = malloc(sizeof(struct pcep_message));
+    message->header = (struct pcep_header*) buffer;
+    message->header->length = buffer_len;
+    message->header->type = PCEP_TYPE_ERROR;
+    message->header->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
 
-    memcpy(buffer + sizeof(struct pcep_header), error_obj, ntohs(error_obj->header.object_length));
-    memcpy(buffer + sizeof(struct pcep_header) + ntohs(error_obj->header.object_length),
-           open_obj, ntohs(open_obj->header.object_length));
+    memcpy(buffer + sizeof(struct pcep_header), error_obj, error_obj->header.object_length);
+    dll_append(message->obj_list, buffer + sizeof(struct pcep_header));
+    memcpy(buffer + sizeof(struct pcep_header) + error_obj->header.object_length,
+           open_obj, open_obj->header.object_length);
+    dll_append(message->obj_list, buffer + sizeof(struct pcep_header) + error_obj->header.object_length);
+
+    session_send_message(session, message);
 
     /* The open_obj will be freed when the received open message is freed */
     free(error_obj);
@@ -73,7 +74,7 @@ void send_pcep_error(pcep_session *session, enum pcep_error_type error_type, enu
     session_send_message(session, error_msg);
 
     printf("[%ld-%ld] pcep_session_logic send error message [%d][%d] len [%d] for session_id [%d]\n",
-            time(NULL), pthread_self(), error_type, error_value, ntohs(error_msg->header->length), session->session_id);
+            time(NULL), pthread_self(), error_type, error_value, error_msg->header->length, session->session_id);
 }
 
 

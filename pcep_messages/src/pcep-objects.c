@@ -32,6 +32,16 @@
 #include "pcep-objects.h"
 #include "pcep-tlvs.h"
 
+static uint8_t pcep_object_class_lengths[] = {
+        0, sizeof(struct pcep_object_open), sizeof(struct pcep_object_rp), 8,
+        /* Setting PCEP_OBJ_CLASS_ENDPOINTS length to 0, since it could be ipv4 or ipv6 */
+        0, sizeof(struct pcep_object_bandwidth), sizeof(struct pcep_object_metric), sizeof(struct pcep_object_ro),
+        sizeof(struct pcep_object_ro), sizeof(struct pcep_object_lspa), sizeof(struct pcep_object_ro), sizeof(struct pcep_object_svec),
+        sizeof(struct pcep_object_notify), sizeof(struct pcep_object_error), 0, sizeof(struct pcep_object_close),
+        0, 0, 0, 0, 0, 0, 0, 0, /* Object classes 16 - 23 are not used */
+        0, 0, 0, 0, 0, 0, 0, 0, /* Object classes 24 - 31 are not used */
+        sizeof(struct pcep_object_lsp), sizeof(struct pcep_object_srp) };
+
 /* Internal common function used to create a pcep_object and populate the header */
 static struct pcep_object_header*
 pcep_obj_create_common(uint16_t buffer_len, uint8_t object_class, uint8_t object_type)
@@ -42,7 +52,7 @@ pcep_obj_create_common(uint16_t buffer_len, uint8_t object_class, uint8_t object
     struct pcep_object_header *hdr = (struct pcep_object_header *) buffer;
     hdr->object_class = object_class;
     hdr->object_type = object_type;
-    hdr->object_length = htons(buffer_len);
+    hdr->object_length = buffer_len;
 
     return hdr;
 }
@@ -61,7 +71,7 @@ static uint16_t get_tlvs_length(double_linked_list *tlv_list)
         struct pcep_object_tlv_header *tlv = (struct pcep_object_tlv_header *) node->data;
         /* The TLV length does not include the length of the header, but
          * that needs to be included for the object length calculations. */
-        tlvs_length += ntohs(tlv->length) + sizeof(struct pcep_object_tlv_header);
+        tlvs_length += tlv->length + sizeof(struct pcep_object_tlv_header);
     }
 
     /* The TLV length does not include padding, but
@@ -87,7 +97,7 @@ static void append_tlvs(struct pcep_object_header *obj, uint16_t index, double_l
     {
         struct pcep_object_tlv_header *tlv = (struct pcep_object_tlv_header *) node->data;
         /* Any pad bytes are not specified in the TLV length, but mus be copied */
-        int length = ntohs(tlv->length) + sizeof(struct pcep_object_tlv_header);
+        int length = tlv->length + sizeof(struct pcep_object_tlv_header);
         if (length % 4 != 0)
         {
             length += (4 - (length % 4));
@@ -129,7 +139,7 @@ pcep_obj_create_rp(uint8_t obj_hdr_flags, uint32_t obj_flags, uint32_t reqid, do
 
     obj->header.object_flags = obj_hdr_flags;
     obj->rp_flags = obj_flags;  //|O|B|R|Pri|
-    obj->rp_reqidnumb = htonl(reqid); //Set the request id
+    obj->rp_reqidnumb = reqid; //Set the request id
 
     append_tlvs((struct pcep_object_header *) obj, sizeof(struct pcep_object_rp), tlv_list);
 
@@ -146,11 +156,11 @@ pcep_obj_create_nopath(uint8_t obj_hdr_flags, uint8_t ni, uint16_t unsat_constr_
 
     obj->header.object_flags = obj_hdr_flags;
     obj->ni = ni;
-    obj->flags = htons(unsat_constr_flag << 15);
+    obj->flags = (unsat_constr_flag << 15);
     obj->reserved = 0;
-    obj->err_code.header.type = htons(1); // Type 1 from IANA
-    obj->err_code.header.length = htons(sizeof(uint32_t));
-    obj->err_code.value[0] = htonl(errorcode);
+    obj->err_code.header.type = PCEP_OBJ_TLV_TYPE_NO_PATH_VECTOR;
+    obj->err_code.header.length = sizeof(uint32_t);
+    obj->err_code.value[0] = errorcode;
 
     return obj;
 }
@@ -168,8 +178,8 @@ pcep_obj_create_enpoint_ipv4(const struct in_addr* src_ipv4, const struct in_add
                     sizeof(struct pcep_object_endpoints_ipv4),
                     PCEP_OBJ_CLASS_ENDPOINTS, PCEP_OBJ_TYPE_ENDPOINT_IPV4);
 
-    obj->src_ipv4.s_addr = htonl(src_ipv4->s_addr);
-    obj->dst_ipv4.s_addr = htonl(dst_ipv4->s_addr);
+    obj->src_ipv4.s_addr = src_ipv4->s_addr;
+    obj->dst_ipv4.s_addr = dst_ipv4->s_addr;
 
     return obj;
 }
@@ -187,15 +197,15 @@ pcep_obj_create_enpoint_ipv6(const struct in6_addr* src_ipv6, const struct in6_a
                     sizeof(struct pcep_object_endpoints_ipv6),
                     PCEP_OBJ_CLASS_ENDPOINTS, PCEP_OBJ_TYPE_ENDPOINT_IPV6);
 
-    obj->src_ipv6.__in6_u.__u6_addr32[0] = htonl(src_ipv6->__in6_u.__u6_addr32[0]);
-    obj->src_ipv6.__in6_u.__u6_addr32[1] = htonl(src_ipv6->__in6_u.__u6_addr32[1]);
-    obj->src_ipv6.__in6_u.__u6_addr32[2] = htonl(src_ipv6->__in6_u.__u6_addr32[2]);
-    obj->src_ipv6.__in6_u.__u6_addr32[3] = htonl(src_ipv6->__in6_u.__u6_addr32[3]);
+    obj->src_ipv6.__in6_u.__u6_addr32[0] = src_ipv6->__in6_u.__u6_addr32[0];
+    obj->src_ipv6.__in6_u.__u6_addr32[1] = src_ipv6->__in6_u.__u6_addr32[1];
+    obj->src_ipv6.__in6_u.__u6_addr32[2] = src_ipv6->__in6_u.__u6_addr32[2];
+    obj->src_ipv6.__in6_u.__u6_addr32[3] = src_ipv6->__in6_u.__u6_addr32[3];
 
-    obj->dst_ipv6.__in6_u.__u6_addr32[0] = htonl(dst_ipv6->__in6_u.__u6_addr32[0]);
-    obj->dst_ipv6.__in6_u.__u6_addr32[1] = htonl(dst_ipv6->__in6_u.__u6_addr32[1]);
-    obj->dst_ipv6.__in6_u.__u6_addr32[2] = htonl(dst_ipv6->__in6_u.__u6_addr32[2]);
-    obj->dst_ipv6.__in6_u.__u6_addr32[3] = htonl(dst_ipv6->__in6_u.__u6_addr32[3]);
+    obj->dst_ipv6.__in6_u.__u6_addr32[0] = dst_ipv6->__in6_u.__u6_addr32[0];
+    obj->dst_ipv6.__in6_u.__u6_addr32[1] = dst_ipv6->__in6_u.__u6_addr32[1];
+    obj->dst_ipv6.__in6_u.__u6_addr32[2] = dst_ipv6->__in6_u.__u6_addr32[2];
+    obj->dst_ipv6.__in6_u.__u6_addr32[3] = dst_ipv6->__in6_u.__u6_addr32[3];
 
     return obj;
 }
@@ -243,21 +253,23 @@ pcep_obj_create_lspa(uint8_t prio, uint8_t hold_prio)
 }
 
 uint32_t*
-pcep_obj_svec_get(struct pcep_object_svec* obj, uint16_t *length)
+pcep_obj_svec_get(struct pcep_object_svec* obj, uint16_t *length, bool host_byte_order)
 {
     uint8_t *buff = (uint8_t*) obj;
 
-    *length = (obj->header.object_length - sizeof(struct pcep_object_svec)) / sizeof(uint32_t);
+    *length = ((host_byte_order == true) ?
+            ((obj->header.object_length - sizeof(struct pcep_object_svec)) / sizeof(uint32_t)) :
+            ((ntohs(obj->header.object_length) - sizeof(struct pcep_object_svec)) / sizeof(uint32_t)));
 
     return (uint32_t*)(buff + sizeof(struct pcep_object_svec));
 }
 
 void
-pcep_obj_svec_print(struct pcep_object_svec* obj)
+pcep_obj_svec_print(struct pcep_object_svec* obj, bool host_byte_order)
 {
     uint16_t len;
     uint32_t i = 0;
-    uint32_t *array = pcep_obj_svec_get(obj, &len);
+    uint32_t *array = pcep_obj_svec_get(obj, &len, host_byte_order);
 
     printf("PCEP_OBJ_CLASS_SVEC request IDs:\n");
 
@@ -286,7 +298,7 @@ pcep_obj_create_svec(bool srlg, bool node, bool link, uint16_t ids_count, uint32
     uint32_t i;
     uint32_t *svec_ids = (uint32_t *) (((uint8_t *) obj) + sizeof(struct pcep_object_svec));
     for(i = 0; i < ids_count; i++) {
-        svec_ids[i] = htonl(ids[i]);
+        svec_ids[i] = ids[i];
     }
 
     return obj;
@@ -331,7 +343,7 @@ pcep_obj_create_srp(bool lsp_remove, uint32_t srp_id_number, double_linked_list 
                     PCEP_OBJ_CLASS_SRP, PCEP_OBJ_TYPE_SRP);
 
     obj->lsp_remove = (lsp_remove == true ? 1 : 0);
-    obj->srp_id_number = htonl(srp_id_number);
+    obj->srp_id_number = srp_id_number;
 
     append_tlvs((struct pcep_object_header *) obj, sizeof(struct pcep_object_srp), tlv_list);
 
@@ -374,9 +386,6 @@ pcep_obj_create_lsp(uint32_t plsp_id, enum pcep_lsp_operational_status status,
     obj->plsp_id_flags |= (s_flag == true ? PCEP_LSP_S_FLAG : 0);
     obj->plsp_id_flags |= (d_flag == true ? PCEP_LSP_D_FLAG : 0);
 
-    /* Convert the plsp_id and flags to network byte order */
-    obj->plsp_id_flags = htonl(obj->plsp_id_flags);
-
     append_tlvs((struct pcep_object_header *) obj, sizeof(struct pcep_object_lsp), tlv_list);
 
     return obj;
@@ -408,7 +417,7 @@ pcep_obj_create_common_route_object(double_linked_list* ro_list)
     /* object_class and object_type MUST be set by calling functions */
     struct pcep_object_ro *route_object = (struct pcep_object_ro *) buffer;
     route_object->header.object_flags = 0;
-    route_object->header.object_length = htons(buffer_len);
+    route_object->header.object_length = buffer_len;
 
     if (ro_list != NULL)
     {
@@ -483,10 +492,9 @@ pcep_obj_create_ro_subobj_unnum(struct in_addr* router_id, uint32_t ifId, uint16
 
     obj->subobj.unnum.header.length = sizeof(struct pcep_ro_subobj_unnum);
     obj->subobj.unnum.header.type = RO_SUBOBJ_TYPE_UNNUM;
-    obj->subobj.unnum.ifId = htonl(ifId);
-
-    obj->subobj.unnum.routerId.s_addr = htonl(router_id->s_addr);
-    obj->subobj.unnum.resv = htons(resv);
+    obj->subobj.unnum.ifId = ifId;
+    obj->subobj.unnum.routerId.s_addr = router_id->s_addr;
+    obj->subobj.unnum.resv = resv;
 
     return obj;
 }
@@ -500,7 +508,7 @@ pcep_obj_create_ro_subobj_32label(uint8_t dir, uint32_t label)
     obj->subobj.label.header.type = RO_SUBOBJ_TYPE_LABEL;
     obj->subobj.label.class_type = 2;
     obj->subobj.label.upstream = dir;
-    obj->subobj.label.label = htonl(label);
+    obj->subobj.label.label = label;
 
     return obj;
 }
@@ -532,7 +540,7 @@ pcep_obj_create_ro_subobj_ipv4(bool loose_hop, const struct in_addr* rro_ipv4, u
     obj->subobj.ipv4.header.length = sizeof(struct pcep_ro_subobj_ipv4);
     obj->subobj.ipv4.header.type = RO_SUBOBJ_TYPE_IPV4;
     obj->subobj.ipv4.prefix_length = prefix_length;
-    obj->subobj.ipv4.ip_addr.s_addr = htonl(rro_ipv4->s_addr);
+    obj->subobj.ipv4.ip_addr.s_addr = rro_ipv4->s_addr;
     if (loose_hop == true)
     {
         // The first bit of the type field is used to specify Loose Hop
@@ -555,10 +563,10 @@ pcep_obj_create_ro_subobj_ipv6(bool loose_hop, const struct in6_addr* rro_ipv6, 
     obj->subobj.ipv6.header.length = sizeof(struct pcep_ro_subobj_ipv6);
     obj->subobj.ipv6.header.type = RO_SUBOBJ_TYPE_IPV6;
     obj->subobj.ipv6.prefix_length = prefix_length;
-    obj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[0] = htonl(rro_ipv6->__in6_u.__u6_addr32[0]);
-    obj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[1] = htonl(rro_ipv6->__in6_u.__u6_addr32[1]);
-    obj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[2] = htonl(rro_ipv6->__in6_u.__u6_addr32[2]);
-    obj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[3] = htonl(rro_ipv6->__in6_u.__u6_addr32[3]);
+    obj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[0] = rro_ipv6->__in6_u.__u6_addr32[0];
+    obj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[1] = rro_ipv6->__in6_u.__u6_addr32[1];
+    obj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[2] = rro_ipv6->__in6_u.__u6_addr32[2];
+    obj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[3] = rro_ipv6->__in6_u.__u6_addr32[3];
     if (loose_hop == true)
     {
         // The first bit of the type field is used to specify Loose Hop
@@ -612,7 +620,6 @@ pcep_obj_create_ro_subobj_sr_common(uint8_t extra_length, enum pcep_sr_subobj_na
     obj->subobj.sr.nt_flags |= (s_flag == true) ? PCEP_SR_SUBOBJ_S_FLAG : 0;
     obj->subobj.sr.nt_flags |= (c_flag == true) ? PCEP_SR_SUBOBJ_C_FLAG : 0;
     obj->subobj.sr.nt_flags |= (m_flag == true) ? PCEP_SR_SUBOBJ_M_FLAG : 0;
-    obj->subobj.sr.nt_flags = htons(obj->subobj.sr.nt_flags);
 
     if (loose_hop == true)
     {
@@ -632,7 +639,7 @@ pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, uint32_t sid)
     struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
             sizeof(uint32_t), PCEP_SR_SUBOBJ_NAI_ABSENT,
             loose_hop, true, false, false, false);
-    obj->subobj.sr.sid_nai[0] = htonl(sid);
+    obj->subobj.sr.sid_nai[0] = sid;
 
     return obj;
 }
@@ -659,9 +666,9 @@ pcep_obj_create_ro_subobj_sr_ipv4_node(
     int index = 0;
     if (! sid_absent)
     {
-        obj->subobj.sr.sid_nai[index++] = htonl(sid);
+        obj->subobj.sr.sid_nai[index++] = sid;
     }
-    obj->subobj.sr.sid_nai[index] = htonl(ipv4_node_id->s_addr);
+    obj->subobj.sr.sid_nai[index] = ipv4_node_id->s_addr;
 
     return obj;
 }
@@ -692,12 +699,12 @@ pcep_obj_create_ro_subobj_sr_ipv6_node(
     int index = 0;
     if (! sid_absent)
     {
-        obj->subobj.sr.sid_nai[index++] = htonl(sid);
+        obj->subobj.sr.sid_nai[index++] = sid;
     }
-    obj->subobj.sr.sid_nai[index++] = htonl(ipv6_node_id->__in6_u.__u6_addr32[0]);
-    obj->subobj.sr.sid_nai[index++] = htonl(ipv6_node_id->__in6_u.__u6_addr32[1]);
-    obj->subobj.sr.sid_nai[index++] = htonl(ipv6_node_id->__in6_u.__u6_addr32[2]);
-    obj->subobj.sr.sid_nai[index]   = htonl(ipv6_node_id->__in6_u.__u6_addr32[3]);
+    obj->subobj.sr.sid_nai[index++] = ipv6_node_id->__in6_u.__u6_addr32[0];
+    obj->subobj.sr.sid_nai[index++] = ipv6_node_id->__in6_u.__u6_addr32[1];
+    obj->subobj.sr.sid_nai[index++] = ipv6_node_id->__in6_u.__u6_addr32[2];
+    obj->subobj.sr.sid_nai[index]   = ipv6_node_id->__in6_u.__u6_addr32[3];
 
     return obj;
 }
@@ -728,10 +735,10 @@ pcep_obj_create_ro_subobj_sr_ipv4_adj(
     int index = 0;
     if (! sid_absent)
     {
-        obj->subobj.sr.sid_nai[index++] = htonl(sid);
+        obj->subobj.sr.sid_nai[index++] = sid;
     }
-    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv4->s_addr);
-    obj->subobj.sr.sid_nai[index]   = htonl(remote_ipv4->s_addr);
+    obj->subobj.sr.sid_nai[index++] = local_ipv4->s_addr;
+    obj->subobj.sr.sid_nai[index]   = remote_ipv4->s_addr;
 
     return obj;
 }
@@ -762,17 +769,17 @@ pcep_obj_create_ro_subobj_sr_ipv6_adj(
     int index = 0;
     if (! sid_absent)
     {
-        obj->subobj.sr.sid_nai[index++] = htonl(sid);
+        obj->subobj.sr.sid_nai[index++] = sid;
     }
-    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv6->__in6_u.__u6_addr32[0]);
-    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv6->__in6_u.__u6_addr32[1]);
-    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv6->__in6_u.__u6_addr32[2]);
-    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv6->__in6_u.__u6_addr32[3]);
+    obj->subobj.sr.sid_nai[index++] = local_ipv6->__in6_u.__u6_addr32[0];
+    obj->subobj.sr.sid_nai[index++] = local_ipv6->__in6_u.__u6_addr32[1];
+    obj->subobj.sr.sid_nai[index++] = local_ipv6->__in6_u.__u6_addr32[2];
+    obj->subobj.sr.sid_nai[index++] = local_ipv6->__in6_u.__u6_addr32[3];
 
-    obj->subobj.sr.sid_nai[index++] = htonl(remote_ipv6->__in6_u.__u6_addr32[0]);
-    obj->subobj.sr.sid_nai[index++] = htonl(remote_ipv6->__in6_u.__u6_addr32[1]);
-    obj->subobj.sr.sid_nai[index++] = htonl(remote_ipv6->__in6_u.__u6_addr32[2]);
-    obj->subobj.sr.sid_nai[index]   = htonl(remote_ipv6->__in6_u.__u6_addr32[3]);
+    obj->subobj.sr.sid_nai[index++] = remote_ipv6->__in6_u.__u6_addr32[0];
+    obj->subobj.sr.sid_nai[index++] = remote_ipv6->__in6_u.__u6_addr32[1];
+    obj->subobj.sr.sid_nai[index++] = remote_ipv6->__in6_u.__u6_addr32[2];
+    obj->subobj.sr.sid_nai[index]   = remote_ipv6->__in6_u.__u6_addr32[3];
 
     return obj;
 }
@@ -795,12 +802,12 @@ pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(
     int index = 0;
     if (! sid_absent)
     {
-        obj->subobj.sr.sid_nai[index++] = htonl(sid);
+        obj->subobj.sr.sid_nai[index++] = sid;
     }
-    obj->subobj.sr.sid_nai[index++] = htonl(local_node_id);
-    obj->subobj.sr.sid_nai[index++] = htonl(local_if_id);
-    obj->subobj.sr.sid_nai[index++] = htonl(remote_node_id);
-    obj->subobj.sr.sid_nai[index]   = htonl(remote_if_id);
+    obj->subobj.sr.sid_nai[index++] = local_node_id;
+    obj->subobj.sr.sid_nai[index++] = local_if_id;
+    obj->subobj.sr.sid_nai[index++] = remote_node_id;
+    obj->subobj.sr.sid_nai[index]   = remote_if_id;
 
     return obj;
 }
@@ -832,215 +839,21 @@ pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
     int index = 0;
     if (! sid_absent)
     {
-        obj->subobj.sr.sid_nai[index++] = htonl(sid);
+        obj->subobj.sr.sid_nai[index++] = sid;
     }
-    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv6->__in6_u.__u6_addr32[0]);
-    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv6->__in6_u.__u6_addr32[1]);
-    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv6->__in6_u.__u6_addr32[2]);
-    obj->subobj.sr.sid_nai[index++] = htonl(local_ipv6->__in6_u.__u6_addr32[3]);
-    obj->subobj.sr.sid_nai[index++] = htonl(local_if_id);
+    obj->subobj.sr.sid_nai[index++] = local_ipv6->__in6_u.__u6_addr32[0];
+    obj->subobj.sr.sid_nai[index++] = local_ipv6->__in6_u.__u6_addr32[1];
+    obj->subobj.sr.sid_nai[index++] = local_ipv6->__in6_u.__u6_addr32[2];
+    obj->subobj.sr.sid_nai[index++] = local_ipv6->__in6_u.__u6_addr32[3];
+    obj->subobj.sr.sid_nai[index++] = local_if_id;
 
-    obj->subobj.sr.sid_nai[index++] = htonl(remote_ipv6->__in6_u.__u6_addr32[0]);
-    obj->subobj.sr.sid_nai[index++] = htonl(remote_ipv6->__in6_u.__u6_addr32[1]);
-    obj->subobj.sr.sid_nai[index++] = htonl(remote_ipv6->__in6_u.__u6_addr32[2]);
-    obj->subobj.sr.sid_nai[index++] = htonl(remote_ipv6->__in6_u.__u6_addr32[3]);
-    obj->subobj.sr.sid_nai[index]   = htonl(remote_if_id);
+    obj->subobj.sr.sid_nai[index++] = remote_ipv6->__in6_u.__u6_addr32[0];
+    obj->subobj.sr.sid_nai[index++] = remote_ipv6->__in6_u.__u6_addr32[1];
+    obj->subobj.sr.sid_nai[index++] = remote_ipv6->__in6_u.__u6_addr32[2];
+    obj->subobj.sr.sid_nai[index++] = remote_ipv6->__in6_u.__u6_addr32[3];
+    obj->subobj.sr.sid_nai[index]   = remote_if_id;
 
     return obj;
-}
-
-
-/*
- * Object unpack functions.
- */
-void
-pcep_unpack_obj_header(struct pcep_object_header* hdr)
-{
-    hdr->object_length = ntohs(hdr->object_length);
-}
-
-void
-pcep_unpack_obj_open(struct pcep_object_open *obj)
-{
-    /* TLVs will be unpacked when the message is parsed */
-}
-
-void
-pcep_unpack_obj_tlv(struct pcep_object_tlv *tlv)
-{
-    tlv->header.type   = ntohs(tlv->header.type);
-    tlv->header.length = ntohs(tlv->header.length);
-    /*
-    int i;
-    for (i = 0; i < tlv->header.length; i++)
-    {
-        tlv->value[i]  = ntohl(tlv->value[i]);
-    }
-    */
-}
-
-void
-pcep_unpack_obj_rp(struct pcep_object_rp *obj)
-{
-    obj->rp_flags = ntohl(obj->rp_flags);
-    obj->rp_reqidnumb = ntohl(obj->rp_reqidnumb);
-}
-
-void
-pcep_unpack_obj_nopath(struct pcep_object_nopath *obj)
-{
-    obj->flags = ntohs(obj->flags);
-    obj->err_code.header.type = ntohs(obj->err_code.header.type);
-    obj->err_code.header.length = ntohs(obj->err_code.header.length);
-
-    if(obj->err_code.header.type == 1) {
-        obj->err_code.value[0] = ntohl(obj->err_code.value[0]);
-    }
-}
-
-void
-pcep_unpack_obj_ep_ipv4(struct pcep_object_endpoints_ipv4 *obj)
-{
-    // nothing to unpack.
-}
-
-void
-pcep_unpack_obj_ep_ipv6(struct pcep_object_endpoints_ipv6 *obj)
-{
-    // nothing to unpack.
-}
-
-void
-pcep_unpack_obj_bandwidth(struct pcep_object_bandwidth *obj)
-{
-    // TODO maybe unpack float?
-}
-
-void
-pcep_unpack_obj_metic(struct pcep_object_metric *obj)
-{
-    obj->resv = ntohs(obj->resv);
-    // TODO maybe unpack float?
-}
-
-void
-pcep_unpack_obj_ro(struct pcep_object_ro *obj)
-{
-    uint16_t read_count = sizeof(struct pcep_object_header);
-
-    while((obj->header.object_length - read_count) > sizeof(struct pcep_ro_subobj_hdr)) {
-        struct pcep_ro_subobj_hdr *hdr = (struct pcep_ro_subobj_hdr*) (((uint8_t*)obj) + read_count);
-        /* Some sub-objects store the loose_hop bit in the top bit of the type field */
-        uint8_t hdr_type = (hdr->type & 0x7f);
-
-        if(hdr_type == RO_SUBOBJ_TYPE_UNNUM) {
-            struct pcep_ro_subobj_unnum *unum = (struct pcep_ro_subobj_unnum*) hdr;
-            unum->ifId = ntohl(unum->ifId);
-            unum->routerId.s_addr = ntohl(unum->routerId.s_addr);
-        }
-        else if(hdr_type == RO_SUBOBJ_TYPE_IPV4)
-        {
-            struct pcep_ro_subobj_ipv4 *ipv4 = (struct pcep_ro_subobj_ipv4*) hdr;
-            ipv4->ip_addr.s_addr = ntohl(ipv4->ip_addr.s_addr);
-        }
-        else if(hdr_type == RO_SUBOBJ_TYPE_IPV6)
-        {
-            struct pcep_ro_subobj_ipv6 *ipv6 = (struct pcep_ro_subobj_ipv6*) hdr;
-            ipv6->ip_addr.__in6_u.__u6_addr32[0] = ntohl(ipv6->ip_addr.__in6_u.__u6_addr32[0]);
-            ipv6->ip_addr.__in6_u.__u6_addr32[1] = ntohl(ipv6->ip_addr.__in6_u.__u6_addr32[1]);
-            ipv6->ip_addr.__in6_u.__u6_addr32[2] = ntohl(ipv6->ip_addr.__in6_u.__u6_addr32[2]);
-            ipv6->ip_addr.__in6_u.__u6_addr32[3] = ntohl(ipv6->ip_addr.__in6_u.__u6_addr32[3]);
-        }
-        else if(hdr_type == RO_SUBOBJ_TYPE_SR || hdr_type == RO_SUBOBJ_TYPE_SR_DRAFT07)
-        {
-            struct pcep_ro_subobj_sr *sr_subobj = (struct pcep_ro_subobj_sr*) hdr;
-            sr_subobj->nt_flags = ntohs(sr_subobj->nt_flags);
-            int words_to_convert = 0;
-            switch (sr_subobj->nt_flags & 0xF000)
-            {
-            case PCEP_SR_SUBOBJ_NAI_IPV4_NODE:
-                /* If the sid_absent flag is true, then dont convert the sid */
-                words_to_convert = ((sr_subobj->nt_flags & PCEP_SR_SUBOBJ_S_FLAG) ? 1 : 2);
-                break;
-
-            case PCEP_SR_SUBOBJ_NAI_IPV6_NODE:
-            case PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY:
-                words_to_convert = ((sr_subobj->nt_flags & PCEP_SR_SUBOBJ_S_FLAG) ? 4 : 5);
-                break;
-
-            case PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY:
-                words_to_convert = ((sr_subobj->nt_flags & PCEP_SR_SUBOBJ_S_FLAG) ? 2 : 3);
-                break;
-
-            case PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY:
-                words_to_convert = ((sr_subobj->nt_flags & PCEP_SR_SUBOBJ_S_FLAG) ? 8 : 9);
-                break;
-
-            case PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY:
-                words_to_convert = ((sr_subobj->nt_flags & PCEP_SR_SUBOBJ_S_FLAG) ? 10 : 11);
-                break;
-
-            case PCEP_SR_SUBOBJ_NAI_ABSENT:
-            default:
-                break;
-            }
-
-            int i = 0;
-            for (; i < words_to_convert; i++)
-            {
-                sr_subobj->sid_nai[i] = ntohl(sr_subobj->sid_nai[i]);
-            }
-        }
-        read_count += hdr->length;
-    }
-}
-
-void
-pcep_unpack_obj_lspa(struct pcep_object_lspa *obj)
-{
-    obj->lspa_exclude_any = ntohl(obj->lspa_exclude_any);
-    obj->lspa_include_any = ntohl(obj->lspa_include_any);
-    obj->lspa_include_all = ntohl(obj->lspa_include_all);
-}
-
-void
-pcep_unpack_obj_svec(struct pcep_object_svec *obj)
-{
-    uint16_t len;
-    uint32_t i = 0;
-    uint32_t *array = pcep_obj_svec_get(obj, &len);
-
-    for(i = 0; i < len; i++) {
-        array[i] = ntohl(array[i]);
-    }
-}
-
-void
-pcep_unpack_obj_error(struct pcep_object_error *obj)
-{
-    // nothing to unpack.
-}
-
-void
-pcep_unpack_obj_close(struct pcep_object_close *obj)
-{
-    // nothing to unpack.
-}
-
-void pcep_unpack_obj_srp(struct pcep_object_srp *srp)
-{
-    srp->srp_id_number = ntohl(srp->srp_id_number);
-}
-
-void pcep_unpack_obj_lsp(struct pcep_object_lsp *lsp)
-{
-    /* TLVs will be unpacked when the message is parsed */
-    lsp->plsp_id_flags = ntohl(lsp->plsp_id_flags);
-}
-
-void pcep_unpack_obj_notify(struct pcep_object_notify *notify)
-{
-    // nothing to unpack.
 }
 
 struct pcep_ro_subobj_hdr*
@@ -1066,14 +879,93 @@ pcep_obj_get_ro_subobjects(struct pcep_object_header *ro_obj)
     double_linked_list *subobj_list = dll_initialize();
     uint8_t base_length = sizeof(struct pcep_object_ro);
     struct pcep_ro_subobj_hdr *next_subobj = pcep_obj_get_next_ro_subobject(ro_obj, base_length);
+    int num_sub_objects = 1;
 
-    while (next_subobj != NULL)
+    while (next_subobj != NULL && num_sub_objects < MAX_ITERATIONS)
     {
         dll_append(subobj_list, next_subobj);
         /* assuming ntohs() has already been called on the next_subobj->length */
         base_length += next_subobj->length;
         next_subobj = pcep_obj_get_next_ro_subobject(ro_obj, base_length);
+        num_sub_objects++;
     }
 
     return subobj_list;
 }
+
+bool
+pcep_obj_has_tlv(struct pcep_object_header* hdr)
+{
+    uint8_t object_length = pcep_object_class_lengths[hdr->object_class];
+    if (object_length == 0)
+    {
+        return false;
+    }
+
+    return (hdr->object_length - object_length) > 0;
+}
+
+struct pcep_object_tlv*
+pcep_obj_get_next_tlv(struct pcep_object_header *hdr, uint8_t current_index)
+{
+    uint8_t *next_tlv = ((uint8_t *) hdr) + current_index;
+    return (next_tlv >= (((uint8_t *)hdr) + hdr->object_length)) ?
+            NULL : (struct pcep_object_tlv*) next_tlv;
+}
+
+/* Internal util function used by pcep_obj_get_tlvs() and pcep_obj_get_encoded_tlvs() */
+static double_linked_list*
+pcep_obj_get_tlvs_(struct pcep_object_header *obj, bool is_encoded)
+{
+    /* Get the size of the object, not including TLVs */
+    uint8_t length = pcep_object_class_lengths[obj->object_class];
+    if (length == 0)
+    {
+        if (obj->object_class == PCEP_OBJ_CLASS_ENDPOINTS)
+        {
+            if (obj->object_type == PCEP_OBJ_TYPE_ENDPOINT_IPV4)
+            {
+                length = sizeof(struct pcep_object_endpoints_ipv4);
+            }
+            else
+            {
+                length = sizeof(struct pcep_object_endpoints_ipv6);
+            }
+        }
+        else
+        {
+            return NULL;
+        }
+    }
+
+    double_linked_list *tlv_list = dll_initialize();
+    struct pcep_object_tlv *next_tlv = pcep_obj_get_next_tlv(obj, length);
+    int num_tlvs = 1;
+
+    while (next_tlv != NULL && num_tlvs < MAX_ITERATIONS)
+    {
+        dll_append(tlv_list, next_tlv);
+        /* The TLV length is the length of the value, need to also get past the TLV header */
+        uint16_t tlv_length = ((is_encoded == true) ? ntohs(next_tlv->header.length) : next_tlv->header.length) + 4;
+        /* the padding is not included in the TLV length */
+        tlv_length += (((tlv_length % 4) == 0) ? 0 : (4 - (tlv_length % 4)));
+        length += tlv_length;
+        next_tlv = pcep_obj_get_next_tlv(obj, length);
+        num_tlvs++;
+    }
+
+    return tlv_list;
+}
+
+double_linked_list*
+pcep_obj_get_tlvs(struct pcep_object_header *obj)
+{
+    return pcep_obj_get_tlvs_(obj, false);
+}
+
+double_linked_list*
+pcep_obj_get_encoded_tlvs(struct pcep_object_header *obj)
+{
+    return pcep_obj_get_tlvs_(obj, true);
+}
+

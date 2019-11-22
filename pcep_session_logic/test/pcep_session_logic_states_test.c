@@ -210,7 +210,6 @@ void test_handle_socket_comm_event_close()
 void test_handle_socket_comm_event_open()
 {
     struct pcep_object_open *open_object = pcep_obj_create_open(1, 1, 1, NULL);
-    pcep_unpack_obj_header((struct pcep_object_header*) open_object);
     dll_append(message->obj_list, open_object);
     message->header->type = PCEP_TYPE_OPEN;
     event.received_msg_list = msg_list;

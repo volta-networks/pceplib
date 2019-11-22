@@ -104,6 +104,7 @@ void disconnect_pce(pcep_session *session)
 
 void send_message(pcep_session *session, struct pcep_message *msg, bool free_after_send)
 {
+    pcep_msg_encode(msg);
     socket_comm_session_send_message(session->socket_comm_session,
             (char *) msg->header, ntohs(msg->header->length), free_after_send);
 

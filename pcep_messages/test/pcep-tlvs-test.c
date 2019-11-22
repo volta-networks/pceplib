@@ -12,14 +12,22 @@
 #include "pcep-objects.h"
 #include "pcep-tlvs.h"
 
+/*
+ * Notice:
+ * All of these TLV Unit Tests encode the created TLVs by explicitly calling
+ * pcep_encode_obj_tlv() thus testing the TLV creation and the TLV encoding.
+ */
+
+extern void pcep_encode_obj_tlv(struct pcep_object_tlv *tlv);
+
 void test_pcep_tlv_create_stateful_pce_capability()
 {
     struct pcep_object_tlv *tlv = pcep_tlv_create_stateful_pce_capability(0xff);
     CU_ASSERT_PTR_NOT_NULL(tlv);
 
-    pcep_unpack_obj_tlv(tlv);
-    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY);
-    CU_ASSERT_EQUAL(tlv->header.length, 4);
+    pcep_encode_obj_tlv(tlv);
+    CU_ASSERT_EQUAL(tlv->header.type, htons(PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY));
+    CU_ASSERT_EQUAL(tlv->header.length, htons(sizeof(uint32_t)));
     CU_ASSERT_EQUAL(tlv->value[0], htonl(0x000000ff));
 
     free(tlv);
@@ -39,9 +47,9 @@ void test_pcep_tlv_create_speaker_entity_id()
     tlv = pcep_tlv_create_speaker_entity_id(list);
     CU_ASSERT_PTR_NOT_NULL(tlv);
 
-    pcep_unpack_obj_tlv(tlv);
-    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_SPEAKER_ENTITY_ID);
-    CU_ASSERT_EQUAL(tlv->header.length, 4);
+    pcep_encode_obj_tlv(tlv);
+    CU_ASSERT_EQUAL(tlv->header.type, htons(PCEP_OBJ_TLV_TYPE_SPEAKER_ENTITY_ID));
+    CU_ASSERT_EQUAL(tlv->header.length, htons(sizeof(uint32_t)));
     CU_ASSERT_EQUAL(tlv->value[0], htonl(speaker_entity));
 
     dll_destroy(list);
@@ -54,9 +62,9 @@ void test_pcep_tlv_create_lsp_db_version()
     struct pcep_object_tlv *tlv = pcep_tlv_create_lsp_db_version(lsp_db_version);
     CU_ASSERT_PTR_NOT_NULL(tlv);
 
-    pcep_unpack_obj_tlv(tlv);
-    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_LSP_DB_VERSION);
-    CU_ASSERT_EQUAL(tlv->header.length, 8);
+    pcep_encode_obj_tlv(tlv);
+    CU_ASSERT_EQUAL(tlv->header.type, htons(PCEP_OBJ_TLV_TYPE_LSP_DB_VERSION));
+    CU_ASSERT_EQUAL(tlv->header.length, htons(sizeof(uint64_t)));
     CU_ASSERT_EQUAL(*((uint64_t*) tlv->value), be64toh(lsp_db_version));
 
     free(tlv);
@@ -68,10 +76,10 @@ void test_pcep_tlv_create_path_setup_type()
 
     struct pcep_object_tlv *tlv = pcep_tlv_create_path_setup_type(pst);
     CU_ASSERT_PTR_NOT_NULL(tlv);
-    pcep_unpack_obj_tlv(tlv);
-    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE);
-    CU_ASSERT_EQUAL(tlv->header.length, sizeof(uint32_t));
-    CU_ASSERT_EQUAL(tlv->value[0], ntohl(0x000000FF & pst));
+    pcep_encode_obj_tlv(tlv);
+    CU_ASSERT_EQUAL(tlv->header.type, htons(PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE));
+    CU_ASSERT_EQUAL(tlv->header.length, htons(sizeof(uint32_t)));
+    CU_ASSERT_EQUAL(tlv->value[0], htonl(0x000000FF & pst));
 
     free(tlv);
 }
@@ -108,9 +116,9 @@ void test_pcep_tlv_create_path_setup_type_capability()
     tlv = pcep_tlv_create_path_setup_type_capability(pst_list, sub_tlv_list);
     CU_ASSERT_PTR_NOT_NULL(tlv);
 
-    pcep_unpack_obj_tlv(tlv);
-    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY);
-    CU_ASSERT_EQUAL(tlv->header.length, sizeof(uint32_t) * 2);
+    pcep_encode_obj_tlv(tlv);
+    CU_ASSERT_EQUAL(tlv->header.type, htons(PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY));
+    CU_ASSERT_EQUAL(tlv->header.length, htons(sizeof(uint32_t) * 2));
     CU_ASSERT_EQUAL(tlv->value[0], htonl(0x00000003));
     CU_ASSERT_EQUAL(tlv->value[1], htonl(0x01020300));
     free(tlv);
@@ -121,10 +129,10 @@ void test_pcep_tlv_create_path_setup_type_capability()
     tlv = pcep_tlv_create_path_setup_type_capability(pst_list, sub_tlv_list);
     CU_ASSERT_PTR_NOT_NULL(tlv);
 
-    pcep_unpack_obj_tlv(tlv);
-    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY);
+    pcep_encode_obj_tlv(tlv);
+    CU_ASSERT_EQUAL(tlv->header.type, htons(PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY));
     CU_ASSERT_EQUAL(tlv->header.length,
-            sizeof(uint32_t) * 2 + sizeof(struct pcep_object_tlv_header) + ntohs(sub_tlv->header.length));
+            htons(sizeof(uint32_t) * 2 + sizeof(struct pcep_object_tlv_header) + sub_tlv->header.length));
     CU_ASSERT_EQUAL(tlv->value[0], htonl(0x00000003));
     CU_ASSERT_EQUAL(tlv->value[1], htonl(0x01020300));
     struct pcep_object_tlv *sub_tlv_ptr = (struct pcep_object_tlv*) &(tlv->value[2]);
@@ -142,9 +150,9 @@ void test_pcep_tlv_create_sr_pce_capability()
             PCEP_TLV_FLAG_NO_MSD_LIMITS|PCEP_TLV_FLAG_SR_PCE_CAPABILITY_NAI, 8);
     CU_ASSERT_PTR_NOT_NULL(tlv);
 
-    pcep_unpack_obj_tlv(tlv);
-    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_SR_PCE_CAPABILITY);
-    CU_ASSERT_EQUAL(tlv->header.length, 4);
+    pcep_encode_obj_tlv(tlv);
+    CU_ASSERT_EQUAL(tlv->header.type, htons(PCEP_OBJ_TLV_TYPE_SR_PCE_CAPABILITY));
+    CU_ASSERT_EQUAL(tlv->header.length, htons(sizeof(uint32_t)));
     CU_ASSERT_EQUAL(tlv->value[0], htonl(0x00000308));
 
     free(tlv);
@@ -159,9 +167,9 @@ void test_pcep_tlv_create_symbolic_path_name()
             pcep_tlv_create_symbolic_path_name(path_name, path_name_length);
     CU_ASSERT_PTR_NOT_NULL(tlv);
 
-    pcep_unpack_obj_tlv(tlv);
-    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_SYMBOLIC_PATH_NAME);
-    CU_ASSERT_EQUAL(tlv->header.length, path_name_length);
+    pcep_encode_obj_tlv(tlv);
+    CU_ASSERT_EQUAL(tlv->header.type, htons(PCEP_OBJ_TLV_TYPE_SYMBOLIC_PATH_NAME));
+    CU_ASSERT_EQUAL(tlv->header.length, htons(path_name_length));
     /* Test the padding is correct */
     CU_ASSERT_EQUAL(0, strncmp((char *) &(tlv->value[0]), &path_name[0], 4));
     CU_ASSERT_EQUAL(0, strncmp((char *) &(tlv->value[1]), &path_name[4], 4));
@@ -175,9 +183,9 @@ void test_pcep_tlv_create_symbolic_path_name()
 
     tlv = pcep_tlv_create_symbolic_path_name(path_name, 3);
     CU_ASSERT_PTR_NOT_NULL(tlv);
-    pcep_unpack_obj_tlv(tlv);
-    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_SYMBOLIC_PATH_NAME);
-    CU_ASSERT_EQUAL(tlv->header.length, 3);
+    pcep_encode_obj_tlv(tlv);
+    CU_ASSERT_EQUAL(tlv->header.type, htons(PCEP_OBJ_TLV_TYPE_SYMBOLIC_PATH_NAME));
+    CU_ASSERT_EQUAL(tlv->header.length, htons(3));
     byte_ptr = (char *) tlv->value;
     CU_ASSERT_EQUAL(byte_ptr[0], 'S');
     CU_ASSERT_EQUAL(byte_ptr[1], 'o');
@@ -212,9 +220,9 @@ void test_pcep_tlv_create_ipv4_lsp_identifiers()
             &sender_ip, &endpoint_ip, lsp_id, tunnel_id, extended_tunnel_id);
     CU_ASSERT_PTR_NOT_NULL(tlv);
 
-    pcep_unpack_obj_tlv(tlv);
-    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_IPV4_LSP_IDENTIFIERS);
-    CU_ASSERT_EQUAL(tlv->header.length, 16);
+    pcep_encode_obj_tlv(tlv);
+    CU_ASSERT_EQUAL(tlv->header.type, htons(PCEP_OBJ_TLV_TYPE_IPV4_LSP_IDENTIFIERS));
+    CU_ASSERT_EQUAL(tlv->header.length, htons(sizeof(uint32_t) * 4));
     CU_ASSERT_EQUAL(tlv->value[0], htonl(sender_ip.s_addr));
     CU_ASSERT_EQUAL(tlv->value[1], (htons(lsp_id) << 16) | htons(tunnel_id));
     CU_ASSERT_EQUAL(tlv->value[2], htonl(extended_tunnel_id));
@@ -253,9 +261,9 @@ void test_pcep_tlv_create_ipv6_lsp_identifiers()
             &sender_ip, &endpoint_ip, lsp_id, tunnel_id, extended_tunnel_id);
     CU_ASSERT_PTR_NOT_NULL(tlv);
 
-    pcep_unpack_obj_tlv(tlv);
-    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_IPV6_LSP_IDENTIFIERS);
-    CU_ASSERT_EQUAL(tlv->header.length, 52);
+    pcep_encode_obj_tlv(tlv);
+    CU_ASSERT_EQUAL(tlv->header.type, htons(PCEP_OBJ_TLV_TYPE_IPV6_LSP_IDENTIFIERS));
+    CU_ASSERT_EQUAL(tlv->header.length, htons(52));
     CU_ASSERT_EQUAL(tlv->value[4], (htons(lsp_id) << 16) | htons(tunnel_id));
 
     free(tlv);
@@ -267,9 +275,9 @@ void test_pcep_tlv_create_lsp_error_code()
             pcep_tlv_create_lsp_error_code(PCEP_TLV_LSP_ERROR_CODE_RSVP_SIGNALING_ERROR);
     CU_ASSERT_PTR_NOT_NULL(tlv);
 
-    pcep_unpack_obj_tlv(tlv);
-    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_LSP_ERROR_CODE);
-    CU_ASSERT_EQUAL(tlv->header.length, 4);
+    pcep_encode_obj_tlv(tlv);
+    CU_ASSERT_EQUAL(tlv->header.type, htons(PCEP_OBJ_TLV_TYPE_LSP_ERROR_CODE));
+    CU_ASSERT_EQUAL(tlv->header.length, htons(sizeof(uint32_t)));
     CU_ASSERT_EQUAL(tlv->value[0], htonl(PCEP_TLV_LSP_ERROR_CODE_RSVP_SIGNALING_ERROR));
 
     free(tlv);
@@ -290,10 +298,10 @@ void test_pcep_tlv_create_rsvp_ipv4_error_spec()
     tlv = pcep_tlv_create_rsvp_ipv4_error_spec(&error_node_ip, flags, error_code, error_value);
     CU_ASSERT_PTR_NOT_NULL(tlv);
 
-    pcep_unpack_obj_tlv(tlv);
-    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_RSVP_ERROR_SPEC);
+    pcep_encode_obj_tlv(tlv);
+    CU_ASSERT_EQUAL(tlv->header.type, htons(PCEP_OBJ_TLV_TYPE_RSVP_ERROR_SPEC));
     CU_ASSERT_EQUAL(tlv->header.length,
-            sizeof(struct rsvp_object_header) + sizeof(struct rsvp_error_spec_ipv4));
+            htons(sizeof(struct rsvp_object_header) + sizeof(struct rsvp_error_spec_ipv4)));
 
     free(tlv);
 }
@@ -313,10 +321,10 @@ void test_pcep_tlv_create_rsvp_ipv6_error_spec()
     tlv = pcep_tlv_create_rsvp_ipv6_error_spec(&error_node_ip, flags, error_code, error_value);
     CU_ASSERT_PTR_NOT_NULL(tlv);
 
-    pcep_unpack_obj_tlv(tlv);
-    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_RSVP_ERROR_SPEC);
+    pcep_encode_obj_tlv(tlv);
+    CU_ASSERT_EQUAL(tlv->header.type, htons(PCEP_OBJ_TLV_TYPE_RSVP_ERROR_SPEC));
     CU_ASSERT_EQUAL(tlv->header.length,
-            sizeof(struct rsvp_object_header) + sizeof(struct rsvp_error_spec_ipv6));
+            htons(sizeof(struct rsvp_object_header) + sizeof(struct rsvp_error_spec_ipv6)));
 
     free(tlv);
 }

@@ -150,7 +150,7 @@ void close_pcep_session_with_reason(pcep_session *session, enum pcep_close_reaso
     struct pcep_message* close_msg = pcep_msg_create_close(0, reason);
 
     printf("[%ld-%ld] pcep_session_logic send pcep_close message len [%d] for session_id [%d]\n",
-           time(NULL), pthread_self(), ntohs(close_msg->header->length), session->session_id);
+           time(NULL), pthread_self(), close_msg->header->length, session->session_id);
 
     session_send_message(session, close_msg);
     socket_comm_session_close_tcp_after_write(session->socket_comm_session);
@@ -274,6 +274,7 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
 
 void session_send_message(pcep_session *session, struct pcep_message *message)
 {
+    pcep_msg_encode(message);
     socket_comm_session_send_message(
             session->socket_comm_session,
             (char *) message->header,
@@ -384,7 +385,7 @@ void create_and_send_open(pcep_session *session)
     }
 
     printf("[%ld-%ld] pcep_session_logic send open message: TLVs [%d] len [%d] for session_id [%d]\n",
-            time(NULL), pthread_self(), tlv_list->num_entries, ntohs(open_msg->header->length), session->session_id);
+            time(NULL), pthread_self(), tlv_list->num_entries, open_msg->header->length, session->session_id);
 
     dll_destroy_with_data(tlv_list);
 

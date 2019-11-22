@@ -86,6 +86,7 @@ void test_session_logic_msg_ready_handler()
 
     /* A pcep_session_event should be created */
     struct pcep_message *keep_alive_msg = pcep_msg_create_keepalive();
+    pcep_msg_encode(keep_alive_msg);
     write(fd, (char *) keep_alive_msg->header, ntohs(keep_alive_msg->header->length));
     lseek(fd, 0, SEEK_SET);
     CU_ASSERT_EQUAL(session_logic_msg_ready_handler(&session, fd), ntohs(keep_alive_msg->header->length));

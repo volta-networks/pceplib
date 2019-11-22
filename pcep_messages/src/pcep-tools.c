@@ -27,88 +27,9 @@
 #include <malloc.h>
 #include "pcep-tools.h"
 
-static uint8_t pcep_object_class_lengths[] = {
-        0, sizeof(struct pcep_object_open), sizeof(struct pcep_object_rp), sizeof(struct pcep_object_nopath),
-        /* Setting PCEP_OBJ_CLASS_ENDPOINTS length to 0, since it could be ipv4 or ipv6 */
-        0, sizeof(struct pcep_object_bandwidth), sizeof(struct pcep_object_metric), sizeof(struct pcep_object_ro),
-        sizeof(struct pcep_object_ro), sizeof(struct pcep_object_lspa), sizeof(struct pcep_object_ro), sizeof(struct pcep_object_svec),
-        sizeof(struct pcep_object_notify), sizeof(struct pcep_object_error), 0, sizeof(struct pcep_object_close),
-        0, 0, 0, 0, 0, 0, 0, 0, /* Object classes 16 - 23 are not used */
-        0, 0, 0, 0, 0, 0, 0, 0, /* Object classes 24 - 31 are not used */
-        sizeof(struct pcep_object_lsp), sizeof(struct pcep_object_srp) };
-
-bool
-pcep_obj_parse(struct pcep_object_header* hdr)
+void pcep_decode_msg_header(struct pcep_header* hdr)
 {
-    switch(hdr->object_class) {
-        case PCEP_OBJ_CLASS_OPEN:
-            pcep_unpack_obj_open((struct pcep_object_open*) hdr);
-            break;
-        case PCEP_OBJ_CLASS_RP:
-            pcep_unpack_obj_rp((struct pcep_object_rp*) hdr);
-            break;
-        case PCEP_OBJ_CLASS_NOPATH:
-            pcep_unpack_obj_nopath((struct pcep_object_nopath*) hdr);
-            break;
-        case PCEP_OBJ_CLASS_ENDPOINTS:
-            if(hdr->object_type == PCEP_OBJ_TYPE_ENDPOINT_IPV4) {
-                pcep_unpack_obj_ep_ipv4((struct pcep_object_endpoints_ipv4*) hdr);
-            } else if(hdr->object_type == PCEP_OBJ_TYPE_ENDPOINT_IPV6) {
-                pcep_unpack_obj_ep_ipv6((struct pcep_object_endpoints_ipv6*) hdr);
-            }
-            break;
-        case PCEP_OBJ_CLASS_BANDWIDTH:
-            pcep_unpack_obj_bandwidth((struct pcep_object_bandwidth*) hdr);
-            break;
-        case PCEP_OBJ_CLASS_METRIC:
-            pcep_unpack_obj_metic((struct pcep_object_metric*) hdr);
-            break;
-        case PCEP_OBJ_CLASS_IRO:
-        case PCEP_OBJ_CLASS_RRO:
-        case PCEP_OBJ_CLASS_ERO:
-            pcep_unpack_obj_ro((struct pcep_object_ro*) hdr);
-            break;
-        case PCEP_OBJ_CLASS_LSPA:
-            pcep_unpack_obj_lspa((struct pcep_object_lspa*) hdr);
-            break;
-        case PCEP_OBJ_CLASS_SVEC:
-            pcep_unpack_obj_svec((struct pcep_object_svec*) hdr);
-            break;
-        case PCEP_OBJ_CLASS_ERROR:
-            pcep_unpack_obj_error((struct pcep_object_error*) hdr);
-            break;
-        case PCEP_OBJ_CLASS_CLOSE:
-            pcep_unpack_obj_close((struct pcep_object_close*) hdr);
-            break;
-        case PCEP_OBJ_CLASS_SRP:
-            pcep_unpack_obj_srp((struct pcep_object_srp*) hdr);
-            break;
-        case PCEP_OBJ_CLASS_LSP:
-            pcep_unpack_obj_lsp((struct pcep_object_lsp*) hdr);
-            break;
-        case PCEP_OBJ_CLASS_NOTF:
-            pcep_unpack_obj_notify((struct pcep_object_notify*) hdr);
-            break;
-        default:
-            fprintf(stderr, "WARNING pcep_obj_parse: Unknown object class\n");
-            return false;
-    }
-
-    /* Unpack the TLVs, if the object has them, but not for Route
-     * Objects, since the sub-objects will be confused for TLVs. */
-    if (hdr->object_class != PCEP_OBJ_CLASS_ERO &&
-        hdr->object_class != PCEP_OBJ_CLASS_IRO &&
-        hdr->object_class != PCEP_OBJ_CLASS_RRO)
-    {
-        if (pcep_obj_has_tlv(hdr))
-        {
-            /* This function call unpacks the TLVs */
-            double_linked_list *tlv_list = pcep_obj_get_packed_tlvs(hdr);
-            dll_destroy(tlv_list);
-        }
-    }
-
-    return true;
+    hdr->length = ntohs(hdr->length);
 }
 
 /* Expecting Host byte ordered header */
@@ -181,7 +102,7 @@ pcep_msg_read(int sock_fd)
 
         msg_hdr = (struct pcep_header*) &buffer[buffer_read];
 
-        pcep_unpack_msg_header(msg_hdr);
+        pcep_decode_msg_header(msg_hdr);
         if (validate_message_header(msg_hdr) == false)
         {
             fprintf(stderr, "WARNING pcep_msg_read: Received an invalid message\n");
@@ -214,9 +135,8 @@ pcep_msg_read(int sock_fd)
         /* The obj_list will just have pointers into the message to each object */
         while((msg->header->length - obj_read) > sizeof(struct pcep_object_header)) {
             struct pcep_object_header* obj_hdr = (struct pcep_object_header*) (((uint8_t*) msg->header) + obj_read);
-            pcep_unpack_obj_header(obj_hdr);
 
-            if(pcep_obj_parse(obj_hdr) == true) {
+            if(pcep_obj_parse_decode(obj_hdr) == true) {
                 dll_append(msg->obj_list, obj_hdr);
             } else {
                 err_count++;
@@ -478,79 +398,3 @@ pcep_msg_has_object(struct pcep_header* hdr, bool host_byte_ordered)
         return (ntohs(hdr->length) > sizeof(struct pcep_header) ? true : false);
     }
 }
-
-bool
-pcep_obj_has_tlv(struct pcep_object_header* hdr)
-{
-    uint8_t object_length = pcep_object_class_lengths[hdr->object_class];
-    if (object_length == 0)
-    {
-        return false;
-    }
-
-    return (hdr->object_length - object_length) > 0;
-}
-
-struct pcep_object_tlv*
-pcep_obj_get_next_tlv(struct pcep_object_header *hdr, uint8_t current_index)
-{
-    uint8_t *next_tlv = ((uint8_t *) hdr) + current_index;
-    return (next_tlv >= (((uint8_t *)hdr) + hdr->object_length)) ?
-            NULL : (struct pcep_object_tlv*) next_tlv;
-}
-
-/* Internal util function used by pcep_obj_get_tlvs() and pcep_obj_get_packed_tlvs() */
-static double_linked_list*
-pcep_obj_get_tlvs_(struct pcep_object_header *obj, bool do_unpack)
-{
-    /* Get the size of the object, not including TLVs */
-    uint8_t object_length = pcep_object_class_lengths[obj->object_class];
-    if (object_length == 0)
-    {
-        if (obj->object_class == PCEP_OBJ_CLASS_ENDPOINTS)
-        {
-            if (obj->object_type == PCEP_OBJ_TYPE_ENDPOINT_IPV4)
-            {
-                object_length = sizeof(struct pcep_object_endpoints_ipv4);
-            }
-            else
-            {
-                object_length = sizeof(struct pcep_object_endpoints_ipv6);
-            }
-        }
-        else
-        {
-            return NULL;
-        }
-    }
-
-    double_linked_list *tlv_list = dll_initialize();
-    struct pcep_object_tlv *next_tlv = pcep_obj_get_next_tlv(obj, object_length);
-
-    while (next_tlv != NULL)
-    {
-        if (do_unpack == true)
-        {
-            pcep_unpack_obj_tlv(next_tlv);
-        }
-        dll_append(tlv_list, next_tlv);
-        /* The TLV length is the length of the value, need to also get past the TLV header */
-        object_length += next_tlv->header.length + 4;
-        next_tlv = pcep_obj_get_next_tlv(obj, object_length);
-    }
-
-    return tlv_list;
-}
-
-double_linked_list*
-pcep_obj_get_tlvs(struct pcep_object_header *obj)
-{
-    return pcep_obj_get_tlvs_(obj, false);
-}
-
-double_linked_list*
-pcep_obj_get_packed_tlvs(struct pcep_object_header *obj)
-{
-    return pcep_obj_get_tlvs_(obj, true);
-}
-

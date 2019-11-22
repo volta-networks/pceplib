@@ -124,7 +124,9 @@ void test_pcep_msg_read_pcep_initiate()
     CU_ASSERT_EQUAL(obj_hdr->object_class, PCEP_OBJ_CLASS_LSP);
     CU_ASSERT_EQUAL(obj_hdr->object_type, PCEP_OBJ_TYPE_LSP);
     CU_ASSERT_EQUAL(obj_hdr->object_length, 20);
-    CU_ASSERT_EQUAL(GET_LSP_PCEPID((struct pcep_object_lsp *) obj_hdr), 0);
+    uint8_t id = GET_LSP_PCEPID((struct pcep_object_lsp *) obj_hdr);
+    CU_ASSERT_EQUAL(id, 0);
+    //CU_ASSERT_EQUAL(GET_LSP_PCEPID((struct pcep_object_lsp *) obj_hdr), 0);
     CU_ASSERT_EQUAL(((struct pcep_object_lsp *) obj_hdr)->plsp_id_flags, (PCEP_LSP_D_FLAG | PCEP_LSP_A_FLAG));
 
      /* LSP TLV */

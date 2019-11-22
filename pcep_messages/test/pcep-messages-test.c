@@ -14,6 +14,12 @@
 #include "pcep-messages.h"
 #include "pcep-tools.h"
 
+/*
+ * Notice:
+ * All of these message Unit Tests encode the created messages by explicitly calling
+ * pcep_msg_encode() thus testing the message creation and the message encoding.
+ */
+
 void test_pcep_msg_create_open()
 {
     uint8_t keepalive = 30;
@@ -22,6 +28,7 @@ void test_pcep_msg_create_open()
 
     struct pcep_message *message = pcep_msg_create_open(keepalive, deadtimer, sid);
     CU_ASSERT_PTR_NOT_NULL(message);
+    pcep_msg_encode(message);
     CU_ASSERT_PTR_NOT_NULL(message->header);
     CU_ASSERT_PTR_NOT_NULL(message->obj_list);
     CU_ASSERT_EQUAL(message->obj_list->num_entries, 1);
@@ -55,21 +62,43 @@ void test_pcep_msg_create_request()
     struct pcep_object_rp *rp_obj = pcep_obj_create_rp(0, 0, 0, NULL);
     struct in_addr src_addr, dst_addr;
     struct pcep_object_endpoints_ipv4 *ipv4_obj = pcep_obj_create_enpoint_ipv4(&src_addr, &dst_addr);
-    struct pcep_object_bandwidth *bandwidth_obj = pcep_obj_create_bandwidth(4.2);
-    message = pcep_msg_create_request(rp_obj, ipv4_obj, bandwidth_obj);
+    message = pcep_msg_create_request(rp_obj, ipv4_obj, NULL);
 
     CU_ASSERT_PTR_NOT_NULL(message);
+    pcep_msg_encode(message);
+    CU_ASSERT_PTR_NOT_NULL(message->header);
+    CU_ASSERT_PTR_NOT_NULL(message->obj_list);
+    CU_ASSERT_EQUAL(message->obj_list->num_entries, 2);
+    CU_ASSERT_EQUAL(ntohs(message->header->length),
+            sizeof(struct pcep_header) +
+            sizeof(struct pcep_object_rp) +
+            sizeof(struct pcep_object_endpoints_ipv4));
+    CU_ASSERT_EQUAL(message->header->type, PCEP_TYPE_PCREQ);
+    CU_ASSERT_EQUAL(message->header->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
+    pcep_msg_free_message(message);
+
+    struct pcep_object_bandwidth *bandwidth_obj = pcep_obj_create_bandwidth(4.2);
+    double_linked_list *obj_list = dll_initialize();
+    dll_append(obj_list, bandwidth_obj);
+    message = pcep_msg_create_request(rp_obj, ipv4_obj, obj_list);
+
+    CU_ASSERT_PTR_NOT_NULL(message);
+    pcep_msg_encode(message);
     CU_ASSERT_PTR_NOT_NULL(message->header);
     CU_ASSERT_PTR_NOT_NULL(message->obj_list);
     CU_ASSERT_EQUAL(message->obj_list->num_entries, 3);
     CU_ASSERT_EQUAL(ntohs(message->header->length),
-            sizeof(struct pcep_header) + sizeof(struct pcep_object_rp) +
-            sizeof(struct pcep_object_endpoints_ipv4) + sizeof(struct pcep_object_bandwidth));
+            sizeof(struct pcep_header) +
+            sizeof(struct pcep_object_rp) +
+            sizeof(struct pcep_object_endpoints_ipv4) +
+            sizeof(struct pcep_object_bandwidth));
     CU_ASSERT_EQUAL(message->header->type, PCEP_TYPE_PCREQ);
     CU_ASSERT_EQUAL(message->header->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
+
     free(rp_obj);
     free(ipv4_obj);
     free(bandwidth_obj);
+    dll_destroy(obj_list);
     pcep_msg_free_message(message);
 }
 
@@ -83,8 +112,8 @@ void test_pcep_msg_create_reply_nopath()
 {
     /* First test with NULL nopath and rp objects */
     struct pcep_message *message = pcep_msg_create_reply_nopath(NULL, NULL);
-
     CU_ASSERT_PTR_NOT_NULL(message);
+    pcep_msg_encode(message);
     CU_ASSERT_PTR_NOT_NULL(message->header);
     CU_ASSERT_PTR_NOT_NULL(message->obj_list);
     CU_ASSERT_EQUAL(message->obj_list->num_entries, 0);
@@ -96,8 +125,8 @@ void test_pcep_msg_create_reply_nopath()
     struct pcep_object_rp *rp_obj = pcep_obj_create_rp(0, 0, 0, NULL);
     struct pcep_object_nopath *nopath_obj = pcep_obj_create_nopath(0, 0, 0, 0);
     message = pcep_msg_create_reply_nopath(rp_obj, nopath_obj);
-
     CU_ASSERT_PTR_NOT_NULL(message);
+    pcep_msg_encode(message);
     CU_ASSERT_PTR_NOT_NULL(message->header);
     CU_ASSERT_PTR_NOT_NULL(message->obj_list);
     CU_ASSERT_EQUAL(message->obj_list->num_entries, 2);
@@ -120,6 +149,7 @@ void test_pcep_msg_create_reply()
     struct pcep_message *message = pcep_msg_create_reply(NULL, NULL);
 
     CU_ASSERT_PTR_NOT_NULL(message);
+    pcep_msg_encode(message);
     CU_ASSERT_PTR_NOT_NULL(message->header);
     CU_ASSERT_PTR_NOT_NULL(message->obj_list);
     CU_ASSERT_EQUAL(message->obj_list->num_entries, 0);
@@ -137,8 +167,8 @@ void test_pcep_msg_create_reply()
     dll_append(object_list, ero);
     struct pcep_object_rp *rp_obj = pcep_obj_create_rp(0, 0, 0, NULL);
     message = pcep_msg_create_reply(rp_obj, object_list);
-
     CU_ASSERT_PTR_NOT_NULL(message);
+    pcep_msg_encode(message);
     CU_ASSERT_PTR_NOT_NULL(message->header);
     CU_ASSERT_PTR_NOT_NULL(message->obj_list);
     CU_ASSERT_EQUAL(message->obj_list->num_entries, 2);
@@ -160,8 +190,8 @@ void test_pcep_msg_create_close()
     uint8_t reason = PCEP_CLOSE_REASON_UNREC;
 
     struct pcep_message *message = pcep_msg_create_close(flags, reason);
-
     CU_ASSERT_PTR_NOT_NULL(message);
+    pcep_msg_encode(message);
     CU_ASSERT_PTR_NOT_NULL(message->header);
     CU_ASSERT_PTR_NOT_NULL(message->obj_list);
     CU_ASSERT_EQUAL(message->obj_list->num_entries, 1);
@@ -189,8 +219,8 @@ void test_pcep_msg_create_error()
     uint8_t error_value = PCEP_ERRV_KEEPALIVEWAIT_TIMED_OUT;
 
     struct pcep_message *message = pcep_msg_create_error(error_type, error_value);
-
     CU_ASSERT_PTR_NOT_NULL(message);
+    pcep_msg_encode(message);
     CU_ASSERT_PTR_NOT_NULL(message->header);
     CU_ASSERT_PTR_NOT_NULL(message->obj_list);
     CU_ASSERT_EQUAL(message->obj_list->num_entries, 1);
@@ -215,8 +245,8 @@ void test_pcep_msg_create_error()
 void test_pcep_msg_create_keepalive()
 {
     struct pcep_message *message = pcep_msg_create_keepalive();
-
     CU_ASSERT_PTR_NOT_NULL(message);
+    pcep_msg_encode(message);
     CU_ASSERT_PTR_NOT_NULL(message->header);
     CU_ASSERT_PTR_NOT_NULL(message->obj_list);
     CU_ASSERT_EQUAL(message->obj_list->num_entries, 0);
@@ -239,11 +269,12 @@ void test_pcep_msg_create_report()
     dll_append(obj_list, lsp);
     message = pcep_msg_create_report(obj_list);
     CU_ASSERT_PTR_NOT_NULL(message);
+    pcep_msg_encode(message);
     CU_ASSERT_PTR_NOT_NULL(message->header);
     CU_ASSERT_PTR_NOT_NULL(message->obj_list);
     CU_ASSERT_EQUAL(message->obj_list->num_entries, 1);
     CU_ASSERT_EQUAL(ntohs(message->header->length),
-            sizeof(struct pcep_header) + ntohs(lsp->header.object_length));
+            sizeof(struct pcep_header) + lsp->header.object_length);
     CU_ASSERT_EQUAL(message->header->type, PCEP_TYPE_REPORT);
     CU_ASSERT_EQUAL(message->header->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
 
@@ -279,14 +310,15 @@ void test_pcep_msg_create_update()
     dll_append(obj_list, ero);
     message = pcep_msg_create_update(obj_list);
     CU_ASSERT_PTR_NOT_NULL(message);
+    pcep_msg_encode(message);
     CU_ASSERT_PTR_NOT_NULL(message->header);
     CU_ASSERT_PTR_NOT_NULL(message->obj_list);
     CU_ASSERT_EQUAL(message->obj_list->num_entries, 3);
     CU_ASSERT_EQUAL(ntohs(message->header->length),
             sizeof(struct pcep_header) +
-            ntohs(srp->header.object_length) +
-            ntohs(lsp->header.object_length) +
-            ntohs(ero->header.object_length));
+            srp->header.object_length +
+            lsp->header.object_length +
+            ero->header.object_length);
     CU_ASSERT_EQUAL(message->header->type, PCEP_TYPE_UPDATE);
     CU_ASSERT_EQUAL(message->header->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
 
@@ -319,14 +351,15 @@ void test_pcep_msg_create_initiate()
     dll_append(obj_list, ero);
     message = pcep_msg_create_initiate(obj_list);
     CU_ASSERT_PTR_NOT_NULL(message);
+    pcep_msg_encode(message);
     CU_ASSERT_PTR_NOT_NULL(message->header);
     CU_ASSERT_PTR_NOT_NULL(message->obj_list);
     CU_ASSERT_EQUAL(message->obj_list->num_entries, 3);
     CU_ASSERT_EQUAL(ntohs(message->header->length),
             sizeof(struct pcep_header) +
-            ntohs(srp->header.object_length) +
-            ntohs(lsp->header.object_length) +
-            ntohs(ero->header.object_length));
+            srp->header.object_length +
+            lsp->header.object_length +
+            ero->header.object_length);
     CU_ASSERT_EQUAL(message->header->type, PCEP_TYPE_INITIATE);
     CU_ASSERT_EQUAL(message->header->ver_flags, PCEP_COMMON_HEADER_VER_FLAGS);
 

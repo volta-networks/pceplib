@@ -332,7 +332,10 @@ struct pcep_ro_subobj_sr
       (((tc_3bits)         << 9) & 0x00000e00) | \
       (((stack_bottom_bit) << 8) & 0x00000100) | \
        ((ttl_8bits) & 0xff) )
-
+#define GET_SR_ERO_SID_LABEL(SID)   ((SID & 0xfffff000) >> 12)
+#define GET_SR_ERO_SID_TC(SID)      ((SID & 0x00000e00) >> 9)
+#define GET_SR_ERO_SID_S(SID)       ((SID & 0x00000100) >> 8
+#define GET_SR_ERO_SID_TTL(SID)     ((SID & 0x000000ff))
 
 struct pcep_object_ro_subobj
 {
@@ -346,6 +349,8 @@ struct pcep_object_ro_subobj
         struct pcep_ro_subobj_sr sr;
     } subobj;
 };
+#define GET_RO_SUBOBJ_LFLAG(ro_subobj_ptr) (((ro_subobj_ptr)->type & 0x80) >> 7)
+#define GET_RO_SUBOBJ_TYPE(ro_subobj_ptr)  ((ro_subobj_ptr)->type & 0x7f)
 
 struct pcep_object_lspa
 {
@@ -491,6 +496,16 @@ struct pcep_object_lsp
 }__attribute__((packed));
 #define GET_LSP_PCEPID(lsp_obj_ptr) ((MAX_PLSP_ID) & ((lsp_obj_ptr)->plsp_id_flags >> 12))
 
+/* When iterating sub-objects or TLVs, limit to 10 in case corrupt data is received */
+#define MAX_ITERATIONS 10
+
+/*
+ * All created objects will be in Host byte order.
+ * The message containing the objects should be converted to Network byte order
+ * with pcep_encode_msg_header() before sending, which will also convert the
+ * Objects, TLVs, and sub-objects.
+ */
+
 struct pcep_object_open*                pcep_obj_create_open        (uint8_t keepalive, uint8_t deadtimer, uint8_t sid, double_linked_list *tlv_list);
 struct pcep_object_rp*                  pcep_obj_create_rp          (uint8_t obj_hdr_flags, uint32_t obj_flags, uint32_t reqid, double_linked_list *tlv_list);
 struct pcep_object_nopath*              pcep_obj_create_nopath      (uint8_t obj_hdr_flags, uint8_t ni, uint16_t obj_flags, uint32_t errorcode);
@@ -555,26 +570,16 @@ struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_linklocal_ipv6_ad
                                                                                   uint32_t sid, struct in6_addr *local_ipv6, uint32_t local_if_id,
                                                                                   struct in6_addr *remote_ipv6, uint32_t remote_if_id);
 
-uint32_t*       pcep_obj_svec_get       (struct pcep_object_svec* obj, uint16_t *length);
-void            pcep_obj_svec_print     (struct pcep_object_svec* obj);
+uint32_t*       pcep_obj_svec_get       (struct pcep_object_svec* obj, uint16_t *length, bool host_byte_order);
+void            pcep_obj_svec_print     (struct pcep_object_svec* obj, bool host_byte_order);
 
-void pcep_unpack_obj_header(struct pcep_object_header* hdr);
-void pcep_unpack_obj_open(struct pcep_object_open *open);
-void pcep_unpack_obj_tlv(struct pcep_object_tlv *tlv);
-void pcep_unpack_obj_rp(struct pcep_object_rp *rp);
-void pcep_unpack_obj_nopath(struct pcep_object_nopath *nopath);
-void pcep_unpack_obj_ep_ipv4(struct pcep_object_endpoints_ipv4 *ep_ipv4);
-void pcep_unpack_obj_ep_ipv6(struct pcep_object_endpoints_ipv6 *ep_ipv6);
-void pcep_unpack_obj_bandwidth(struct pcep_object_bandwidth *bandwidth);
-void pcep_unpack_obj_metic(struct pcep_object_metric *metric);
-void pcep_unpack_obj_ro(struct pcep_object_ro *ro);
-void pcep_unpack_obj_lspa(struct pcep_object_lspa *lspa);
-void pcep_unpack_obj_svec(struct pcep_object_svec *svec);
-void pcep_unpack_obj_error(struct pcep_object_error *error);
-void pcep_unpack_obj_close(struct pcep_object_close *close);
-void pcep_unpack_obj_srp(struct pcep_object_srp *srp);
-void pcep_unpack_obj_lsp(struct pcep_object_lsp *lsp);
-void pcep_unpack_obj_notify(struct pcep_object_notify *notify);
+/* This function is called by pcep_msg_encode() before sending messages
+ * to change to Network byte order */
+void pcep_obj_encode(struct pcep_object_header* hdr);
+
+/* Called when a new message is received to parse and decode the objects in a message.
+ * Returns false if the object is not valid, true otherwise. */
+bool pcep_obj_parse_decode(struct pcep_object_header* hdr);
 
 /* Used to get Sub-objects for PCEP_OBJ_CLASS_ERO, PCEP_OBJ_CLASS_IRO,
  * and PCEP_OBJ_CLASS_RRO objects. Will return NULL if the obj is not
@@ -582,6 +587,15 @@ void pcep_unpack_obj_notify(struct pcep_object_notify *notify);
  * type struct pcep_ro_subobj_hdr. Do not free these list entries, as
  * they are just pointers into the object structure. */
 double_linked_list* pcep_obj_get_ro_subobjects(struct pcep_object_header *ro_obj);
+
+/* Returns a double linked list of pointers of type struct pcep_object_tlv.
+ * May return NULL for unrecognized object classes. Do not free these list
+ * entries, as they are just pointers into the object structure. */
+double_linked_list* pcep_obj_get_tlvs(struct pcep_object_header *hdr);
+/* Only used by pcep-tools when the tlvs are in network byte order.
+ * This version will decode the TLVs. */
+double_linked_list* pcep_obj_get_encoded_tlvs(struct pcep_object_header *hdr);
+bool pcep_obj_has_tlv(struct pcep_object_header* hdr);
 
 #ifdef __cplusplus
 }

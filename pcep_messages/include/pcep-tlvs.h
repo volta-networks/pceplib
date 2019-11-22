@@ -58,6 +58,7 @@ struct rsvp_error_spec_ipv6
  * https://www.iana.org/assignments/pcep/pcep.xhtml */
 enum pcep_object_tlv_types
 {
+    PCEP_OBJ_TLV_TYPE_NO_PATH_VECTOR = 1,
     PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY = 16,     /* RFC 8231 */
     PCEP_OBJ_TLV_TYPE_SYMBOLIC_PATH_NAME = 17,          /* RFC 8232 */
     PCEP_OBJ_TLV_TYPE_IPV4_LSP_IDENTIFIERS = 18,        /* RFC 8231 */

@@ -11,6 +11,12 @@
 
 #include "pcep-objects.h"
 
+/*
+ * Notice:
+ * All of these object Unit Tests encode the created objects by explicitly calling
+ * pcep_obj_encode() thus testing the object creation and the object encoding.
+ */
+
 void test_pcep_obj_create_open()
 {
     uint8_t deadtimer = 60;
@@ -20,6 +26,7 @@ void test_pcep_obj_create_open()
     struct pcep_object_open *open = pcep_obj_create_open(keepalive, deadtimer, sid, NULL);
 
     CU_ASSERT_PTR_NOT_NULL(open);
+    pcep_obj_encode(&open->header);
     CU_ASSERT_EQUAL(open->header.object_class, PCEP_OBJ_CLASS_OPEN);
     CU_ASSERT_EQUAL(open->header.object_type, PCEP_OBJ_TYPE_OPEN);
     CU_ASSERT_EQUAL(open->header.object_flags, 0);
@@ -46,13 +53,14 @@ void test_pcep_obj_create_open_with_tlvs()
     struct pcep_object_open *open = pcep_obj_create_open(keepalive, deadtimer, sid, tlv_list);
 
     CU_ASSERT_PTR_NOT_NULL(open);
+    pcep_obj_encode(&open->header);
     CU_ASSERT_EQUAL(open->header.object_class, PCEP_OBJ_CLASS_OPEN);
     CU_ASSERT_EQUAL(open->header.object_type, PCEP_OBJ_TYPE_OPEN);
     CU_ASSERT_EQUAL(open->header.object_flags, 0);
     CU_ASSERT_EQUAL(ntohs(open->header.object_length),
             sizeof(struct pcep_object_open) +
             sizeof(struct pcep_object_tlv_header) +
-            ntohs(tlv->header.length));
+            tlv->header.length);
 
     CU_ASSERT_EQUAL(open->open_deadtimer, deadtimer);
     CU_ASSERT_EQUAL(open->open_keepalive, keepalive);
@@ -73,12 +81,13 @@ void test_pcep_obj_create_rp()
     struct pcep_object_rp *rp = pcep_obj_create_rp(hdrflags, objflags, reqid, NULL);
 
     CU_ASSERT_PTR_NOT_NULL(rp);
+    pcep_obj_encode(&rp->header);
     CU_ASSERT_EQUAL(rp->header.object_class, PCEP_OBJ_CLASS_RP);
     CU_ASSERT_EQUAL(rp->header.object_type, PCEP_OBJ_TYPE_RP);
     CU_ASSERT_EQUAL(rp->header.object_flags, hdrflags);
     CU_ASSERT_EQUAL(rp->header.object_length, ntohs(sizeof(struct pcep_object_rp)));
 
-    CU_ASSERT_EQUAL(rp->rp_flags, objflags);
+    CU_ASSERT_EQUAL(rp->rp_flags, ntohl(objflags));
     CU_ASSERT_EQUAL(rp->rp_reqidnumb, ntohl(reqid));
 
     free(rp);
@@ -94,6 +103,7 @@ void test_pcep_obj_create_nopath()
     struct pcep_object_nopath *nopath = pcep_obj_create_nopath(hdrflags, ni, objflags, errorcode);
 
     CU_ASSERT_PTR_NOT_NULL(nopath);
+    pcep_obj_encode(&nopath->header);
     CU_ASSERT_EQUAL(nopath->header.object_class, PCEP_OBJ_CLASS_NOPATH);
     CU_ASSERT_EQUAL(nopath->header.object_type, PCEP_OBJ_TYPE_NOPATH);
     CU_ASSERT_EQUAL(nopath->header.object_flags, hdrflags);
@@ -125,6 +135,7 @@ void test_pcep_obj_create_enpoint_ipv4()
 
     ipv4 = pcep_obj_create_enpoint_ipv4(&src_ipv4, &dst_ipv4);
     CU_ASSERT_PTR_NOT_NULL(ipv4);
+    pcep_obj_encode(&ipv4->header);
     CU_ASSERT_EQUAL(ipv4->header.object_class, PCEP_OBJ_CLASS_ENDPOINTS);
     CU_ASSERT_EQUAL(ipv4->header.object_type, PCEP_OBJ_TYPE_ENDPOINT_IPV4);
     CU_ASSERT_EQUAL(ipv4->header.object_flags, 0);
@@ -152,6 +163,7 @@ void test_pcep_obj_create_enpoint_ipv6()
 
     ipv6 = pcep_obj_create_enpoint_ipv6(&src_ipv6, &dst_ipv6);
     CU_ASSERT_PTR_NOT_NULL(ipv6);
+    pcep_obj_encode(&ipv6->header);
     CU_ASSERT_EQUAL(ipv6->header.object_class, PCEP_OBJ_CLASS_ENDPOINTS);
     CU_ASSERT_EQUAL(ipv6->header.object_type, PCEP_OBJ_TYPE_ENDPOINT_IPV6);
     CU_ASSERT_EQUAL(ipv6->header.object_flags, 0);
@@ -175,6 +187,7 @@ void test_pcep_obj_create_bandwidth()
     struct pcep_object_bandwidth *bw = pcep_obj_create_bandwidth(bandwidth);
 
     CU_ASSERT_PTR_NOT_NULL(bw);
+    pcep_obj_encode(&bw->header);
     CU_ASSERT_EQUAL(bw->header.object_class, PCEP_OBJ_CLASS_BANDWIDTH);
     CU_ASSERT_EQUAL(bw->header.object_type, PCEP_OBJ_TYPE_BANDWIDTH_REQ);
     CU_ASSERT_EQUAL(bw->header.object_flags, 0);
@@ -193,6 +206,7 @@ void test_pcep_obj_create_metric()
     struct pcep_object_metric *metric = pcep_obj_create_metric(flags, type, value);
 
     CU_ASSERT_PTR_NOT_NULL(metric);
+    pcep_obj_encode(&metric->header);
     CU_ASSERT_EQUAL(metric->header.object_class, PCEP_OBJ_CLASS_METRIC);
     CU_ASSERT_EQUAL(metric->header.object_type, PCEP_OBJ_TYPE_METRIC);
     CU_ASSERT_EQUAL(metric->header.object_flags, 0);
@@ -212,6 +226,7 @@ void test_pcep_obj_create_lspa()
     struct pcep_object_lspa *lspa = pcep_obj_create_lspa(prio, hold_prio);
 
     CU_ASSERT_PTR_NOT_NULL(lspa);
+    pcep_obj_encode(&lspa->header);
     CU_ASSERT_EQUAL(lspa->header.object_class, PCEP_OBJ_CLASS_LSPA);
     CU_ASSERT_EQUAL(lspa->header.object_type, PCEP_OBJ_TYPE_LSPA);
     CU_ASSERT_EQUAL(lspa->header.object_flags, 0);
@@ -235,23 +250,25 @@ void test_pcep_obj_create_svec()
 
     svec = pcep_obj_create_svec(srlg, node, link, ids_count, ids);
     CU_ASSERT_PTR_NOT_NULL(svec);
+    pcep_obj_encode(&svec->header);
     CU_ASSERT_EQUAL(svec->header.object_class, PCEP_OBJ_CLASS_SVEC);
     CU_ASSERT_EQUAL(svec->header.object_type, PCEP_OBJ_TYPE_SVEC);
     CU_ASSERT_EQUAL(svec->header.object_flags, 0);
     CU_ASSERT_EQUAL(svec->header.object_length,
-            ntohs(sizeof(struct pcep_object_svec) + (ids_count*sizeof(uint32_t))));
+            htons(sizeof(struct pcep_object_svec) + (ids_count*sizeof(uint32_t))));
     CU_ASSERT_EQUAL(svec->flag_srlg, srlg);
     CU_ASSERT_EQUAL(svec->flag_node, node);
     CU_ASSERT_EQUAL(svec->flag_link, link);
     uint32_t *svec_ids = (uint32_t *) (((uint8_t *) svec) + sizeof(struct pcep_object_svec));
-    CU_ASSERT_EQUAL(svec_ids[0], ntohl(ids[0]));
-    CU_ASSERT_EQUAL(svec_ids[1], ntohl(ids[1]));
-    CU_ASSERT_EQUAL(svec_ids[2], ntohl(ids[2]));
+    CU_ASSERT_EQUAL(svec_ids[0], htonl(ids[0]));
+    CU_ASSERT_EQUAL(svec_ids[1], htonl(ids[1]));
+    CU_ASSERT_EQUAL(svec_ids[2], htonl(ids[2]));
 
     free(svec);
 
     svec = pcep_obj_create_svec(srlg, node, link, 0, ids);
     CU_ASSERT_PTR_NOT_NULL(svec);
+    pcep_obj_encode(&svec->header);
     CU_ASSERT_EQUAL(svec->header.object_class, PCEP_OBJ_CLASS_SVEC);
     CU_ASSERT_EQUAL(svec->header.object_type, PCEP_OBJ_TYPE_SVEC);
     CU_ASSERT_EQUAL(svec->header.object_flags, 0);
@@ -268,6 +285,7 @@ void test_pcep_obj_create_error()
     struct pcep_object_error *error = pcep_obj_create_error(error_type, error_value);
 
     CU_ASSERT_PTR_NOT_NULL(error);
+    pcep_obj_encode(&error->header);
     CU_ASSERT_EQUAL(error->header.object_class, PCEP_OBJ_CLASS_ERROR);
     CU_ASSERT_EQUAL(error->header.object_type, PCEP_OBJ_TYPE_ERROR);
     CU_ASSERT_EQUAL(error->header.object_flags, 0);
@@ -286,6 +304,7 @@ void test_pcep_obj_create_close()
     struct pcep_object_close *close = pcep_obj_create_close(flags, reason);
 
     CU_ASSERT_PTR_NOT_NULL(close);
+    pcep_obj_encode(&close->header);
     CU_ASSERT_EQUAL(close->header.object_class, PCEP_OBJ_CLASS_CLOSE);
     CU_ASSERT_EQUAL(close->header.object_type, PCEP_OBJ_TYPE_CLOSE);
     CU_ASSERT_EQUAL(close->header.object_flags, 0);
@@ -303,6 +322,7 @@ void test_pcep_obj_create_srp()
     struct pcep_object_srp *srp = pcep_obj_create_srp(lsp_remove, srp_id_number, NULL);
 
     CU_ASSERT_PTR_NOT_NULL(srp);
+    pcep_obj_encode(&srp->header);
     CU_ASSERT_EQUAL(srp->header.object_class, PCEP_OBJ_CLASS_SRP);
     CU_ASSERT_EQUAL(srp->header.object_type, PCEP_OBJ_TYPE_SRP);
     CU_ASSERT_EQUAL(srp->header.object_flags, 0);
@@ -334,11 +354,12 @@ void test_pcep_obj_create_lsp()
     lsp = pcep_obj_create_lsp(plsp_id, status, c_flag, a_flag, r_flag, s_flag, d_flag, NULL);
 
     CU_ASSERT_PTR_NOT_NULL(lsp);
+    pcep_obj_encode(&lsp->header);
     CU_ASSERT_EQUAL(lsp->header.object_class, PCEP_OBJ_CLASS_LSP);
     CU_ASSERT_EQUAL(lsp->header.object_type, PCEP_OBJ_TYPE_LSP);
     CU_ASSERT_EQUAL(lsp->header.object_flags, 0);
     CU_ASSERT_EQUAL(lsp->header.object_length, ntohs(sizeof(struct pcep_object_lsp)));
-    /* Unpack the lsp fields */
+    /* decode the lsp fields */
     uint32_t *lsp_fields = (uint32_t *) (((uint8_t *) lsp) + 4);
     *lsp_fields = ntohl(*lsp_fields);
     CU_ASSERT_EQUAL(GET_LSP_PCEPID(lsp), plsp_id);
@@ -363,6 +384,7 @@ static void test_pcep_obj_create_object_common(ro_func func_to_test, uint8_t obj
 
     struct pcep_object_ro *ero = func_to_test(NULL);
     CU_ASSERT_PTR_NOT_NULL(ero);
+    pcep_obj_encode(&ero->header);
     CU_ASSERT_EQUAL(ero->header.object_class, object_class);
     CU_ASSERT_EQUAL(ero->header.object_type, object_type);
     CU_ASSERT_EQUAL(ero->header.object_flags, 0);
@@ -371,6 +393,7 @@ static void test_pcep_obj_create_object_common(ro_func func_to_test, uint8_t obj
 
     ero = func_to_test(ero_list);
     CU_ASSERT_PTR_NOT_NULL(ero);
+    pcep_obj_encode(&ero->header);
     CU_ASSERT_EQUAL(ero->header.object_class, object_class);
     CU_ASSERT_EQUAL(ero->header.object_type, object_type);
     CU_ASSERT_EQUAL(ero->header.object_flags, 0);
@@ -381,6 +404,7 @@ static void test_pcep_obj_create_object_common(ro_func func_to_test, uint8_t obj
     dll_append(ero_list, ro_subobj);
     ero = func_to_test(ero_list);
     CU_ASSERT_PTR_NOT_NULL(ero);
+    pcep_obj_encode(&ero->header);
     CU_ASSERT_EQUAL(ero->header.object_class, object_class);
     CU_ASSERT_EQUAL(ero->header.object_type, object_type);
     CU_ASSERT_EQUAL(ero->header.object_flags, 0);
@@ -409,6 +433,23 @@ void test_pcep_obj_create_iro()
             pcep_obj_create_iro, PCEP_OBJ_CLASS_IRO, PCEP_OBJ_TYPE_IRO);
 }
 
+/* Internal util function to wrap an RO Subobj in a RO and encode it */
+static void encode_ro_subobj(struct pcep_object_ro_subobj *sr)
+{
+    double_linked_list *sr_subobj_list = dll_initialize();
+    dll_append(sr_subobj_list, sr);
+    struct pcep_object_ro *ero = pcep_obj_create_ero(sr_subobj_list);
+    pcep_obj_encode(&ero->header);
+
+    /* The original sr is copied to the ero in pcep_obj_create_ero(),
+     * so now we need to copy the encoded sr back to the original sr */
+    memcpy(sr, ((uint8_t *) &ero->header) + sizeof(struct pcep_object_ro),
+           ntohs(ero->header.object_length) - sizeof(struct pcep_object_ro));
+
+    free(ero);
+    dll_destroy(sr_subobj_list);
+}
+
 void test_pcep_obj_create_ro_subobj_ipv4()
 {
     struct in_addr ro_ipv4;
@@ -420,6 +461,7 @@ void test_pcep_obj_create_ro_subobj_ipv4()
     inet_pton(AF_INET, "192.168.1.2", &ro_ipv4);
     ipv4 = pcep_obj_create_ro_subobj_ipv4(false, &ro_ipv4, prefix_len);
     CU_ASSERT_PTR_NOT_NULL(ipv4);
+    encode_ro_subobj(ipv4);
     CU_ASSERT_EQUAL(ipv4->subobj.ipv4.header.type, RO_SUBOBJ_TYPE_IPV4);
     CU_ASSERT_EQUAL(ipv4->subobj.ipv4.header.length, sizeof(struct pcep_ro_subobj_ipv4));
     CU_ASSERT_EQUAL(ipv4->subobj.ipv4.prefix_length, prefix_len);
@@ -428,6 +470,7 @@ void test_pcep_obj_create_ro_subobj_ipv4()
 
     ipv4 = pcep_obj_create_ro_subobj_ipv4(true, &ro_ipv4, prefix_len);
     CU_ASSERT_PTR_NOT_NULL(ipv4);
+    encode_ro_subobj(ipv4);
     CU_ASSERT_EQUAL(ipv4->subobj.ipv4.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_IPV4));
     CU_ASSERT_EQUAL(ipv4->subobj.ipv4.header.length, sizeof(struct pcep_ro_subobj_ipv4));
     CU_ASSERT_EQUAL(ipv4->subobj.ipv4.prefix_length, prefix_len);
@@ -446,6 +489,7 @@ void test_pcep_obj_create_ro_subobj_ipv6()
     inet_pton(AF_INET6, "2001:db8::8a2e:370:7334", &ro_ipv6);
     ipv6 = pcep_obj_create_ro_subobj_ipv6(false, &ro_ipv6, prefix_len);
     CU_ASSERT_PTR_NOT_NULL(ipv6);
+    encode_ro_subobj(ipv6);
     CU_ASSERT_EQUAL(ipv6->subobj.ipv6.header.type, RO_SUBOBJ_TYPE_IPV6);
     CU_ASSERT_EQUAL(ipv6->subobj.ipv6.header.length, sizeof(struct pcep_ro_subobj_ipv6));
     CU_ASSERT_EQUAL(ipv6->subobj.ipv6.prefix_length, prefix_len);
@@ -461,6 +505,7 @@ void test_pcep_obj_create_ro_subobj_ipv6()
 
     ipv6 = pcep_obj_create_ro_subobj_ipv6(true, &ro_ipv6, prefix_len);
     CU_ASSERT_PTR_NOT_NULL(ipv6);
+    encode_ro_subobj(ipv6);
     CU_ASSERT_EQUAL(ipv6->subobj.ipv6.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_IPV6));
     CU_ASSERT_EQUAL(ipv6->subobj.ipv6.header.length, sizeof(struct pcep_ro_subobj_ipv6));
     CU_ASSERT_EQUAL(ipv6->subobj.ipv6.prefix_length, prefix_len);
@@ -487,6 +532,7 @@ void test_pcep_obj_create_ro_subobj_unnum()
     inet_pton(AF_INET, "192.168.1.2", &router_id);
     unnum = pcep_obj_create_ro_subobj_unnum(&router_id, ifId, resv);
     CU_ASSERT_PTR_NOT_NULL(unnum);
+    encode_ro_subobj(unnum);
     CU_ASSERT_EQUAL(unnum->subobj.unnum.header.type, RO_SUBOBJ_TYPE_UNNUM);
     CU_ASSERT_EQUAL(unnum->subobj.unnum.header.length, sizeof(struct pcep_ro_subobj_unnum));
     CU_ASSERT_EQUAL(unnum->subobj.unnum.ifId, ntohl(ifId));
@@ -503,6 +549,7 @@ void test_pcep_obj_create_ro_subobj_32label()
 
     struct pcep_object_ro_subobj *label32 = pcep_obj_create_ro_subobj_32label(dir, label);
     CU_ASSERT_PTR_NOT_NULL(label32);
+    encode_ro_subobj(label32);
     CU_ASSERT_EQUAL(label32->subobj.label.header.type, RO_SUBOBJ_TYPE_LABEL);
     CU_ASSERT_EQUAL(label32->subobj.label.header.length, sizeof(struct pcep_ro_subobj_32label));
     CU_ASSERT_EQUAL(label32->subobj.label.label, ntohl(label));
@@ -520,6 +567,7 @@ void test_pcep_obj_create_ro_subobj_border()
 
     struct pcep_object_ro_subobj *border = pcep_obj_create_ro_subobj_border(direction, swcap_from, swcap_to);
     CU_ASSERT_PTR_NOT_NULL(border);
+    encode_ro_subobj(border);
     CU_ASSERT_EQUAL(border->subobj.border.header.type, RO_SUBOBJ_TYPE_BORDER);
     CU_ASSERT_EQUAL(border->subobj.border.header.length, sizeof(struct pcep_ro_subobj_border));
     CU_ASSERT_EQUAL(border->subobj.border.direction, direction);
@@ -535,6 +583,7 @@ void test_pcep_obj_create_ro_subobj_asn()
 
     struct pcep_object_ro_subobj *asn_obj = pcep_obj_create_ro_subobj_asn(asn);
     CU_ASSERT_PTR_NOT_NULL(asn_obj);
+    encode_ro_subobj(asn_obj);
     CU_ASSERT_EQUAL(asn_obj->subobj.asn.header.type, RO_SUBOBJ_TYPE_ASN);
     CU_ASSERT_EQUAL(asn_obj->subobj.asn.header.length, sizeof(struct pcep_ro_subobj_asn));
     CU_ASSERT_EQUAL(asn_obj->subobj.asn.aut_sys_number, asn);
@@ -547,6 +596,7 @@ void test_pcep_obj_create_ro_subobj_sr_nonai()
     uint32_t sid = 0x01020304;
     struct pcep_object_ro_subobj *sr = pcep_obj_create_ro_subobj_sr_nonai(false, sid);
     CU_ASSERT_PTR_NOT_NULL(sr);
+    encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + sizeof(uint32_t));
@@ -555,6 +605,7 @@ void test_pcep_obj_create_ro_subobj_sr_nonai()
 
     sr = pcep_obj_create_ro_subobj_sr_nonai(true, sid);
     CU_ASSERT_PTR_NOT_NULL(sr);
+    encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + sizeof(uint32_t));
@@ -576,6 +627,7 @@ void test_pcep_obj_create_ro_subobj_sr_ipv4_node()
     /* Test the sid is absent */
     sr = pcep_obj_create_ro_subobj_sr_ipv4_node(true, true, false, false, sid, &ipv4_node_id);
     CU_ASSERT_PTR_NOT_NULL(sr);
+    encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length, sizeof(struct pcep_ro_subobj_sr) + sizeof(struct in_addr));
     CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_IPV4_NODE | PCEP_SR_SUBOBJ_S_FLAG)));
@@ -585,6 +637,7 @@ void test_pcep_obj_create_ro_subobj_sr_ipv4_node()
     /* Test the sid is present */
     sr = pcep_obj_create_ro_subobj_sr_ipv4_node(false, false, true, true, sid, &ipv4_node_id);
     CU_ASSERT_PTR_NOT_NULL(sr);
+    encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + sizeof(struct in_addr) + sizeof(uint32_t));
@@ -607,6 +660,7 @@ void test_pcep_obj_create_ro_subobj_sr_ipv6_node()
     /* Test the sid is absent */
     sr = pcep_obj_create_ro_subobj_sr_ipv6_node(true, true, true, true, sid, &ipv6_node_id);
     CU_ASSERT_PTR_NOT_NULL(sr);
+    encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length, sizeof(struct pcep_ro_subobj_sr) + sizeof(struct in6_addr));
     CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_IPV6_NODE | PCEP_SR_SUBOBJ_S_FLAG)));
@@ -619,6 +673,7 @@ void test_pcep_obj_create_ro_subobj_sr_ipv6_node()
     /* Test the sid is present */
     sr = pcep_obj_create_ro_subobj_sr_ipv6_node(false, false, true, true, sid, &ipv6_node_id);
     CU_ASSERT_PTR_NOT_NULL(sr);
+    encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + sizeof(struct in6_addr) + sizeof(uint32_t));
@@ -655,6 +710,7 @@ void test_pcep_obj_create_ro_subobj_sr_ipv4_adj()
     /* Test the sid is absent */
     sr = pcep_obj_create_ro_subobj_sr_ipv4_adj(true, true, true, true, sid, &local_ipv4, &remote_ipv4);
     CU_ASSERT_PTR_NOT_NULL(sr);
+    encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + (sizeof(struct in_addr) * 2));
@@ -666,6 +722,7 @@ void test_pcep_obj_create_ro_subobj_sr_ipv4_adj()
     /* Test the sid is present */
     sr = pcep_obj_create_ro_subobj_sr_ipv4_adj(false, false, true, true, sid, &local_ipv4, &remote_ipv4);
     CU_ASSERT_PTR_NOT_NULL(sr);
+    encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + (sizeof(struct in_addr) * 2) + sizeof(uint32_t));
@@ -697,6 +754,7 @@ void test_pcep_obj_create_ro_subobj_sr_ipv6_adj()
     /* Test the sid is absent */
     sr = pcep_obj_create_ro_subobj_sr_ipv6_adj(true, true, true, true, sid, &local_ipv6, &remote_ipv6);
     CU_ASSERT_PTR_NOT_NULL(sr);
+    encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length, sizeof(struct pcep_ro_subobj_sr) + (sizeof(struct in6_addr) * 2));
     CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY | PCEP_SR_SUBOBJ_S_FLAG)));
@@ -713,6 +771,7 @@ void test_pcep_obj_create_ro_subobj_sr_ipv6_adj()
     /* Test the sid is present */
     sr = pcep_obj_create_ro_subobj_sr_ipv6_adj(false, false, true, false, sid, &local_ipv6, &remote_ipv6);
     CU_ASSERT_PTR_NOT_NULL(sr);
+    encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + (sizeof(struct in6_addr) * 2) + sizeof(uint32_t));
@@ -745,6 +804,7 @@ void test_pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj()
             true, true, true, true, sid,
             local_node_id, local_if_id, remote_node_id, remote_if_id);
     CU_ASSERT_PTR_NOT_NULL(sr);
+    encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length, sizeof(struct pcep_ro_subobj_sr) + (sizeof(struct in_addr) * 4));
     CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags,
@@ -760,6 +820,7 @@ void test_pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj()
             false, false, true, true, sid,
             local_node_id, local_if_id, remote_node_id, remote_if_id);
     CU_ASSERT_PTR_NOT_NULL(sr);
+    encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length, sizeof(struct pcep_ro_subobj_sr) + (sizeof(struct in_addr) * 5));
     CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags,
@@ -799,6 +860,7 @@ void test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj()
     sr = pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
             true, true, true, true, sid, &local_ipv6, local_if_id, &remote_ipv6, remote_if_id);
     CU_ASSERT_PTR_NOT_NULL(sr);
+    encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length, sizeof(struct pcep_ro_subobj_sr) +
                                                  (sizeof(struct in_addr) * 2) +
@@ -822,13 +884,15 @@ void test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj()
     sr = pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
             false, false, true, true, sid, &local_ipv6, local_if_id, &remote_ipv6, remote_if_id);
     CU_ASSERT_PTR_NOT_NULL(sr);
+    encode_ro_subobj(sr);
+
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length, sizeof(struct pcep_ro_subobj_sr) +
                                                  (sizeof(struct in_addr) * 2) +
                                                  (sizeof(struct in6_addr) * 2) +
                                                  (sizeof(uint32_t)));
     CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags,
-            htons((PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY | PCEP_SR_SUBOBJ_C_FLAG | PCEP_SR_SUBOBJ_M_FLAG)));
+            ntohs(PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY | PCEP_SR_SUBOBJ_C_FLAG | PCEP_SR_SUBOBJ_M_FLAG));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[0], htonl(sid));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[1], htonl(local_ipv6.__in6_u.__u6_addr32[0]));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[2], htonl(local_ipv6.__in6_u.__u6_addr32[1]));
@@ -844,27 +908,7 @@ void test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj()
     free(sr);
 }
 
-static struct pcep_object_ro *wrap_subobj_with_ro(struct pcep_object_ro_subobj *subobj)
-{
-    /* Even though the subobj can be of any type, the header
-     * is always at the same place, so just using asn subobj */
-    struct pcep_object_ro *route_object =
-            malloc(sizeof(struct pcep_object_ro) +
-                   subobj->subobj.asn.header.length);
-    bzero(route_object, sizeof(struct pcep_object_ro));
-
-    /* We just need to simply wrap the subobj with an object header,
-     * only the header length field needs to be set. */
-    route_object->header.object_length =
-            sizeof(struct pcep_object_ro) + subobj->subobj.asn.header.length;
-    memcpy(((uint8_t *) route_object) + sizeof(struct pcep_object_ro),
-           subobj,
-           subobj->subobj.asn.header.length);
-
-    return route_object;
-}
-
-void test_pcep_unpack_obj_ro()
+void test_pcep_decode_obj_ro()
 {
     struct in_addr local_ipv4;
     struct in_addr remote_ipv4;
@@ -879,41 +923,32 @@ void test_pcep_unpack_obj_ro()
 
     /* RO_SUBOBJ_TYPE_UNNUM */
     struct pcep_object_ro_subobj *unnum = pcep_obj_create_ro_subobj_unnum(&local_ipv4, local_if_id, 0);
-    struct pcep_object_ro *ro = wrap_subobj_with_ro(unnum);
-    struct pcep_object_ro_subobj *unnum_subobj = (struct pcep_object_ro_subobj *) (ro + 1);
-    CU_ASSERT_EQUAL(unnum_subobj->subobj.unnum.ifId, ntohl(local_if_id));
-    CU_ASSERT_EQUAL(unnum_subobj->subobj.unnum.routerId.s_addr, ntohl(local_ipv4.s_addr));
-    pcep_unpack_obj_ro(ro);
-    CU_ASSERT_EQUAL(unnum_subobj->subobj.unnum.ifId, local_if_id);
-    CU_ASSERT_EQUAL(unnum_subobj->subobj.unnum.routerId.s_addr, local_ipv4.s_addr);
+    CU_ASSERT_EQUAL(unnum->subobj.unnum.ifId, local_if_id);
+    CU_ASSERT_EQUAL(unnum->subobj.unnum.routerId.s_addr, local_ipv4.s_addr);
+    encode_ro_subobj(unnum);
+    CU_ASSERT_EQUAL(unnum->subobj.unnum.ifId, ntohl(local_if_id));
+    CU_ASSERT_EQUAL(unnum->subobj.unnum.routerId.s_addr, ntohl(local_ipv4.s_addr));
     free(unnum);
-    free(ro);
 
     /* RO_SUBOBJ_TYPE_IPV4 */
     struct pcep_object_ro_subobj *ipv4 = pcep_obj_create_ro_subobj_ipv4(true, &local_ipv4, 8);
-    ro = wrap_subobj_with_ro(ipv4);
-    struct pcep_object_ro_subobj *ipv4_subobj = (struct pcep_object_ro_subobj *) (ro + 1);
-    CU_ASSERT_EQUAL(ipv4_subobj->subobj.ipv4.ip_addr.s_addr, ntohl(local_ipv4.s_addr));
-    pcep_unpack_obj_ro(ro);
-    CU_ASSERT_EQUAL(ipv4_subobj->subobj.ipv4.ip_addr.s_addr, local_ipv4.s_addr);
+    CU_ASSERT_EQUAL(ipv4->subobj.ipv4.ip_addr.s_addr, local_ipv4.s_addr);
+    encode_ro_subobj(ipv4);
+    CU_ASSERT_EQUAL(ipv4->subobj.ipv4.ip_addr.s_addr, ntohl(local_ipv4.s_addr));
     free(ipv4);
-    free(ro);
 
     /* RO_SUBOBJ_TYPE_IPV6 */
     struct pcep_object_ro_subobj *ipv6 = pcep_obj_create_ro_subobj_ipv6(true, &local_ipv6, 8);
-    ro = wrap_subobj_with_ro(ipv6);
-    struct pcep_object_ro_subobj *ipv6_subobj = (struct pcep_object_ro_subobj *) (ro + 1);
-    CU_ASSERT_EQUAL(ipv6_subobj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[0], ntohl(local_ipv6.__in6_u.__u6_addr32[0]));
-    CU_ASSERT_EQUAL(ipv6_subobj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[1], ntohl(local_ipv6.__in6_u.__u6_addr32[1]));
-    CU_ASSERT_EQUAL(ipv6_subobj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[2], ntohl(local_ipv6.__in6_u.__u6_addr32[2]));
-    CU_ASSERT_EQUAL(ipv6_subobj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[3], ntohl(local_ipv6.__in6_u.__u6_addr32[3]));
-    pcep_unpack_obj_ro(ro);
-    CU_ASSERT_EQUAL(ipv6_subobj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[0], local_ipv6.__in6_u.__u6_addr32[0]);
-    CU_ASSERT_EQUAL(ipv6_subobj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[1], local_ipv6.__in6_u.__u6_addr32[1]);
-    CU_ASSERT_EQUAL(ipv6_subobj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[2], local_ipv6.__in6_u.__u6_addr32[2]);
-    CU_ASSERT_EQUAL(ipv6_subobj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[3], local_ipv6.__in6_u.__u6_addr32[3]);
+    CU_ASSERT_EQUAL(ipv6->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[0], local_ipv6.__in6_u.__u6_addr32[0]);
+    CU_ASSERT_EQUAL(ipv6->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[1], local_ipv6.__in6_u.__u6_addr32[1]);
+    CU_ASSERT_EQUAL(ipv6->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[2], local_ipv6.__in6_u.__u6_addr32[2]);
+    CU_ASSERT_EQUAL(ipv6->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[3], local_ipv6.__in6_u.__u6_addr32[3]);
+    encode_ro_subobj(ipv6);
+    CU_ASSERT_EQUAL(ipv6->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[0], ntohl(local_ipv6.__in6_u.__u6_addr32[0]));
+    CU_ASSERT_EQUAL(ipv6->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[1], ntohl(local_ipv6.__in6_u.__u6_addr32[1]));
+    CU_ASSERT_EQUAL(ipv6->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[2], ntohl(local_ipv6.__in6_u.__u6_addr32[2]));
+    CU_ASSERT_EQUAL(ipv6->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[3], ntohl(local_ipv6.__in6_u.__u6_addr32[3]));
     free(ipv6);
-    free(ro);
 }
 
 void verify_sid_nai(const char *fail_message, struct pcep_ro_subobj_sr *sr, uint32_t entries[], uint8_t num_elements)
@@ -950,7 +985,7 @@ void verify_sid_nai_ntohl(const char *fail_message, struct pcep_ro_subobj_sr *sr
     }
 }
 
-void test_pcep_unpack_obj_ro_sr()
+void test_pcep_decode_obj_ro_sr()
 {
     struct in_addr local_ipv4;
     struct in_addr remote_ipv4;
@@ -976,99 +1011,78 @@ void test_pcep_unpack_obj_ro_sr()
     /* PCEP_SR_SUBOBJ_NAI_IPV4_NODE */
     struct pcep_object_ro_subobj *sr =
             pcep_obj_create_ro_subobj_sr_ipv4_node(true, false, true, true, sid, &local_ipv4);
-    struct pcep_object_ro *ro = wrap_subobj_with_ro(sr);
-    struct pcep_object_ro_subobj *sr_subobj = (struct pcep_object_ro_subobj *) (ro + 1);
     compare_entries[0] = sid;
     compare_entries[1] = local_ipv4.s_addr;
-    verify_sid_nai_ntohl("sr_ipv4_node", &sr_subobj->subobj.sr, compare_entries, 2);
-    pcep_unpack_obj_ro(ro);
-    verify_sid_nai("sr_ipv4_node", &sr_subobj->subobj.sr, compare_entries, 2);
+    verify_sid_nai("sr_ipv4_node", &sr->subobj.sr, compare_entries, 2);
+    encode_ro_subobj(sr);
+    verify_sid_nai_ntohl("sr_ipv4_node", &sr->subobj.sr, compare_entries, 2);
     free(sr);
-    free(ro);
 
     /* PCEP_SR_SUBOBJ_NAI_IPV6_NODE */
     sr = pcep_obj_create_ro_subobj_sr_ipv6_node(false, false, true, true, sid, &local_ipv6);
-    ro = wrap_subobj_with_ro(sr);
-    sr_subobj = (struct pcep_object_ro_subobj *) (ro + 1);
     compare_entries[0] = sid;
     memcpy(&(compare_entries[1]), local_ipv6.__in6_u.__u6_addr32, sizeof(uint32_t) * 4);
-    verify_sid_nai_ntohl("sr_ipv6_node", &sr_subobj->subobj.sr, compare_entries, 5);
-    pcep_unpack_obj_ro(ro);
-    verify_sid_nai("sr_ipv6_node", &sr_subobj->subobj.sr, compare_entries, 5);
+    verify_sid_nai("sr_ipv6_node", &sr->subobj.sr, compare_entries, 5);
+    encode_ro_subobj(sr);
+    verify_sid_nai_ntohl("sr_ipv6_node", &sr->subobj.sr, compare_entries, 5);
     free(sr);
-    free(ro);
 
     /* PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY */
     sr = pcep_obj_create_ro_subobj_sr_ipv4_adj(false, false, true, true, sid, &local_ipv4, &remote_ipv4);
-    ro = wrap_subobj_with_ro(sr);
-    sr_subobj = (struct pcep_object_ro_subobj *) (ro + 1);
     compare_entries[0] = sid;
     compare_entries[1] = local_ipv4.s_addr;
     compare_entries[2] = remote_ipv4.s_addr;
-    verify_sid_nai_ntohl("sr_ipv4_adj", &sr_subobj->subobj.sr, compare_entries, 3);
-    pcep_unpack_obj_ro(ro);
-    verify_sid_nai("sr_ipv4_adj", &sr_subobj->subobj.sr, compare_entries, 3);
+    verify_sid_nai("sr_ipv4_adj", &sr->subobj.sr, compare_entries, 3);
+    encode_ro_subobj(sr);
+    verify_sid_nai_ntohl("sr_ipv4_adj", &sr->subobj.sr, compare_entries, 3);
     free(sr);
-    free(ro);
 
     /* PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY */
     sr = pcep_obj_create_ro_subobj_sr_ipv6_adj(false, false, true, true, sid, &local_ipv6, &remote_ipv6);
-    ro = wrap_subobj_with_ro(sr);
-    sr_subobj = (struct pcep_object_ro_subobj *) (ro + 1);
     compare_entries[0] = sid;
     memcpy(&(compare_entries[1]), local_ipv6.__in6_u.__u6_addr32, sizeof(uint32_t) * 4);
     memcpy(&(compare_entries[5]), remote_ipv6.__in6_u.__u6_addr32, sizeof(uint32_t) * 4);
-    verify_sid_nai_ntohl("sr_ipv6_adj", &sr_subobj->subobj.sr, compare_entries, 9);
-    pcep_unpack_obj_ro(ro);
-    verify_sid_nai("sr_ipv6_adj", &sr_subobj->subobj.sr, compare_entries, 9);
+    verify_sid_nai("sr_ipv6_adj", &sr->subobj.sr, compare_entries, 9);
+    encode_ro_subobj(sr);
+    verify_sid_nai_ntohl("sr_ipv6_adj", &sr->subobj.sr, compare_entries, 9);
     free(sr);
-    free(ro);
 
     /* PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY */
     sr = pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(false, false, true, true,
             sid, local_node_id, local_if_id, remote_node_id, remote_if_id);
-    ro = wrap_subobj_with_ro(sr);
-    sr_subobj = (struct pcep_object_ro_subobj *) (ro + 1);
     compare_entries[0] = sid;
     compare_entries[1] = local_node_id;
     compare_entries[2] = local_if_id;
     compare_entries[3] = remote_node_id;
     compare_entries[4] = remote_if_id;
-    verify_sid_nai_ntohl("sr_unnumbered_ipv4_adj", &sr_subobj->subobj.sr, compare_entries, 5);
-    pcep_unpack_obj_ro(ro);
-    verify_sid_nai("sr_unnumbered_ipv4_adj", &sr_subobj->subobj.sr, compare_entries, 5);
+    verify_sid_nai("sr_unnumbered_ipv4_adj", &sr->subobj.sr, compare_entries, 5);
+    encode_ro_subobj(sr);
+    verify_sid_nai_ntohl("sr_unnumbered_ipv4_adj", &sr->subobj.sr, compare_entries, 5);
     free(sr);
-    free(ro);
 
     /* PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY sid absent */
     sr = pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
             true, true, true, true, sid, &local_ipv6, local_if_id, &remote_ipv6, remote_if_id);
-    ro = wrap_subobj_with_ro(sr);
-    sr_subobj = (struct pcep_object_ro_subobj *) (ro + 1);
     compare_entries[4] = local_if_id;
     compare_entries[9] = remote_if_id;
     memcpy(&(compare_entries[0]), local_ipv6.__in6_u.__u6_addr32, sizeof(uint32_t) * 4);
     memcpy(&(compare_entries[5]), remote_ipv6.__in6_u.__u6_addr32, sizeof(uint32_t) * 4);
-    verify_sid_nai_ntohl("sr_linklocal_ipv6_adj", &sr_subobj->subobj.sr, compare_entries, 10);
-    pcep_unpack_obj_ro(ro);
-    verify_sid_nai("sr_linklocal_ipv6_adj", &sr_subobj->subobj.sr, compare_entries, 10);
+    verify_sid_nai("sr_linklocal_ipv6_adj", &sr->subobj.sr, compare_entries, 10);
+    encode_ro_subobj(sr);
+    verify_sid_nai_ntohl("sr_linklocal_ipv6_adj", &sr->subobj.sr, compare_entries, 10);
     free(sr);
-    free(ro);
 
     /* PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY sid present */
     sr = pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
             true, false, true, true, sid, &local_ipv6, local_if_id, &remote_ipv6, remote_if_id);
-    ro = wrap_subobj_with_ro(sr);
-    sr_subobj = (struct pcep_object_ro_subobj *) (ro + 1);
     compare_entries[0] = sid;
     compare_entries[5] = local_if_id;
     compare_entries[10] = remote_if_id;
     memcpy(&(compare_entries[1]), local_ipv6.__in6_u.__u6_addr32, sizeof(uint32_t) * 4);
     memcpy(&(compare_entries[6]), remote_ipv6.__in6_u.__u6_addr32, sizeof(uint32_t) * 4);
-    verify_sid_nai_ntohl("sr_linklocal_ipv6_adj", &sr_subobj->subobj.sr, compare_entries, 11);
-    pcep_unpack_obj_ro(ro);
-    verify_sid_nai("sr_linklocal_ipv6_adj", &sr_subobj->subobj.sr, compare_entries, 11);
+    verify_sid_nai("sr_linklocal_ipv6_adj", &sr->subobj.sr, compare_entries, 11);
+    encode_ro_subobj(sr);
+    verify_sid_nai_ntohl("sr_linklocal_ipv6_adj", &sr->subobj.sr, compare_entries, 11);
     free(sr);
-    free(ro);
 }
 
