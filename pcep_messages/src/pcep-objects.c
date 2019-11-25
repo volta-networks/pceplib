@@ -363,13 +363,18 @@ pcep_obj_create_lsp(uint32_t plsp_id, enum pcep_lsp_operational_status status,
                     sizeof(struct pcep_object_lsp) + tlv_length,
                     PCEP_OBJ_CLASS_LSP, PCEP_OBJ_TYPE_LSP);
 
-    obj->plsp_id = plsp_id;
-    obj->o_flag = status;
-    obj->c_flag = (c_flag == true ? 1 : 0);
-    obj->a_flag = (a_flag == true ? 1 : 0);
-    obj->r_flag = (r_flag == true ? 1 : 0);
-    obj->s_flag = (s_flag == true ? 1 : 0);
-    obj->d_flag = (d_flag == true ? 1 : 0);
+    obj->plsp_id_upper = (MAX_PLSP_ID & (plsp_id >> 4));
+    obj->plsp_id_lower = (0xf0 & (plsp_id << 4));
+    obj->flags = status;
+    obj->flags |= (c_flag == true ? PCEP_LSP_C_FLAG : 0);
+    obj->flags |= (a_flag == true ? PCEP_LSP_A_FLAG : 0);
+    obj->flags |= (r_flag == true ? PCEP_LSP_R_FLAG : 0);
+    obj->flags |= (s_flag == true ? PCEP_LSP_S_FLAG : 0);
+    obj->flags |= (d_flag == true ? PCEP_LSP_D_FLAG : 0);
+
+    /* Convert the plsp_id and flags to network byte order */
+    uint32_t *lsp_fields = (uint32_t *) (((uint8_t *) obj) + 4);
+    *lsp_fields = htonl(*lsp_fields);
 
     append_tlvs((struct pcep_object_header *) obj, sizeof(struct pcep_object_lsp), tlv_list);
 
@@ -587,7 +592,8 @@ pcep_obj_create_ro_subobj_sr_common(uint8_t extra_length, enum pcep_sr_subobj_na
     bool m_flag = m_flag_in;
     if (s_flag)
     {
-        c_flag = m_flag = false;
+        c_flag = false;
+        m_flag = false;
     }
 
     if (m_flag == false)
@@ -599,12 +605,14 @@ pcep_obj_create_ro_subobj_sr_common(uint8_t extra_length, enum pcep_sr_subobj_na
 
     obj->subobj.sr.header.length = sizeof(struct pcep_ro_subobj_sr) + extra_length;
     obj->subobj.sr.header.type = RO_SUBOBJ_TYPE_SR;
-    obj->subobj.sr.nai_type = nai;
+    obj->subobj.sr.nt_flags = nai;
 
-    obj->subobj.sr.f_flag = (f_flag == true) ? 1 : 0;
-    obj->subobj.sr.s_flag = (s_flag == true) ? 1 : 0;
-    obj->subobj.sr.c_flag = (c_flag == true) ? 1 : 0;
-    obj->subobj.sr.m_flag = (m_flag == true) ? 1 : 0;
+    obj->subobj.sr.nt_flags |= (f_flag == true) ? PCEP_SR_SUBOBJ_F_FLAG : 0;
+    obj->subobj.sr.nt_flags |= (s_flag == true) ? PCEP_SR_SUBOBJ_S_FLAG : 0;
+    obj->subobj.sr.nt_flags |= (c_flag == true) ? PCEP_SR_SUBOBJ_C_FLAG : 0;
+    obj->subobj.sr.nt_flags |= (m_flag == true) ? PCEP_SR_SUBOBJ_M_FLAG : 0;
+    obj->subobj.sr.nt_flags = htons(obj->subobj.sr.nt_flags);
+
     if (loose_hop == true)
     {
         // The first bit of the type field is used to specify Loose Hop
@@ -942,32 +950,33 @@ pcep_unpack_obj_ro(struct pcep_object_ro *obj)
             ipv6->ip_addr.__in6_u.__u6_addr32[2] = ntohl(ipv6->ip_addr.__in6_u.__u6_addr32[2]);
             ipv6->ip_addr.__in6_u.__u6_addr32[3] = ntohl(ipv6->ip_addr.__in6_u.__u6_addr32[3]);
         }
-        else if(hdr_type == RO_SUBOBJ_TYPE_SR)
+        else if(hdr_type == RO_SUBOBJ_TYPE_SR || hdr_type == RO_SUBOBJ_TYPE_SR_DRAFT07)
         {
             struct pcep_ro_subobj_sr *sr_subobj = (struct pcep_ro_subobj_sr*) hdr;
+            sr_subobj->nt_flags = ntohs(sr_subobj->nt_flags);
             int words_to_convert = 0;
-            switch (sr_subobj->nai_type)
+            switch (sr_subobj->nt_flags & 0xF000)
             {
             case PCEP_SR_SUBOBJ_NAI_IPV4_NODE:
                 /* If the sid_absent flag is true, then dont convert the sid */
-                words_to_convert = (sr_subobj->s_flag == true ? 1 : 2);
+                words_to_convert = ((sr_subobj->nt_flags & PCEP_SR_SUBOBJ_S_FLAG) ? 1 : 2);
                 break;
 
             case PCEP_SR_SUBOBJ_NAI_IPV6_NODE:
             case PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY:
-                words_to_convert = (sr_subobj->s_flag == true ? 4 : 5);
+                words_to_convert = ((sr_subobj->nt_flags & PCEP_SR_SUBOBJ_S_FLAG) ? 4 : 5);
                 break;
 
             case PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY:
-                words_to_convert = (sr_subobj->s_flag == true ? 2 : 3);
+                words_to_convert = ((sr_subobj->nt_flags & PCEP_SR_SUBOBJ_S_FLAG) ? 2 : 3);
                 break;
 
             case PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY:
-                words_to_convert = (sr_subobj->s_flag == true ? 8 : 9);
+                words_to_convert = ((sr_subobj->nt_flags & PCEP_SR_SUBOBJ_S_FLAG) ? 8 : 9);
                 break;
 
             case PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY:
-                words_to_convert = (sr_subobj->s_flag == true ? 10 : 11);
+                words_to_convert = ((sr_subobj->nt_flags & PCEP_SR_SUBOBJ_S_FLAG) ? 10 : 11);
                 break;
 
             case PCEP_SR_SUBOBJ_NAI_ABSENT:
@@ -1025,6 +1034,10 @@ void pcep_unpack_obj_srp(struct pcep_object_srp *srp)
 void pcep_unpack_obj_lsp(struct pcep_object_lsp *lsp)
 {
     /* TLVs will be unpacked in pcep_obj_get_tlvs() */
+    /*
+    uint32_t *lsp_fields = (uint32_t *) (((uint8_t *) lsp) + 4);
+    *lsp_fields = ntohl(*lsp_fields);
+    */
 }
 
 bool

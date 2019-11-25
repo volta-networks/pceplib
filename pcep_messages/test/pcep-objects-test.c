@@ -327,7 +327,8 @@ void test_pcep_obj_create_lsp()
             pcep_obj_create_lsp(0x001fffff, status, c_flag, a_flag, r_flag, s_flag, d_flag, NULL);
     CU_ASSERT_PTR_NULL(lsp);
 
-    lsp = pcep_obj_create_lsp(plsp_id, 8, c_flag, a_flag, r_flag, s_flag, d_flag, NULL);
+    /* Should return for invalid status */
+    lsp = pcep_obj_create_lsp(plsp_id, (8 << 4), c_flag, a_flag, r_flag, s_flag, d_flag, NULL);
     CU_ASSERT_PTR_NULL(lsp);
 
     lsp = pcep_obj_create_lsp(plsp_id, status, c_flag, a_flag, r_flag, s_flag, d_flag, NULL);
@@ -337,12 +338,16 @@ void test_pcep_obj_create_lsp()
     CU_ASSERT_EQUAL(lsp->header.object_type, PCEP_OBJ_TYPE_LSP);
     CU_ASSERT_EQUAL(lsp->header.object_flags, 0);
     CU_ASSERT_EQUAL(lsp->header.object_length, ntohs(sizeof(struct pcep_object_lsp)));
-    CU_ASSERT_EQUAL(lsp->plsp_id, plsp_id);
-    CU_ASSERT_TRUE(lsp->c_flag);
-    CU_ASSERT_TRUE(lsp->a_flag);
-    CU_ASSERT_TRUE(lsp->r_flag);
-    CU_ASSERT_TRUE(lsp->s_flag);
-    CU_ASSERT_TRUE(lsp->d_flag);
+    /* Unpack the lsp fields */
+    uint32_t *lsp_fields = (uint32_t *) (((uint8_t *) lsp) + 4);
+    *lsp_fields = ntohl(*lsp_fields);
+    CU_ASSERT_EQUAL(GET_LSP_PCEPID(lsp), plsp_id);
+    CU_ASSERT_TRUE(lsp->flags & PCEP_LSP_C_FLAG);
+    CU_ASSERT_TRUE(lsp->flags & PCEP_LSP_A_FLAG);
+    CU_ASSERT_TRUE(lsp->flags & PCEP_LSP_R_FLAG);
+    CU_ASSERT_TRUE(lsp->flags & PCEP_LSP_S_FLAG);
+    CU_ASSERT_TRUE(lsp->flags & PCEP_LSP_D_FLAG);
+    CU_ASSERT_TRUE(lsp->flags & PCEP_LSP_OPERATIONAL_ACTIVE);
 
     free(lsp);
 }
@@ -545,12 +550,7 @@ void test_pcep_obj_create_ro_subobj_sr_nonai()
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + sizeof(uint32_t));
-    CU_ASSERT_EQUAL(sr->subobj.sr.nai_type, PCEP_SR_SUBOBJ_NAI_ABSENT);
-    CU_ASSERT_EQUAL(sr->subobj.sr.unused_flags, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.f_flag, 1);
-    CU_ASSERT_EQUAL(sr->subobj.sr.s_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.c_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.m_flag, 0);
+    CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_ABSENT | PCEP_SR_SUBOBJ_F_FLAG)));
     free(sr);
 
     sr = pcep_obj_create_ro_subobj_sr_nonai(true, sid);
@@ -558,11 +558,7 @@ void test_pcep_obj_create_ro_subobj_sr_nonai()
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + sizeof(uint32_t));
-    CU_ASSERT_EQUAL(sr->subobj.sr.unused_flags, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.f_flag, 1);
-    CU_ASSERT_EQUAL(sr->subobj.sr.s_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.c_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.m_flag, 0);
+    CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_ABSENT | PCEP_SR_SUBOBJ_F_FLAG)));
     free(sr);
 }
 
@@ -582,12 +578,7 @@ void test_pcep_obj_create_ro_subobj_sr_ipv4_node()
     CU_ASSERT_PTR_NOT_NULL(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length, sizeof(struct pcep_ro_subobj_sr) + sizeof(struct in_addr));
-    CU_ASSERT_EQUAL(sr->subobj.sr.nai_type, PCEP_SR_SUBOBJ_NAI_IPV4_NODE);
-    CU_ASSERT_EQUAL(sr->subobj.sr.unused_flags, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.f_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.s_flag, 1);
-    CU_ASSERT_EQUAL(sr->subobj.sr.c_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.m_flag, 0);
+    CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_IPV4_NODE | PCEP_SR_SUBOBJ_S_FLAG)));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[0], htonl(ipv4_node_id.s_addr));
     free(sr);
 
@@ -597,12 +588,7 @@ void test_pcep_obj_create_ro_subobj_sr_ipv4_node()
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + sizeof(struct in_addr) + sizeof(uint32_t));
-    CU_ASSERT_EQUAL(sr->subobj.sr.nai_type, PCEP_SR_SUBOBJ_NAI_IPV4_NODE);
-    CU_ASSERT_EQUAL(sr->subobj.sr.unused_flags, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.f_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.s_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.c_flag, 1);
-    CU_ASSERT_EQUAL(sr->subobj.sr.m_flag, 1);
+    CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_IPV4_NODE | PCEP_SR_SUBOBJ_C_FLAG | PCEP_SR_SUBOBJ_M_FLAG)));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[0], htonl(sid));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[1], htonl(ipv4_node_id.s_addr));
     free(sr);
@@ -623,12 +609,7 @@ void test_pcep_obj_create_ro_subobj_sr_ipv6_node()
     CU_ASSERT_PTR_NOT_NULL(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length, sizeof(struct pcep_ro_subobj_sr) + sizeof(struct in6_addr));
-    CU_ASSERT_EQUAL(sr->subobj.sr.nai_type, PCEP_SR_SUBOBJ_NAI_IPV6_NODE);
-    CU_ASSERT_EQUAL(sr->subobj.sr.unused_flags, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.f_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.s_flag, 1);
-    CU_ASSERT_EQUAL(sr->subobj.sr.c_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.m_flag, 0);
+    CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_IPV6_NODE | PCEP_SR_SUBOBJ_S_FLAG)));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[0], htonl(ipv6_node_id.__in6_u.__u6_addr32[0]));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[1], htonl(ipv6_node_id.__in6_u.__u6_addr32[1]));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[2], htonl(ipv6_node_id.__in6_u.__u6_addr32[2]));
@@ -641,12 +622,7 @@ void test_pcep_obj_create_ro_subobj_sr_ipv6_node()
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + sizeof(struct in6_addr) + sizeof(uint32_t));
-    CU_ASSERT_EQUAL(sr->subobj.sr.nai_type, PCEP_SR_SUBOBJ_NAI_IPV6_NODE);
-    CU_ASSERT_EQUAL(sr->subobj.sr.unused_flags, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.f_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.s_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.c_flag, 1);
-    CU_ASSERT_EQUAL(sr->subobj.sr.m_flag, 1);
+    CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_IPV6_NODE | PCEP_SR_SUBOBJ_C_FLAG | PCEP_SR_SUBOBJ_M_FLAG)));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[0], htonl(sid));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[1], htonl(ipv6_node_id.__in6_u.__u6_addr32[0]));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[2], htonl(ipv6_node_id.__in6_u.__u6_addr32[1]));
@@ -680,12 +656,7 @@ void test_pcep_obj_create_ro_subobj_sr_ipv4_adj()
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + (sizeof(struct in_addr) * 2));
-    CU_ASSERT_EQUAL(sr->subobj.sr.nai_type, PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY);
-    CU_ASSERT_EQUAL(sr->subobj.sr.unused_flags, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.f_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.s_flag, 1);
-    CU_ASSERT_EQUAL(sr->subobj.sr.c_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.m_flag, 0);
+    CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY | PCEP_SR_SUBOBJ_S_FLAG)));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[0], htonl(local_ipv4.s_addr));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[1], htonl(remote_ipv4.s_addr));
     free(sr);
@@ -696,12 +667,7 @@ void test_pcep_obj_create_ro_subobj_sr_ipv4_adj()
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + (sizeof(struct in_addr) * 2) + sizeof(uint32_t));
-    CU_ASSERT_EQUAL(sr->subobj.sr.nai_type, PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY);
-    CU_ASSERT_EQUAL(sr->subobj.sr.unused_flags, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.f_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.s_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.c_flag, 1);
-    CU_ASSERT_EQUAL(sr->subobj.sr.m_flag, 1);
+    CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY | PCEP_SR_SUBOBJ_C_FLAG | PCEP_SR_SUBOBJ_M_FLAG)));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[0], htonl(sid));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[1], htonl(local_ipv4.s_addr));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[2], htonl(remote_ipv4.s_addr));
@@ -731,12 +697,7 @@ void test_pcep_obj_create_ro_subobj_sr_ipv6_adj()
     CU_ASSERT_PTR_NOT_NULL(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length, sizeof(struct pcep_ro_subobj_sr) + (sizeof(struct in6_addr) * 2));
-    CU_ASSERT_EQUAL(sr->subobj.sr.nai_type, PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY);
-    CU_ASSERT_EQUAL(sr->subobj.sr.unused_flags, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.f_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.s_flag, 1);
-    CU_ASSERT_EQUAL(sr->subobj.sr.c_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.m_flag, 0);
+    CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY | PCEP_SR_SUBOBJ_S_FLAG)));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[0], htonl(local_ipv6.__in6_u.__u6_addr32[0]));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[1], htonl(local_ipv6.__in6_u.__u6_addr32[1]));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[2], htonl(local_ipv6.__in6_u.__u6_addr32[2]));
@@ -753,12 +714,7 @@ void test_pcep_obj_create_ro_subobj_sr_ipv6_adj()
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + (sizeof(struct in6_addr) * 2) + sizeof(uint32_t));
-    CU_ASSERT_EQUAL(sr->subobj.sr.nai_type, PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY);
-    CU_ASSERT_EQUAL(sr->subobj.sr.unused_flags, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.f_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.s_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.c_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.m_flag, 0);
+    CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons(PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[0], htonl(sid));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[1], htonl(local_ipv6.__in6_u.__u6_addr32[0]));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[2], htonl(local_ipv6.__in6_u.__u6_addr32[1]));
@@ -789,12 +745,8 @@ void test_pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj()
     CU_ASSERT_PTR_NOT_NULL(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length, sizeof(struct pcep_ro_subobj_sr) + (sizeof(struct in_addr) * 4));
-    CU_ASSERT_EQUAL(sr->subobj.sr.nai_type, PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY);
-    CU_ASSERT_EQUAL(sr->subobj.sr.unused_flags, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.f_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.s_flag, 1);
-    CU_ASSERT_EQUAL(sr->subobj.sr.c_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.m_flag, 0);
+    CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags,
+            htons((PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY | PCEP_SR_SUBOBJ_S_FLAG)));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[0], htonl(local_node_id));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[1], htonl(local_if_id));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[2], htonl(remote_node_id));
@@ -808,12 +760,8 @@ void test_pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj()
     CU_ASSERT_PTR_NOT_NULL(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length, sizeof(struct pcep_ro_subobj_sr) + (sizeof(struct in_addr) * 5));
-    CU_ASSERT_EQUAL(sr->subobj.sr.nai_type, PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY);
-    CU_ASSERT_EQUAL(sr->subobj.sr.unused_flags, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.f_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.s_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.c_flag, 1);
-    CU_ASSERT_EQUAL(sr->subobj.sr.m_flag, 1);
+    CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags,
+            htons((PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY | PCEP_SR_SUBOBJ_C_FLAG | PCEP_SR_SUBOBJ_M_FLAG)));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[0], htonl(sid));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[1], htonl(local_node_id));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[2], htonl(local_if_id));
@@ -853,12 +801,8 @@ void test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj()
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length, sizeof(struct pcep_ro_subobj_sr) +
                                                  (sizeof(struct in_addr) * 2) +
                                                  (sizeof(struct in6_addr) * 2));
-    CU_ASSERT_EQUAL(sr->subobj.sr.nai_type, PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY);
-    CU_ASSERT_EQUAL(sr->subobj.sr.unused_flags, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.f_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.s_flag, 1);
-    CU_ASSERT_EQUAL(sr->subobj.sr.c_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.m_flag, 0);
+    CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags,
+            htons((PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY | PCEP_SR_SUBOBJ_S_FLAG)));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[0], htonl(local_ipv6.__in6_u.__u6_addr32[0]));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[1], htonl(local_ipv6.__in6_u.__u6_addr32[1]));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[2], htonl(local_ipv6.__in6_u.__u6_addr32[2]));
@@ -881,12 +825,8 @@ void test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj()
                                                  (sizeof(struct in_addr) * 2) +
                                                  (sizeof(struct in6_addr) * 2) +
                                                  (sizeof(uint32_t)));
-    CU_ASSERT_EQUAL(sr->subobj.sr.nai_type, PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY);
-    CU_ASSERT_EQUAL(sr->subobj.sr.unused_flags, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.f_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.s_flag, 0);
-    CU_ASSERT_EQUAL(sr->subobj.sr.c_flag, 1);
-    CU_ASSERT_EQUAL(sr->subobj.sr.m_flag, 1);
+    CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags,
+            htons((PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY | PCEP_SR_SUBOBJ_C_FLAG | PCEP_SR_SUBOBJ_M_FLAG)));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[0], htonl(sid));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[1], htonl(local_ipv6.__in6_u.__u6_addr32[0]));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[2], htonl(local_ipv6.__in6_u.__u6_addr32[1]));

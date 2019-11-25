@@ -213,6 +213,7 @@ enum pcep_ro_subobj_types
     RO_SUBOBJ_TYPE_UNNUM = 4,
     RO_SUBOBJ_TYPE_BORDER = 10,
     RO_SUBOBJ_TYPE_ASN = 32,
+    RO_SUBOBJ_TYPE_SR_DRAFT07 = 5,
     RO_SUBOBJ_TYPE_SR = 36
 };
 
@@ -284,26 +285,35 @@ struct pcep_ro_subobj_border
 enum pcep_sr_subobj_nai
 {
       PCEP_SR_SUBOBJ_NAI_ABSENT = 0,
-      PCEP_SR_SUBOBJ_NAI_IPV4_NODE = 1,
-      PCEP_SR_SUBOBJ_NAI_IPV6_NODE = 2,
-      PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY = 3,
-      PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY = 4,
-      PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY = 5,
-      PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY = 6
+      PCEP_SR_SUBOBJ_NAI_IPV4_NODE = (1 << 12),
+      PCEP_SR_SUBOBJ_NAI_IPV6_NODE = (2 << 12),
+      PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY = (3 << 12),
+      PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY = (4 << 12),
+      PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY = (5 << 12),
+      PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY = (6 << 12)
+};
+
+enum pcep_sr_subobj_flags
+{
+    PCEP_SR_SUBOBJ_M_FLAG = 1,
+    PCEP_SR_SUBOBJ_C_FLAG = 2,
+    PCEP_SR_SUBOBJ_S_FLAG = 4,
+    PCEP_SR_SUBOBJ_F_FLAG = 8
 };
 
 /* The SR ERO and SR RRO subojbects are the same, except
  * the SR-RRO does not have the L flag in the Type field.
- * Defined in draft-ietf-pce-segment-routing-16 */
+ * Defined in draft-ietf-pce-segment-routing-16
+ 0                   1                   2                   3
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |L|   Type=36   |     Length    |  NT   |     Flags     |F|S|C|M|
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
 struct pcep_ro_subobj_sr
 {
     struct pcep_ro_subobj_hdr header;
-    uint16_t nai_type:4;
-    uint16_t unused_flags:8;
-    uint16_t f_flag:1;
-    uint16_t s_flag:1;
-    uint16_t c_flag:1;
-    uint16_t m_flag:1;
+    uint16_t nt_flags;
     /* The SID and NAI are optional depending on the flags,
      * and the NAI can be variable length */
     uint32_t sid_nai[];
@@ -430,30 +440,43 @@ struct pcep_object_srp
     uint32_t srp_id_number;
 }__attribute__((packed));
 
-enum pcep_lsp_operational_status
+/* Label Switched Path Object
+   0                   1                   2                   3
+   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                PLSP-ID                |Flags  |C|  O  |A|R|S|D|
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
+enum pcep_lsp_flags
 {
-    PCEP_LSP_OPERATIONAL_DOWN = 0,
-    PCEP_LSP_OPERATIONAL_UP = 1,
-    PCEP_LSP_OPERATIONAL_ACTIVE = 2,
-    PCEP_LSP_OPERATIONAL_GOING_DOWN = 3,
-    PCEP_LSP_OPERATIONAL_GOING_UP = 4,
+    PCEP_LSP_D_FLAG =  1,
+    PCEP_LSP_S_FLAG = (1 << 1),
+    PCEP_LSP_R_FLAG = (1 << 2),
+    PCEP_LSP_A_FLAG = (1 << 3),
+    /* O Flag defined below in pcep_lsp_operational_status */
+    PCEP_LSP_C_FLAG = (1 << 7),
 };
 
-/* Label Switched Path Object */
+enum pcep_lsp_operational_status
+{
+    PCEP_LSP_OPERATIONAL_DOWN       = 0,
+    PCEP_LSP_OPERATIONAL_UP         = (1 << 4),
+    PCEP_LSP_OPERATIONAL_ACTIVE     = (2 << 4),
+    PCEP_LSP_OPERATIONAL_GOING_DOWN = (3 << 4),
+    PCEP_LSP_OPERATIONAL_GOING_UP   = (4 << 4),
+};
+
 #define MAX_PLSP_ID 0x000fffff  /* The plsp_id is only 20 bits */
-#define MAX_LSP_STATUS 7        /* The status is only 3 bits */
+#define MAX_LSP_STATUS (7 << 4) /* The status is only 3 bits */
 struct pcep_object_lsp
 {
     struct pcep_object_header header;
-    uint32_t plsp_id:20;
-    uint32_t unused_flags:4;
-    uint32_t c_flag:1;
-    uint32_t o_flag:3;
-    uint32_t a_flag:1;
-    uint32_t r_flag:1;
-    uint32_t s_flag:1;
-    uint32_t d_flag:1;
+    /* Since the plsp_id is 20 bits, bit fields wont work here */
+    uint16_t plsp_id_upper;
+    uint8_t  plsp_id_lower; /* includes unused flags */
+    uint8_t  flags;
 }__attribute__((packed));
+#define GET_LSP_PCEPID(lsp_obj_ptr) ((MAX_PLSP_ID) & (((lsp_obj_ptr)->plsp_id_upper << 4) | ((lsp_obj_ptr)->plsp_id_lower >> 4)))
 
 struct pcep_object_open*                pcep_obj_create_open        (uint8_t keepalive, uint8_t deadtimer, uint8_t sid, double_linked_list *tlv_list);
 struct pcep_object_rp*                  pcep_obj_create_rp          (uint8_t obj_hdr_flags, uint32_t obj_flags, uint32_t reqid, double_linked_list *tlv_list);
