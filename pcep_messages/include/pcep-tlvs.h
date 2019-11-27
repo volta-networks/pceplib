@@ -67,7 +67,8 @@ enum pcep_object_tlv_types
     PCEP_OBJ_TLV_TYPE_LSP_DB_VERSION = 23,              /* RFC 8232 */
     PCEP_OBJ_TLV_TYPE_SPEAKER_ENTITY_ID = 24,           /* RFC 8232 */
     PCEP_OBJ_TLV_TYPE_SR_PCE_CAPABILITY = 26,           /* draft-ietf-pce-segment-routing-16 */
-    PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE = 34,             /* draft-ietf-pce-segment-routing-16, RFC 8408 */
+    PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE = 28,             /* RFC 8408 */
+    PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY = 34,  /* RFC 8408, draft-ietf-pce-segment-routing-16 */
 };
 
 /* Open STATEFUL-PCE-CAPABILITY TLV Capability flags
@@ -124,8 +125,10 @@ struct pcep_object_tlv *pcep_tlv_create_speaker_entity_id(double_linked_list *sp
 
 struct pcep_object_tlv *pcep_tlv_create_lsp_db_version(uint64_t lsp_db_version);
 
+struct pcep_object_tlv *pcep_tlv_create_path_setup_type(uint8_t pst);
+
     /* pst_list is a double linked list of uint8_t* and sub_tlv_list is a double linked list of struct pcep_object_tlv* */
-struct pcep_object_tlv *pcep_tlv_create_path_setup_type(double_linked_list *pst_list, double_linked_list *sub_tlv_list);
+struct pcep_object_tlv *pcep_tlv_create_path_setup_type_capability(double_linked_list *pst_list, double_linked_list *sub_tlv_list);
 
     /* Use enum pcep_tlv_flags_sr_pce_capability to populate the flags field */
 struct pcep_object_tlv *pcep_tlv_create_sr_pce_capability(uint8_t flags, uint8_t max_sid_depth);

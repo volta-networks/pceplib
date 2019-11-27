@@ -28,6 +28,7 @@ extern void test_pcep_tlv_create_stateful_pce_capability(void);
 extern void test_pcep_tlv_create_speaker_entity_id(void);
 extern void test_pcep_tlv_create_lsp_db_version(void);
 extern void test_pcep_tlv_create_path_setup_type(void);
+extern void test_pcep_tlv_create_path_setup_type_capability(void);
 extern void test_pcep_tlv_create_sr_pce_capability(void);
 extern void test_pcep_tlv_create_symbolic_path_name(void);
 extern void test_pcep_tlv_create_ipv4_lsp_identifiers(void);
@@ -96,6 +97,7 @@ int main(int argc, char **argv)
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_speaker_entity_id", test_pcep_tlv_create_speaker_entity_id);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_lsp_db_version", test_pcep_tlv_create_lsp_db_version);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_path_setup_type", test_pcep_tlv_create_path_setup_type);
+    CU_add_test(tlvs_suite, "test_pcep_tlv_create_path_setup_type_capability", test_pcep_tlv_create_path_setup_type_capability);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_sr_pce_capability", test_pcep_tlv_create_sr_pce_capability);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_symbolic_path_name", test_pcep_tlv_create_symbolic_path_name);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_ipv4_lsp_identifiers", test_pcep_tlv_create_ipv4_lsp_identifiers);

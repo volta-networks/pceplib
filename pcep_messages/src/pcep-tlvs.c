@@ -80,7 +80,21 @@ pcep_tlv_create_lsp_db_version(uint64_t lsp_db_version)
 }
 
 struct pcep_object_tlv*
-pcep_tlv_create_path_setup_type(double_linked_list *pst_list, double_linked_list *sub_tlv_list)
+pcep_tlv_create_path_setup_type(uint8_t pst)
+{
+    struct pcep_object_tlv *tlv = malloc(sizeof(struct pcep_object_tlv_header) + sizeof(uint32_t));
+    bzero(tlv, sizeof(struct pcep_object_tlv_header) + sizeof(uint32_t));
+    tlv->header.length = htons(sizeof(uint32_t));
+    tlv->header.type = htons(PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE);
+
+    /* Write the PST */
+    tlv->value[0] = htonl(0x000000ff & pst);
+
+    return tlv;
+}
+
+struct pcep_object_tlv*
+pcep_tlv_create_path_setup_type_capability(double_linked_list *pst_list, double_linked_list *sub_tlv_list)
 {
     if (pst_list == NULL)
     {
@@ -123,7 +137,7 @@ pcep_tlv_create_path_setup_type(double_linked_list *pst_list, double_linked_list
     /* The TLV length should not include padding, but that doesnt parse in Wireshark */
     /*tlv->header.length = htons(pst_list->num_entries + sizeof(uint32_t) + sub_tlv_length); */
     tlv->header.length = htons(buffer_length);
-    tlv->header.type = htons(PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE);
+    tlv->header.type = htons(PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY);
 
     /* Write the number of PSTs */
     tlv->value[0] = pst_list->num_entries;

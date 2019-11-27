@@ -55,7 +55,8 @@ int setup_signals()
 void send_pce_report_message(pcep_session *session)
 {
     uint32_t srp_id_number = 0x10203040;
-    uint32_t plsp_id = 0x00050607;
+    //uint32_t plsp_id = 0x00050607;
+    uint32_t plsp_id = 42;
     enum pcep_lsp_operational_status lsp_status = PCEP_LSP_OPERATIONAL_ACTIVE;
     bool c_flag = true;  /* Lsp was created by PcInitiate msg */
     bool a_flag = true;  /* Admin state, active / inactive */
@@ -106,10 +107,7 @@ void send_pce_report_message(pcep_session *session)
 
     /* Create and send the report message */
     struct pcep_header *report_msg = pcep_msg_create_report(report_list);
-    socket_comm_session_send_message(session->socket_comm_session,
-                                     (char *) report_msg,
-                                     ntohs(report_msg->length),
-                                     true);
+    send_message(session, report_msg, true);
 
     dll_destroy_with_data(report_list);
     dll_destroy_with_data(ero_subobj_list);
@@ -142,6 +140,7 @@ int main(int argc, char **argv)
     memcpy(&host_address, host_info->h_addr, host_info->h_length);
 
     pcep_configuration *config = create_default_pcep_configuration();
+    config->use_pcep_sr_draft07 = true;
     pcep_session *session = connect_pce(config, &host_address);
     free(config);
     if (session == NULL)

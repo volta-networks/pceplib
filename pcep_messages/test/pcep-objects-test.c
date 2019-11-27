@@ -342,12 +342,12 @@ void test_pcep_obj_create_lsp()
     uint32_t *lsp_fields = (uint32_t *) (((uint8_t *) lsp) + 4);
     *lsp_fields = ntohl(*lsp_fields);
     CU_ASSERT_EQUAL(GET_LSP_PCEPID(lsp), plsp_id);
-    CU_ASSERT_TRUE(lsp->flags & PCEP_LSP_C_FLAG);
-    CU_ASSERT_TRUE(lsp->flags & PCEP_LSP_A_FLAG);
-    CU_ASSERT_TRUE(lsp->flags & PCEP_LSP_R_FLAG);
-    CU_ASSERT_TRUE(lsp->flags & PCEP_LSP_S_FLAG);
-    CU_ASSERT_TRUE(lsp->flags & PCEP_LSP_D_FLAG);
-    CU_ASSERT_TRUE(lsp->flags & PCEP_LSP_OPERATIONAL_ACTIVE);
+    CU_ASSERT_TRUE(lsp->plsp_id_flags & PCEP_LSP_C_FLAG);
+    CU_ASSERT_TRUE(lsp->plsp_id_flags & PCEP_LSP_A_FLAG);
+    CU_ASSERT_TRUE(lsp->plsp_id_flags & PCEP_LSP_R_FLAG);
+    CU_ASSERT_TRUE(lsp->plsp_id_flags & PCEP_LSP_S_FLAG);
+    CU_ASSERT_TRUE(lsp->plsp_id_flags & PCEP_LSP_D_FLAG);
+    CU_ASSERT_TRUE(lsp->plsp_id_flags & PCEP_LSP_OPERATIONAL_ACTIVE);
 
     free(lsp);
 }

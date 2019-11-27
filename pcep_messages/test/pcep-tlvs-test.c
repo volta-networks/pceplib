@@ -64,24 +64,38 @@ void test_pcep_tlv_create_lsp_db_version()
 
 void test_pcep_tlv_create_path_setup_type()
 {
+    uint8_t pst = 0x89;
+
+    struct pcep_object_tlv *tlv = pcep_tlv_create_path_setup_type(pst);
+    CU_ASSERT_PTR_NOT_NULL(tlv);
+    pcep_unpack_obj_tlv(tlv);
+    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE);
+    CU_ASSERT_EQUAL(tlv->header.length, sizeof(uint32_t));
+    CU_ASSERT_EQUAL(tlv->value[0], ntohl(0x000000FF & pst));
+
+    free(tlv);
+}
+
+void test_pcep_tlv_create_path_setup_type_capability()
+{
     /* The sub_tlv list is optional */
 
     /* Should return NULL if pst_list is NULL */
-    struct pcep_object_tlv *tlv = pcep_tlv_create_path_setup_type(NULL, NULL);
+    struct pcep_object_tlv *tlv = pcep_tlv_create_path_setup_type_capability(NULL, NULL);
     CU_ASSERT_PTR_NULL(tlv);
 
     /* Should return NULL if pst_list is empty */
     double_linked_list *pst_list = dll_initialize();
-    tlv = pcep_tlv_create_path_setup_type(pst_list, NULL);
+    tlv = pcep_tlv_create_path_setup_type_capability(pst_list, NULL);
     CU_ASSERT_PTR_NULL(tlv);
 
     /* Should still return NULL if pst_list is NULL */
     double_linked_list *sub_tlv_list = dll_initialize();
-    tlv = pcep_tlv_create_path_setup_type(NULL, sub_tlv_list);
+    tlv = pcep_tlv_create_path_setup_type_capability(NULL, sub_tlv_list);
     CU_ASSERT_PTR_NULL(tlv);
 
     /* Should still return NULL if pst_list is empty */
-    tlv = pcep_tlv_create_path_setup_type(pst_list, sub_tlv_list);
+    tlv = pcep_tlv_create_path_setup_type_capability(pst_list, sub_tlv_list);
     CU_ASSERT_PTR_NULL(tlv);
 
     /* Test only populating the pst list */
@@ -91,11 +105,11 @@ void test_pcep_tlv_create_path_setup_type()
     dll_append(pst_list, &pst1);
     dll_append(pst_list, &pst2);
     dll_append(pst_list, &pst3);
-    tlv = pcep_tlv_create_path_setup_type(pst_list, sub_tlv_list);
+    tlv = pcep_tlv_create_path_setup_type_capability(pst_list, sub_tlv_list);
     CU_ASSERT_PTR_NOT_NULL(tlv);
 
     pcep_unpack_obj_tlv(tlv);
-    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE);
+    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY);
     CU_ASSERT_EQUAL(tlv->header.length, sizeof(uint32_t) * 2);
     CU_ASSERT_EQUAL(tlv->value[0], 0x00000003);
     CU_ASSERT_EQUAL(tlv->value[1], htonl(0x01020300));
@@ -104,11 +118,11 @@ void test_pcep_tlv_create_path_setup_type()
     /* Now test populating both the pst_list and the sub_tlv_list */
     struct pcep_object_tlv *sub_tlv = pcep_tlv_create_stateful_pce_capability(0xff);
     dll_append(sub_tlv_list, sub_tlv);
-    tlv = pcep_tlv_create_path_setup_type(pst_list, sub_tlv_list);
+    tlv = pcep_tlv_create_path_setup_type_capability(pst_list, sub_tlv_list);
     CU_ASSERT_PTR_NOT_NULL(tlv);
 
     pcep_unpack_obj_tlv(tlv);
-    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE);
+    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY);
     CU_ASSERT_EQUAL(tlv->header.length,
             sizeof(uint32_t) * 2 + sizeof(struct pcep_object_tlv_header) + ntohs(sub_tlv->header.length));
     CU_ASSERT_EQUAL(tlv->value[0], 0x00000003);
@@ -149,7 +163,15 @@ void test_pcep_tlv_create_symbolic_path_name()
     CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_SYMBOLIC_PATH_NAME);
     CU_ASSERT_EQUAL(tlv->header.length, path_name_length);
     CU_ASSERT_EQUAL(0, strcmp((char *) tlv->value, path_name));
+    free(tlv);
 
+    tlv = pcep_tlv_create_symbolic_path_name(path_name, 3);
+    CU_ASSERT_PTR_NOT_NULL(tlv);
+    pcep_unpack_obj_tlv(tlv);
+    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_SYMBOLIC_PATH_NAME);
+    CU_ASSERT_EQUAL(tlv->header.length, 3);
+    CU_ASSERT_EQUAL(0, strncmp((char *) tlv->value, path_name, 3));
+    /* TODO figure out how to test the padding */
     free(tlv);
 }
 

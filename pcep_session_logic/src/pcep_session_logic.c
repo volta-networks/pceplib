@@ -328,17 +328,27 @@ void create_and_send_open(pcep_session *session)
                 PCEP_TLV_FLAG_SR_PCE_CAPABILITY_NAI : 0);
         flags |= (session->pcc_config.max_sid_depth == 0 ?
                 PCEP_TLV_FLAG_NO_MSD_LIMITS : 0);
-        double_linked_list *sub_tlv_list = dll_initialize();
-        dll_append(sub_tlv_list, pcep_tlv_create_sr_pce_capability(flags, session->pcc_config.max_sid_depth));
+        struct pcep_object_tlv *sr_pce_cap_tlv =
+                pcep_tlv_create_sr_pce_capability(flags, session->pcc_config.max_sid_depth);
 
-        uint8_t pst = SR_TE_PST;
-        double_linked_list *pst_list = dll_initialize();
-        dll_append(pst_list, &pst);
+        if (session->pcc_config.use_pcep_sr_draft07)
+        {
+            dll_append(tlv_list, sr_pce_cap_tlv);
+        }
+        else
+        {
+            double_linked_list *sub_tlv_list = dll_initialize();
+            dll_append(sub_tlv_list, sr_pce_cap_tlv);
 
-        dll_prepend(tlv_list, pcep_tlv_create_path_setup_type(pst_list, sub_tlv_list));
+            uint8_t pst = SR_TE_PST;
+            double_linked_list *pst_list = dll_initialize();
+            dll_append(pst_list, &pst);
 
-        dll_destroy_with_data(sub_tlv_list);
-        dll_destroy(pst_list);
+            dll_append(tlv_list, pcep_tlv_create_path_setup_type_capability(pst_list, sub_tlv_list));
+
+            dll_destroy_with_data(sub_tlv_list);
+            dll_destroy(pst_list);
+        }
     }
 
     if (tlv_list->num_entries > 0)

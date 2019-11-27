@@ -75,6 +75,7 @@ pcep_configuration *create_default_pcep_configuration()
     config->support_sr_te_pst = true;
     config->pcc_can_resolve_nai_to_sid = true;
     config->max_sid_depth = 0;
+    config->use_pcep_sr_draft07 = false;
 
     return config;
 }
@@ -101,10 +102,10 @@ void disconnect_pce(pcep_session *session)
     close_pcep_session(session);
 }
 
-void send_message(pcep_session *session, pcep_message *message, bool free_after_send)
+void send_message(pcep_session *session, struct pcep_header *msg_hdr, bool free_after_send)
 {
     socket_comm_session_send_message(session->socket_comm_session,
-            (char *) message, ntohs(message->header.length), free_after_send);
+            (char *) msg_hdr, ntohs(msg_hdr->length), free_after_send);
 }
 
 /* Returns true if the queue is empty, false otherwise */

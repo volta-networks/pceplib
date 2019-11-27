@@ -48,7 +48,7 @@ pcep_configuration *create_default_pcep_configuration();
 pcep_session *connect_pce(pcep_configuration *config, struct in_addr *pce_ip);
 pcep_session *connect_pce_with_port(pcep_configuration *config, struct in_addr *pce_ip, short port);
 void disconnect_pce(pcep_session *session);
-void send_message(pcep_session *session, pcep_message *message, bool free_after_send);
+void send_message(pcep_session *session, struct pcep_header *msg_hdr, bool free_after_send);
 
 
 /*

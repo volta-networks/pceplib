@@ -319,6 +319,9 @@ struct pcep_ro_subobj_sr
     uint32_t sid_nai[];
 }__attribute__((packed));
 
+#define GET_SR_SUBOBJ_NT(sr_subobj_ptr) ((sr_subobj_ptr)->nt_flags & 0x000f)
+#define GET_SR_SUBOBJ_FLAGS(sr_subobj_ptr) ((sr_subobj_ptr)->nt_flags & 0xf000)
+
 struct pcep_object_ro_subobj
 {
     union subobj {
@@ -471,12 +474,10 @@ enum pcep_lsp_operational_status
 struct pcep_object_lsp
 {
     struct pcep_object_header header;
-    /* Since the plsp_id is 20 bits, bit fields wont work here */
-    uint16_t plsp_id_upper;
-    uint8_t  plsp_id_lower; /* includes unused flags */
-    uint8_t  flags;
+    /* Since the plsp_id is 20 bits, bit fields wont work here*/
+    uint32_t plsp_id_flags;
 }__attribute__((packed));
-#define GET_LSP_PCEPID(lsp_obj_ptr) ((MAX_PLSP_ID) & (((lsp_obj_ptr)->plsp_id_upper << 4) | ((lsp_obj_ptr)->plsp_id_lower >> 4)))
+#define GET_LSP_PCEPID(lsp_obj_ptr) ((MAX_PLSP_ID) & ((lsp_obj_ptr)->plsp_id_flags >> 12))
 
 struct pcep_object_open*                pcep_obj_create_open        (uint8_t keepalive, uint8_t deadtimer, uint8_t sid, double_linked_list *tlv_list);
 struct pcep_object_rp*                  pcep_obj_create_rp          (uint8_t obj_hdr_flags, uint32_t obj_flags, uint32_t reqid, double_linked_list *tlv_list);

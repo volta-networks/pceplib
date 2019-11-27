@@ -79,6 +79,10 @@ typedef struct pcep_configuration_
     /* Used in the SR TE Capability sub-TLV, 0 means there are no max sid limits */
     uint8_t max_sid_depth;
 
+    /* Use draft-ietf-pce-segment-routing-07 if true, otherwise use
+     * draft-ietf-pce-segment-routing-16 */
+    bool use_pcep_sr_draft07;
+
 } pcep_configuration;
 
 

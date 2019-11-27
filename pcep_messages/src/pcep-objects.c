@@ -363,18 +363,16 @@ pcep_obj_create_lsp(uint32_t plsp_id, enum pcep_lsp_operational_status status,
                     sizeof(struct pcep_object_lsp) + tlv_length,
                     PCEP_OBJ_CLASS_LSP, PCEP_OBJ_TYPE_LSP);
 
-    obj->plsp_id_upper = (MAX_PLSP_ID & (plsp_id >> 4));
-    obj->plsp_id_lower = (0xf0 & (plsp_id << 4));
-    obj->flags = status;
-    obj->flags |= (c_flag == true ? PCEP_LSP_C_FLAG : 0);
-    obj->flags |= (a_flag == true ? PCEP_LSP_A_FLAG : 0);
-    obj->flags |= (r_flag == true ? PCEP_LSP_R_FLAG : 0);
-    obj->flags |= (s_flag == true ? PCEP_LSP_S_FLAG : 0);
-    obj->flags |= (d_flag == true ? PCEP_LSP_D_FLAG : 0);
+    obj->plsp_id_flags = (0xfffff000 & (plsp_id << 12));
+    obj->plsp_id_flags |= status;
+    obj->plsp_id_flags |= (c_flag == true ? PCEP_LSP_C_FLAG : 0);
+    obj->plsp_id_flags |= (a_flag == true ? PCEP_LSP_A_FLAG : 0);
+    obj->plsp_id_flags |= (r_flag == true ? PCEP_LSP_R_FLAG : 0);
+    obj->plsp_id_flags |= (s_flag == true ? PCEP_LSP_S_FLAG : 0);
+    obj->plsp_id_flags |= (d_flag == true ? PCEP_LSP_D_FLAG : 0);
 
     /* Convert the plsp_id and flags to network byte order */
-    uint32_t *lsp_fields = (uint32_t *) (((uint8_t *) obj) + 4);
-    *lsp_fields = htonl(*lsp_fields);
+    obj->plsp_id_flags = htonl(obj->plsp_id_flags);
 
     append_tlvs((struct pcep_object_header *) obj, sizeof(struct pcep_object_lsp), tlv_list);
 
@@ -861,7 +859,7 @@ pcep_unpack_obj_header(struct pcep_object_header* hdr)
 void
 pcep_unpack_obj_open(struct pcep_object_open *obj)
 {
-    /* TLVs will be unpacked in pcep_obj_get_tlvs() */
+    /* TLVs will be unpacked when the message is parsed */
 }
 
 void
@@ -1033,11 +1031,8 @@ void pcep_unpack_obj_srp(struct pcep_object_srp *srp)
 
 void pcep_unpack_obj_lsp(struct pcep_object_lsp *lsp)
 {
-    /* TLVs will be unpacked in pcep_obj_get_tlvs() */
-    /*
-    uint32_t *lsp_fields = (uint32_t *) (((uint8_t *) lsp) + 4);
-    *lsp_fields = ntohl(*lsp_fields);
-    */
+    /* TLVs will be unpacked when the message is parsed */
+    lsp->plsp_id_flags = ntohl(lsp->plsp_id_flags);
 }
 
 bool

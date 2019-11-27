@@ -15,6 +15,12 @@
 #include "pcep-tools.h"
 #include "pcep_utils_double_linked_list.h"
 
+char *pcep_open_odl_hexbyte_strs[] = {
+    "20", "01", "00", "1c", "01", "10", "00", "18",
+    "20", "1e", "78", "55", "00", "10", "00", "04",
+    "00", "00", "00", "3f", "00", "1a", "00", "04",
+    "00", "00", "00", "00" };
+
 /* PCEP INITIATE str received from ODL with 4 objects: [SRP, LSP, Endpoints, ERO]
  * The LSP has a SYMBOLIC_PATH_NAME TLV.
  * The ERO has 2 IPV4 Endpoints. */
@@ -91,7 +97,7 @@ void test_pcep_msg_read_pcep_initiate()
     CU_ASSERT_EQUAL(obj_hdr->object_type, PCEP_OBJ_TYPE_LSP);
     CU_ASSERT_EQUAL(obj_hdr->object_length, 20);
     CU_ASSERT_EQUAL(GET_LSP_PCEPID((struct pcep_object_lsp *) obj_hdr), 0);
-    CU_ASSERT_EQUAL(((struct pcep_object_lsp *) obj_hdr)->flags, (PCEP_LSP_D_FLAG | PCEP_LSP_A_FLAG));
+    CU_ASSERT_EQUAL(((struct pcep_object_lsp *) obj_hdr)->plsp_id_flags, (PCEP_LSP_D_FLAG | PCEP_LSP_A_FLAG));
 
      /* LSP TLV */
     CU_ASSERT_TRUE(pcep_obj_has_tlv(obj_hdr));
