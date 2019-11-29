@@ -69,10 +69,25 @@ pcep_message*                pcep_msg_get     (double_linked_list* msg_list, uin
 pcep_message*                pcep_msg_get_next(double_linked_list *msg_list, pcep_message* current, uint8_t type);
 struct pcep_object_header*   pcep_obj_get     (double_linked_list* list, uint8_t object_class);
 struct pcep_object_header*   pcep_obj_get_next(double_linked_list *list, struct pcep_object_header* current, uint8_t object_class);
+struct pcep_object_tlv_header*   pcep_tlv_get     (double_linked_list* list, uint16_t type);
+struct pcep_object_tlv_header*   pcep_tlv_get_next(double_linked_list *list, struct pcep_object_tlv_header* current, uint16_t type);
 void                         pcep_msg_free_message(struct pcep_message *message);
 void                         pcep_msg_free_message_list(double_linked_list* list);
 void                         pcep_msg_print   (double_linked_list* list);
 int                          pcep_msg_send    (int sock_fd, struct pcep_header* hdr);
+
+/* The host_bytes_ordered flag will be removed when everything is host byte ordered until sending */
+double_linked_list* pcep_msg_get_objects(struct pcep_header* hdr, bool host_byte_ordered);
+bool pcep_msg_has_object(struct pcep_header* hdr, bool host_byte_ordered);
+
+/* Returns a double linked list of pointers of type struct pcep_object_tlv.
+ * May return NULL for unrecognized object classes. Do not free these list
+ * entries, as they are just pointers into the object structure. */
+double_linked_list* pcep_obj_get_tlvs(struct pcep_object_header *hdr);
+/* Only used by pcep-tools when the tlvs are in network byte order.
+ * This version will unpack the TLVs. */
+double_linked_list* pcep_obj_get_packed_tlvs(struct pcep_object_header *hdr);
+bool pcep_obj_has_tlv(struct pcep_object_header* hdr);
 
 #ifdef __cplusplus
 }

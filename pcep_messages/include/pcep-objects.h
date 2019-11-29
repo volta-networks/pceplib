@@ -301,6 +301,18 @@ enum pcep_sr_subobj_flags
     PCEP_SR_SUBOBJ_F_FLAG = 8
 };
 
+/* 0                   1                   2                   3
+   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ Label
+   |                Label                  | TC  |S|       TTL     | Stack
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ Entry
+ */
+#define ENCODE_SR_ERO_SID(label_20bits, tc_3bits, stack_bottom_bit, ttl_8bits) \
+    ( (((label_20bits)    << 12) & 0xfffff000) | \
+      (((tc_3bits)         << 9) & 0x00000e00) | \
+      (((stack_bottom_bit) << 8) & 0x00000100) | \
+       ((ttl_8bits) & 0xff) )
+
 /* The SR ERO and SR RRO subojbects are the same, except
  * the SR-RRO does not have the L flag in the Type field.
  * Defined in draft-ietf-pce-segment-routing-16
@@ -569,15 +581,6 @@ void pcep_unpack_obj_lsp(struct pcep_object_lsp *lsp);
  * type struct pcep_ro_subobj_hdr. Do not free these list entries, as
  * they are just pointers into the object structure. */
 double_linked_list* pcep_obj_get_ro_subobjects(struct pcep_object_header *ro_obj);
-
-/* Returns a double linked list of pointers of type struct pcep_object_tlv.
- * May return NULL for unrecognized object classes. Do not free these list
- * entries, as they are just pointers into the object structure. */
-double_linked_list* pcep_obj_get_tlvs(struct pcep_object_header *hdr);
-/* Only used by pcep-tools when the tlvs are in network byte order.
- * This version will unpack the TLVs. */
-double_linked_list* pcep_obj_get_packed_tlvs(struct pcep_object_header *hdr);
-bool pcep_obj_has_tlv(struct pcep_object_header* hdr);
 
 #ifdef __cplusplus
 }

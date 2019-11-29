@@ -63,7 +63,7 @@ void send_pce_report_message(pcep_session *session)
     bool r_flag = false; /* true if LSP has been removed */
     bool s_flag = true;  /* Syncronization */
     bool d_flag = true;  /* Delegate LSP to PCE */
-    uint32_t label = 0x11223344;
+    struct in_addr sr_subobj_ipv4;
     double_linked_list *report_list = dll_initialize();
 
     /* Create the SRP object */
@@ -88,7 +88,9 @@ void send_pce_report_message(pcep_session *session)
 
     /* Create the ERO sub-object */
     double_linked_list* ero_subobj_list = dll_initialize();
-    struct pcep_object_ro_subobj *subobj = pcep_obj_create_ro_subobj_32label(true, label);
+    inet_pton(AF_INET, "9.9.9.1", &(sr_subobj_ipv4.s_addr));
+    struct pcep_object_ro_subobj *subobj =
+            pcep_obj_create_ro_subobj_sr_ipv4_node(false, false, false, true, 16060, &sr_subobj_ipv4);
     if (subobj == NULL)
     {
         fprintf(stderr, "send_pce_report_message ERO sub-object was NULL\n");

@@ -140,7 +140,7 @@ pcep_tlv_create_path_setup_type_capability(double_linked_list *pst_list, double_
     tlv->header.type = htons(PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY);
 
     /* Write the number of PSTs */
-    tlv->value[0] = pst_list->num_entries;
+    tlv->value[0] = htonl(pst_list->num_entries);
 
     /* Write each of the PSTs */
     int index = 4; /* Get past the reserved and NumPSTs bytes */
@@ -195,15 +195,15 @@ pcep_tlv_create_symbolic_path_name(char *symbolic_path_name, uint16_t symbolic_p
         return NULL;
     }
 
+    uint8_t pad_bytes = (4 - (symbolic_path_name_length % 4));
     struct pcep_object_tlv *tlv = malloc(
-            sizeof(struct pcep_object_tlv_header) +
-            symbolic_path_name_length + (4 - (symbolic_path_name_length % 4)));
-    bzero(tlv, sizeof(struct pcep_object_tlv_header) +
-               symbolic_path_name_length + (4 - (symbolic_path_name_length % 4)));
+            sizeof(struct pcep_object_tlv_header) + symbolic_path_name_length + pad_bytes);
+    bzero(tlv, sizeof(struct pcep_object_tlv_header) + symbolic_path_name_length + pad_bytes);
 
     tlv->header.type = htons(PCEP_OBJ_TLV_TYPE_SYMBOLIC_PATH_NAME);
     tlv->header.length = htons(symbolic_path_name_length);
-    memcpy((uint8_t *) tlv->value, symbolic_path_name, symbolic_path_name_length);
+    uint8_t *padded_ptr = (((uint8_t *) tlv->value) + pad_bytes);
+    memcpy(padded_ptr, symbolic_path_name, symbolic_path_name_length);
 
     return tlv;
 }

@@ -8,6 +8,8 @@
 #ifndef PCEP_SESSION_LOGIC_TEST_MOCK_SOCKET_COMM_H_
 #define PCEP_SESSION_LOGIC_TEST_MOCK_SOCKET_COMM_H_
 
+#include <stdbool.h>
+
 typedef struct mock_socket_comm_info_
 {
     int socket_comm_session_initialize_times_called;
@@ -20,6 +22,10 @@ typedef struct mock_socket_comm_info_
 
     /* TODO later if necessary, we can add return values for
      *      those functions that return something */
+
+    /* Used to access messages sent with socket_comm_session_send_message() */
+    bool send_message_save_message;
+    char *sent_message;
 
 } mock_socket_comm_info;
 

@@ -17,6 +17,7 @@ extern void test_run_session_logic_twice(void);
 extern void test_session_logic_without_run(void);
 extern void test_create_pcep_session_null_params(void);
 extern void test_create_destroy_pcep_session(void);
+extern void test_create_pcep_session_open_tlvs(void);
 extern void test_destroy_pcep_session_null_session(void);
 
 /* Test functions defined in pcep_session_logic_loop_test.c */
@@ -70,6 +71,9 @@ int main(int argc, char **argv)
     CU_add_test(test_session_logic_suite,
                 "test_create_destroy_pcep_session",
                 test_create_destroy_pcep_session);
+    CU_add_test(test_session_logic_suite,
+                "test_create_pcep_session_open_tlvs",
+                test_create_pcep_session_open_tlvs);
     CU_add_test(test_session_logic_suite,
                 "test_destroy_pcep_session_null_session",
                 test_destroy_pcep_session_null_session);

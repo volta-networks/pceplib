@@ -28,6 +28,7 @@ void reset_mock_socket_comm_info()
     mock_socket_metadata.socket_comm_session_close_tcp_after_write_times_called = 0;
     mock_socket_metadata.socket_comm_session_close_tcp_times_called = 0;
     mock_socket_metadata.destroy_socket_comm_loop_times_called = 0;
+    mock_socket_metadata.send_message_save_message = false;
 }
 
 mock_socket_comm_info *get_mock_socket_comm_info()
@@ -121,9 +122,17 @@ void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_sess
 {
     mock_socket_metadata.socket_comm_session_send_message_times_called++;
 
-    if (delete_after_send == true)
+    if (mock_socket_metadata.send_message_save_message == true)
     {
-        free(unmarshalled_message);
+        /* the caller/test case is responsible for freeing the message */
+        mock_socket_metadata.sent_message = unmarshalled_message;
+    }
+    else
+    {
+        if (delete_after_send == true)
+        {
+            free(unmarshalled_message);
+        }
     }
 
     return;

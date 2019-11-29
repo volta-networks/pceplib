@@ -633,11 +633,13 @@ void test_pcep_obj_create_ro_subobj_sr_ipv6_node()
 
 void test_pcep_obj_create_ro_subobj_sr_ipv4_adj()
 {
-    uint32_t sid = 0x01020304;
     struct in_addr local_ipv4;
     struct in_addr remote_ipv4;
     inet_pton(AF_INET, "192.168.1.2", &local_ipv4);
     inet_pton(AF_INET, "172.168.1.2", &remote_ipv4);
+
+    uint32_t sid = ENCODE_SR_ERO_SID(3, 7, 0, 188);
+    CU_ASSERT_EQUAL(sid, 16060);
 
     /* (loose_hop, sid_absent, c_flag, m_flag, sid, local_ipv4, remote_ipv4) */
     struct pcep_object_ro_subobj *sr =

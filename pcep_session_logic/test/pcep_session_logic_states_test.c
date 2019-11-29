@@ -221,6 +221,11 @@ void test_handle_socket_comm_event_open()
 
     CU_ASSERT_TRUE(session.pcep_open_received);
     verify_socket_comm_times_called(0, 0, 0, 1, 0, 0, 0);
+    pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
+    CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
+    free(e);
+    free(msg_node);
+    dll_destroy_with_data(obj_list);
     do_msg_free = false;
 }
 

@@ -111,7 +111,7 @@ void test_pcep_tlv_create_path_setup_type_capability()
     pcep_unpack_obj_tlv(tlv);
     CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY);
     CU_ASSERT_EQUAL(tlv->header.length, sizeof(uint32_t) * 2);
-    CU_ASSERT_EQUAL(tlv->value[0], 0x00000003);
+    CU_ASSERT_EQUAL(tlv->value[0], htonl(0x00000003));
     CU_ASSERT_EQUAL(tlv->value[1], htonl(0x01020300));
     free(tlv);
 
@@ -125,7 +125,7 @@ void test_pcep_tlv_create_path_setup_type_capability()
     CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY);
     CU_ASSERT_EQUAL(tlv->header.length,
             sizeof(uint32_t) * 2 + sizeof(struct pcep_object_tlv_header) + ntohs(sub_tlv->header.length));
-    CU_ASSERT_EQUAL(tlv->value[0], 0x00000003);
+    CU_ASSERT_EQUAL(tlv->value[0], htonl(0x00000003));
     CU_ASSERT_EQUAL(tlv->value[1], htonl(0x01020300));
     struct pcep_object_tlv *sub_tlv_ptr = (struct pcep_object_tlv*) &(tlv->value[2]);
     CU_ASSERT_EQUAL(sub_tlv_ptr->header.type, htons(PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY));
@@ -152,7 +152,7 @@ void test_pcep_tlv_create_sr_pce_capability()
 
 void test_pcep_tlv_create_symbolic_path_name()
 {
-    //        char *symbolic_path_name, uint16_t symbolic_path_name_length);
+    /* char *symbolic_path_name, uint16_t symbolic_path_name_length); */
     char path_name[16] = "Some Path Name";
     uint16_t path_name_length = 14;
     struct pcep_object_tlv *tlv =
@@ -162,7 +162,15 @@ void test_pcep_tlv_create_symbolic_path_name()
     pcep_unpack_obj_tlv(tlv);
     CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_SYMBOLIC_PATH_NAME);
     CU_ASSERT_EQUAL(tlv->header.length, path_name_length);
-    CU_ASSERT_EQUAL(0, strcmp((char *) tlv->value, path_name));
+    /* Test the padding is correct */
+    char *byte_ptr = (char *) tlv->value;
+    CU_ASSERT_EQUAL(byte_ptr[0], 0);
+    CU_ASSERT_EQUAL(byte_ptr[1], 0);
+    CU_ASSERT_EQUAL(byte_ptr[2], 'S');
+    CU_ASSERT_EQUAL(byte_ptr[3], 'o');
+    CU_ASSERT_EQUAL(0, strncmp((char *) &(tlv->value[1]), &path_name[2], 4));
+    CU_ASSERT_EQUAL(0, strncmp((char *) &(tlv->value[2]), &path_name[6], 4));
+    CU_ASSERT_EQUAL(0, strncmp((char *) &(tlv->value[3]), &path_name[10], 4));
     free(tlv);
 
     tlv = pcep_tlv_create_symbolic_path_name(path_name, 3);
@@ -170,8 +178,12 @@ void test_pcep_tlv_create_symbolic_path_name()
     pcep_unpack_obj_tlv(tlv);
     CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_SYMBOLIC_PATH_NAME);
     CU_ASSERT_EQUAL(tlv->header.length, 3);
-    CU_ASSERT_EQUAL(0, strncmp((char *) tlv->value, path_name, 3));
-    /* TODO figure out how to test the padding */
+    byte_ptr = (char *) tlv->value;
+    CU_ASSERT_EQUAL(byte_ptr[0], 0);
+    CU_ASSERT_EQUAL(byte_ptr[1], 'S');
+    CU_ASSERT_EQUAL(byte_ptr[2], 'o');
+    CU_ASSERT_EQUAL(byte_ptr[3], 'm');
+
     free(tlv);
 }
 

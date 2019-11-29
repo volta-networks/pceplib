@@ -509,7 +509,8 @@ void handle_socket_comm_event(pcep_session_event *event)
         case PCEP_TYPE_OPEN:
             printf("\t PCEP_OPEN message\n");
             handle_pcep_open(session, msg);
-
+            enqueue_event(session, MESSAGE_RECEIVED, msg);
+            message_enqueued = true;
             break;
 
         case PCEP_TYPE_KEEPALIVE:
