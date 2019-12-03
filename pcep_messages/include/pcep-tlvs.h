@@ -91,7 +91,7 @@ enum pcep_tlv_flags_stateful_pce_capability {
 
 /* Can be used with pcep_tlv_create_path_setup_type() when a sub-tlv is
  * created with pcep_tlv_create_sr_pce_capability() */
-#define SR_TE_PST 1;
+#define SR_TE_PST 1
 
 enum pcep_tlv_flags_sr_pce_capability {
     PCEP_TLV_FLAG_NO_MSD_LIMITS           = (1 << 0),  /* SR PCE CAPABILITY X flag - draft-ietf-pce-segment-routing-16 */

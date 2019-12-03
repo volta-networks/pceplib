@@ -25,16 +25,12 @@ extern pcep_event_queue *session_logic_event_queue_;
 
 void send_keep_alive(pcep_session *session)
 {
-    struct pcep_header* keep_alive_msg = pcep_msg_create_keepalive();
+    struct pcep_message *keep_alive_msg = pcep_msg_create_keepalive();
 
     printf("[%ld-%ld] pcep_session_logic send keep_alive message len [%d] for session_id [%d]\n",
-            time(NULL), pthread_self(), ntohs(keep_alive_msg->length), session->session_id);
+            time(NULL), pthread_self(), ntohs(keep_alive_msg->header->length), session->session_id);
 
-    socket_comm_session_send_message(
-            session->socket_comm_session,
-            (char *) keep_alive_msg,
-            ntohs(keep_alive_msg->length),
-            true);
+    session_send_message(session, keep_alive_msg);
 
     /* The keep alive timer will be (re)set once the message
      * is sent in session_logic_message_sent_handler() */
@@ -73,15 +69,11 @@ void send_pcep_open_error(pcep_session *session, struct pcep_object_open *open_o
 
 void send_pcep_error(pcep_session *session, enum pcep_error_type error_type, enum pcep_error_value error_value)
 {
-    struct pcep_header* error_msg = pcep_msg_create_error(error_type, error_value);
-    socket_comm_session_send_message(
-            session->socket_comm_session,
-            (char *) error_msg,
-            ntohs(error_msg->length),
-            true);
+    struct pcep_message *error_msg = pcep_msg_create_error(error_type, error_value);
+    session_send_message(session, error_msg);
 
     printf("[%ld-%ld] pcep_session_logic send error message [%d][%d] len [%d] for session_id [%d]\n",
-            time(NULL), pthread_self(), error_type, error_value, ntohs(error_msg->length), session->session_id);
+            time(NULL), pthread_self(), error_type, error_value, ntohs(error_msg->header->length), session->session_id);
 }
 
 
@@ -504,7 +496,7 @@ void handle_socket_comm_event(pcep_session_event *event)
         pcep_message *msg = (pcep_message *) msg_node->data;
         reset_dead_timer(session);
 
-        switch (msg->header.type)
+        switch (msg->header->type)
         {
         case PCEP_TYPE_OPEN:
             printf("\t PCEP_OPEN message\n");

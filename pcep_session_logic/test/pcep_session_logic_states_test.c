@@ -28,9 +28,7 @@ static pcep_session_event event;
 static pcep_session session;
 /* A message list is a dll of struct pcep_messages_list_node items */
 static double_linked_list *msg_list;
-pcep_message *msg_node;
-/* An object list is a dll of struct pcep_object_header *header items */
-static double_linked_list *obj_list;
+pcep_message *message;
 static bool do_msg_free = true;
 
 /*
@@ -59,12 +57,13 @@ void pcep_session_logic_states_test_setup()
     event.socket_closed = false;
     event.session = &session;
 
+    message = malloc(sizeof(pcep_message));
+    bzero(message, sizeof(struct pcep_message));
+    message->header = malloc(sizeof(struct pcep_header));
+    message->obj_list = dll_initialize();
+
     msg_list = dll_initialize();
-    obj_list = dll_initialize();
-    msg_node = malloc(sizeof(pcep_message));
-    bzero(msg_node, sizeof(struct pcep_message));
-    dll_append(msg_list, msg_node);
-    msg_node->obj_list = obj_list;
+    dll_append(msg_list, message);
 
     reset_mock_socket_comm_info();
     do_msg_free = true;
@@ -212,8 +211,8 @@ void test_handle_socket_comm_event_open()
 {
     struct pcep_object_open *open_object = pcep_obj_create_open(1, 1, 1, NULL);
     pcep_unpack_obj_header((struct pcep_object_header*) open_object);
-    dll_append(obj_list, open_object);
-    msg_node->header.type = PCEP_TYPE_OPEN;
+    dll_append(message->obj_list, open_object);
+    message->header->type = PCEP_TYPE_OPEN;
     event.received_msg_list = msg_list;
     session.pcep_open_received = false;
 
@@ -224,15 +223,16 @@ void test_handle_socket_comm_event_open()
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
     free(e);
-    free(msg_node);
-    dll_destroy_with_data(obj_list);
+    /* The message_list was freed in handle_socket_comm_event() */
+    pcep_msg_free_message(message);
+    free(open_object);
     do_msg_free = false;
 }
 
 
 void test_handle_socket_comm_event_keep_alive()
 {
-    msg_node->header.type = PCEP_TYPE_KEEPALIVE;
+    message->header->type = PCEP_TYPE_KEEPALIVE;
     event.received_msg_list = msg_list;
     session.session_state = SESSION_STATE_TCP_CONNECTED;
     session.timer_id_dead_timer = 100;
@@ -254,8 +254,8 @@ void test_handle_socket_comm_event_keep_alive()
 
 void test_handle_socket_comm_event_pcrep()
 {
-    dll_append(obj_list, pcep_obj_create_rp(1, 1, 1, NULL));
-    msg_node->header.type = PCEP_TYPE_PCREP;
+    dll_append(message->obj_list, pcep_obj_create_rp(1, 1, 1, NULL));
+    message->header->type = PCEP_TYPE_PCREP;
     event.received_msg_list = msg_list;
     session.session_state = SESSION_STATE_WAIT_PCREQ;
 

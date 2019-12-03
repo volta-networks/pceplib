@@ -102,10 +102,16 @@ void disconnect_pce(pcep_session *session)
     close_pcep_session(session);
 }
 
-void send_message(pcep_session *session, struct pcep_header *msg_hdr, bool free_after_send)
+void send_message(pcep_session *session, struct pcep_message *msg, bool free_after_send)
 {
     socket_comm_session_send_message(session->socket_comm_session,
-            (char *) msg_hdr, ntohs(msg_hdr->length), free_after_send);
+            (char *) msg->header, ntohs(msg->header->length), free_after_send);
+
+    if (free_after_send == true)
+    {
+        dll_destroy(msg->obj_list);
+        free(msg);
+    }
 }
 
 /* Returns true if the queue is empty, false otherwise */

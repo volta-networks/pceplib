@@ -147,17 +147,12 @@ void close_pcep_session(pcep_session *session)
 
 void close_pcep_session_with_reason(pcep_session *session, enum pcep_close_reasons reason)
 {
-    struct pcep_header* close_msg = pcep_msg_create_close(0, reason);
+    struct pcep_message* close_msg = pcep_msg_create_close(0, reason);
 
     printf("[%ld-%ld] pcep_session_logic send pcep_close message len [%d] for session_id [%d]\n",
-           time(NULL), pthread_self(), ntohs(close_msg->length), session->session_id);
+           time(NULL), pthread_self(), ntohs(close_msg->header->length), session->session_id);
 
-    socket_comm_session_send_message(
-            session->socket_comm_session,
-            (char *) close_msg,
-            ntohs(close_msg->length),
-            true);
-
+    session_send_message(session, close_msg);
     socket_comm_session_close_tcp_after_write(session->socket_comm_session);
     session->session_state = SESSION_STATE_INITIALIZED;
 }
@@ -277,12 +272,26 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
 }
 
 
+void session_send_message(pcep_session *session, struct pcep_message *message)
+{
+    socket_comm_session_send_message(
+            session->socket_comm_session,
+            (char *) message->header,
+            ntohs(message->header->length),
+            true);
+
+    /* The message->header will be freed in
+     * socket_comm_session_send_message() once sent */
+    dll_destroy(message->obj_list);
+    free(message);
+}
+
+
 void create_and_send_open(pcep_session *session)
 {
     /* create and send PCEP open
      * with PCEP, the PCC sends the config the PCE should use in the open message,
      * and the PCE will send an open with the config the PCC should use. */
-    struct pcep_header* open_msg;
     double_linked_list *tlv_list = dll_initialize();
     uint8_t stateful_tlv_flags = 0;
     if (session->pcc_config.support_stateful_pce_lsp_update)
@@ -358,6 +367,7 @@ void create_and_send_open(pcep_session *session)
         dll_destroy_with_data(sub_tlv_list);
     }
 
+    struct pcep_message *open_msg;
     if (tlv_list->num_entries > 0)
     {
         open_msg = pcep_msg_create_open_with_tlvs(
@@ -374,12 +384,9 @@ void create_and_send_open(pcep_session *session)
     }
 
     printf("[%ld-%ld] pcep_session_logic send open message: TLVs [%d] len [%d] for session_id [%d]\n",
-            time(NULL), pthread_self(), tlv_list->num_entries, ntohs(open_msg->length), session->session_id);
+            time(NULL), pthread_self(), tlv_list->num_entries, ntohs(open_msg->header->length), session->session_id);
 
     dll_destroy_with_data(tlv_list);
 
-    socket_comm_session_send_message(session->socket_comm_session,
-                                     (char *) open_msg,
-                                     ntohs(open_msg->length),
-                                     true);
+    session_send_message(session, open_msg);
 }

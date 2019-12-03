@@ -32,13 +32,14 @@
 #include "pcep-objects.h"
 #include "pcep_utils_double_linked_list.h"
 
-struct pcep_header*
+struct pcep_message*
 pcep_msg_create_open(uint8_t keepalive, uint8_t deadtimer, uint8_t sid)
 {
     uint8_t *buffer;
     uint16_t buffer_len;
     struct pcep_object_open *obj;
-    struct pcep_header *hdr;
+    struct pcep_message *message = malloc(sizeof(struct pcep_message));
+    message->obj_list = dll_initialize();
 
     obj = pcep_obj_create_open(keepalive, deadtimer, sid, NULL);
 
@@ -47,25 +48,26 @@ pcep_msg_create_open(uint8_t keepalive, uint8_t deadtimer, uint8_t sid)
 
     bzero(buffer, buffer_len);
 
-    hdr = (struct pcep_header*) buffer;
-    hdr->length = htons(buffer_len);
-    hdr->type = PCEP_TYPE_OPEN;
-    hdr->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
+    message->header = (struct pcep_header*) buffer;
+    message->header->length = htons(buffer_len);
+    message->header->type = PCEP_TYPE_OPEN;
+    message->header->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
 
     memcpy(buffer + sizeof(struct pcep_header), obj, ntohs(obj->header.object_length));
-
+    dll_append(message->obj_list, buffer + sizeof(struct pcep_header));
     free(obj);
 
-    return hdr;
+    return message;
 }
 
-struct pcep_header*
+struct pcep_message*
 pcep_msg_create_open_with_tlvs(uint8_t keepalive, uint8_t deadtimer, uint8_t sid, double_linked_list *tlv_list)
 {
     uint8_t *buffer;
     uint16_t buffer_len;
     struct pcep_object_open *obj;
-    struct pcep_header *hdr;
+    struct pcep_message *message = malloc(sizeof(struct pcep_message));
+    message->obj_list = dll_initialize();
 
     obj = pcep_obj_create_open(keepalive, deadtimer, sid, tlv_list);
 
@@ -73,16 +75,17 @@ pcep_msg_create_open_with_tlvs(uint8_t keepalive, uint8_t deadtimer, uint8_t sid
     buffer = malloc(buffer_len);
     bzero(buffer, buffer_len);
 
-    hdr = (struct pcep_header*) buffer;
-    hdr->length = htons(buffer_len);
-    hdr->type = PCEP_TYPE_OPEN;
-    hdr->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
+    message->header = (struct pcep_header*) buffer;
+    message->header->length = htons(buffer_len);
+    message->header->type = PCEP_TYPE_OPEN;
+    message->header->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
 
     /* Copy the Open object to the message buffer, and free the object */
     memcpy(buffer + sizeof(struct pcep_header), obj, ntohs(obj->header.object_length));
+    dll_append(message->obj_list, buffer + sizeof(struct pcep_header));
     free(obj);
 
-    return hdr;
+    return message;
 }
 
 static uint32_t
@@ -110,7 +113,7 @@ pcep_msg_get_request_id(struct pcep_header *hdr)
     return 0;
 }
 
-struct pcep_header*
+struct pcep_message*
 pcep_msg_create_request_svec(struct pcep_header **requests, uint16_t request_count, float disjointness)
 {
     int i;
@@ -120,8 +123,9 @@ pcep_msg_create_request_svec(struct pcep_header **requests, uint16_t request_cou
 
     uint32_t *svec_id_list;
 
-    struct pcep_header *hdr;
     struct pcep_object_svec *svec;
+    struct pcep_message *message = malloc(sizeof(struct pcep_message));
+    message->obj_list = dll_initialize();
 
     svec_id_list = malloc(request_count * sizeof(uint32_t));
 
@@ -145,16 +149,17 @@ pcep_msg_create_request_svec(struct pcep_header **requests, uint16_t request_cou
 
     bzero(buffer, buffer_len);
 
-    hdr = (struct pcep_header*) buffer;
-    hdr->length = htons(buffer_len);
-    hdr->type = PCEP_TYPE_PCREQ;
-    hdr->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
+    message->header = (struct pcep_header*) buffer;
+    message->header->length = htons(buffer_len);
+    message->header->type = PCEP_TYPE_PCREQ;
+    message->header->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
 
     //<PCReq Message>::= <Common Header>
     //                    [<svec-list>]
     //                    <request-list>
 
     memcpy(buffer + buffer_pos, svec, ntohs(svec->header.object_length));
+    dll_append(message->obj_list, buffer + buffer_pos);
     buffer_pos += ntohs(svec->header.object_length);
 
     for(i = 0; i < request_count; i++) {
@@ -166,19 +171,20 @@ pcep_msg_create_request_svec(struct pcep_header **requests, uint16_t request_cou
     free(svec);
     free(svec_id_list);
 
-    return hdr;
+    return message;
 }
 
-struct pcep_header*
+struct pcep_message*
 pcep_msg_create_request(struct pcep_object_rp *rp,  struct pcep_object_endpoints_ipv4 *enpoints, struct pcep_object_bandwidth *bandwidth)
 {
     uint8_t *buffer;
     uint16_t buffer_len;
     uint16_t buffer_pos;
-    struct pcep_header *hdr;
 
     if((rp == NULL) || (enpoints == NULL)) return NULL;
 
+    struct pcep_message *message = malloc(sizeof(struct pcep_message));
+    message->obj_list = dll_initialize();
     buffer_len = sizeof(struct pcep_header);
     buffer_pos = sizeof(struct pcep_header);
 
@@ -196,34 +202,38 @@ pcep_msg_create_request(struct pcep_object_rp *rp,  struct pcep_object_endpoints
 
     bzero(buffer, buffer_len);
 
-    hdr = (struct pcep_header*) buffer;
-    hdr->length = htons(buffer_len);
-    hdr->type = PCEP_TYPE_PCREQ;
-    hdr->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
+    message->header = (struct pcep_header*) buffer;
+    message->header->length = htons(buffer_len);
+    message->header->type = PCEP_TYPE_PCREQ;
+    message->header->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
 
     if(rp != NULL) {
         memcpy(buffer + buffer_pos, rp, ntohs(rp->header.object_length));
+        dll_append(message->obj_list, buffer + buffer_pos);
         buffer_pos += ntohs(rp->header.object_length);
     }
     if(enpoints != NULL) {
         memcpy(buffer + buffer_pos, enpoints, ntohs(enpoints->header.object_length));
+        dll_append(message->obj_list, buffer + buffer_pos);
         buffer_pos += ntohs(enpoints->header.object_length);
     }
     if(bandwidth != NULL) {
         memcpy(buffer + buffer_pos, bandwidth, ntohs(bandwidth->header.object_length));
+        dll_append(message->obj_list, buffer + buffer_pos);
         buffer_pos += ntohs(bandwidth->header.object_length);
     }
 
-    return hdr;
+    return message;
 }
 
-struct pcep_header*
+struct pcep_message*
 pcep_msg_create_reply_nopath(struct pcep_object_rp *rp,  struct pcep_object_nopath* nopath)
 {
     uint8_t *buffer;
     uint16_t buffer_len;
     uint16_t buffer_pos;
-    struct pcep_header *hdr;
+    struct pcep_message *message = malloc(sizeof(struct pcep_message));
+    message->obj_list = dll_initialize();
 
     buffer_len = sizeof(struct pcep_header);
     buffer_pos = sizeof(struct pcep_header);
@@ -236,34 +246,35 @@ pcep_msg_create_reply_nopath(struct pcep_object_rp *rp,  struct pcep_object_nopa
     }
 
     buffer = malloc(sizeof(uint8_t) * buffer_len);
-
     bzero(buffer, buffer_len);
 
-    hdr = (struct pcep_header*) buffer;
-    hdr->length = htons(buffer_len);
-    hdr->type = PCEP_TYPE_PCREP;
-    hdr->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
+    message->header = (struct pcep_header*) buffer;
+    message->header->length = htons(buffer_len);
+    message->header->type = PCEP_TYPE_PCREP;
+    message->header->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
 
     if(rp != NULL) {
         memcpy(buffer + buffer_pos, rp, ntohs(rp->header.object_length));
+        dll_append(message->obj_list, buffer + buffer_pos);
         buffer_pos += ntohs(rp->header.object_length);
     }
     if(nopath != NULL) {
         memcpy(buffer + buffer_pos, nopath, ntohs(nopath->header.object_length));
+        dll_append(message->obj_list, buffer + buffer_pos);
         buffer_pos += ntohs(nopath->header.object_length);
     }
 
-    return hdr;
+    return message;
 }
 
-struct pcep_header*
+struct pcep_message*
 pcep_msg_create_reply(struct pcep_object_rp *rp, double_linked_list *object_list)
 {
     uint8_t *buffer;
     uint16_t buffer_len;
     uint16_t buffer_pos;
-    struct pcep_header *hdr;
-
+    struct pcep_message *message = malloc(sizeof(struct pcep_message));
+    message->obj_list = dll_initialize();
 
     buffer_len = sizeof(struct pcep_header);
     buffer_pos = sizeof(struct pcep_header);
@@ -285,13 +296,14 @@ pcep_msg_create_reply(struct pcep_object_rp *rp, double_linked_list *object_list
 
     bzero(buffer, buffer_len);
 
-    hdr = (struct pcep_header*) buffer;
-    hdr->length = htons(buffer_len);
-    hdr->type = PCEP_TYPE_PCREP;
-    hdr->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
+    message->header = (struct pcep_header*) buffer;
+    message->header->length = htons(buffer_len);
+    message->header->type = PCEP_TYPE_PCREP;
+    message->header->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
 
     if(rp != NULL) {
         memcpy(buffer + buffer_pos, rp, ntohs(rp->header.object_length));
+        dll_append(message->obj_list, buffer + buffer_pos);
         buffer_pos += ntohs(rp->header.object_length);
     }
 
@@ -300,20 +312,22 @@ pcep_msg_create_reply(struct pcep_object_rp *rp, double_linked_list *object_list
         for (object = object_list->head; object != NULL; object = object->next_node) {
             memcpy(buffer + buffer_pos, object->data,
                    ntohs(((struct pcep_object_header*) object->data)->object_length));
+            dll_append(message->obj_list, buffer + buffer_pos);
             buffer_pos += ntohs(((struct pcep_object_header*) object->data)->object_length);
         }
     }
 
-    return hdr;
+    return message;
 }
 
-struct pcep_header*
+struct pcep_message*
 pcep_msg_create_close(uint8_t flags, uint8_t reason)
 {
     uint8_t *buffer;
     uint16_t buffer_len;
     struct pcep_object_close *obj;
-    struct pcep_header *hdr;
+    struct pcep_message *message = malloc(sizeof(struct pcep_message));
+    message->obj_list = dll_initialize();
 
     obj = pcep_obj_create_close(flags, reason);
 
@@ -322,25 +336,26 @@ pcep_msg_create_close(uint8_t flags, uint8_t reason)
 
     bzero(buffer, buffer_len);
 
-    hdr = (struct pcep_header*) buffer;
-    hdr->length = htons(buffer_len);
-    hdr->type = PCEP_TYPE_CLOSE;
-    hdr->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
+    message->header = (struct pcep_header*) buffer;
+    message->header->length = htons(buffer_len);
+    message->header->type = PCEP_TYPE_CLOSE;
+    message->header->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
 
     memcpy(buffer + sizeof(struct pcep_header), obj, ntohs(obj->header.object_length));
-
+    dll_append(message->obj_list, buffer + sizeof(struct pcep_header));
     free(obj);
 
-    return hdr;
+    return message;
 }
 
-struct pcep_header*
+struct pcep_message*
 pcep_msg_create_error(uint8_t error_type, uint8_t error_value)
 {
     uint8_t *buffer;
     uint16_t buffer_len;
     struct pcep_object_error *obj;
-    struct pcep_header *hdr;
+    struct pcep_message *message = malloc(sizeof(struct pcep_message));
+    message->obj_list = dll_initialize();
 
     obj = pcep_obj_create_error(error_type, error_value);
 
@@ -349,47 +364,45 @@ pcep_msg_create_error(uint8_t error_type, uint8_t error_value)
 
     bzero(buffer, buffer_len);
 
-    hdr = (struct pcep_header*) buffer;
-    hdr->length = htons(buffer_len);
-    hdr->type = PCEP_TYPE_ERROR;
-    hdr->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
+    message->header = (struct pcep_header*) buffer;
+    message->header->length = htons(buffer_len);
+    message->header->type = PCEP_TYPE_ERROR;
+    message->header->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
 
     memcpy(buffer + sizeof(struct pcep_header), obj, ntohs(obj->header.object_length));
-
+    dll_append(message->obj_list, buffer + sizeof(struct pcep_header));
     free(obj);
 
-    return hdr;
+    return message;
 }
 
-struct pcep_header*
+struct pcep_message*
 pcep_msg_create_keepalive()
 {
     uint8_t *buffer;
     uint16_t buffer_len;
-
-    struct pcep_header *hdr;
+    struct pcep_message *message = malloc(sizeof(struct pcep_message));
+    message->obj_list = dll_initialize();
 
     buffer_len = sizeof(struct pcep_header);
     buffer = malloc(sizeof(uint8_t) * buffer_len);
 
     bzero(buffer, buffer_len);
 
-    hdr = (struct pcep_header*) buffer;
-    hdr->length = htons(buffer_len);
-    hdr->type = PCEP_TYPE_KEEPALIVE;
-    hdr->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
+    message->header = (struct pcep_header*) buffer;
+    message->header->length = htons(buffer_len);
+    message->header->type = PCEP_TYPE_KEEPALIVE;
+    message->header->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
 
-    return hdr;
+    return message;
 }
 
 /* Common message creation function to handle double_linked_list of
  * objects, Used by pcep_msg_create_report(), pcep_msg_create_update(),
  * and pcep_msg_create_initiate() */
-static struct pcep_header*
+static struct pcep_message*
 pcep_msg_create_from_object_list(double_linked_list *object_list)
 {
-    /* Messaged defined in RFC 8231 */
-
     if (object_list == NULL)
     {
         fprintf(stderr, "pcep_msg_create_from_object_list NULL object_list\n");
@@ -402,6 +415,9 @@ pcep_msg_create_from_object_list(double_linked_list *object_list)
         return NULL;
     }
 
+    pcep_message *message = malloc(sizeof(struct pcep_message));
+    message->obj_list = dll_initialize();
+
     int buffer_len = sizeof(struct pcep_header);
     double_linked_list_node *node = object_list->head;
     for(; node != NULL; node = node->next_node)
@@ -411,10 +427,10 @@ pcep_msg_create_from_object_list(double_linked_list *object_list)
     }
 
     uint8_t *buffer = malloc(buffer_len);
-    struct pcep_header *hdr = (struct pcep_header *) buffer;
-    hdr->length = htons(buffer_len);
-    hdr->type = 0; /* Should be filled in by calling function */
-    hdr->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
+    message->header = (struct pcep_header *) buffer;
+    message->header->length = htons(buffer_len);
+    message->header->type = 0; /* Should be filled in by calling function */
+    message->header->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
 
     int index = sizeof(struct pcep_header);
     node = object_list->head;
@@ -422,26 +438,27 @@ pcep_msg_create_from_object_list(double_linked_list *object_list)
     {
         struct pcep_object_header *obj_hdr = (struct pcep_object_header*) node->data;
         memcpy(buffer + index, obj_hdr, ntohs(obj_hdr->object_length));
+        dll_append(message->obj_list, buffer + index);
         index += ntohs(obj_hdr->object_length);
     }
 
-    return hdr;
+    return message;
 }
 
-struct pcep_header*
+struct pcep_message*
 pcep_msg_create_report(double_linked_list *state_report_object_list)
 {
-    struct pcep_header* report =
+    struct pcep_message *message =
             pcep_msg_create_from_object_list(state_report_object_list);
-    if (report != NULL)
+    if (message != NULL)
     {
-        report->type = PCEP_TYPE_REPORT;
+        message->header->type = PCEP_TYPE_REPORT;
     }
 
-    return report;
+    return message;
 }
 
-struct pcep_header*
+struct pcep_message*
 pcep_msg_create_update(double_linked_list *update_request_object_list)
 {
     if (update_request_object_list == NULL)
@@ -495,17 +512,17 @@ pcep_msg_create_update(double_linked_list *update_request_object_list)
         return NULL;
     }
 
-    struct pcep_header* update =
+    struct pcep_message *message =
             pcep_msg_create_from_object_list(update_request_object_list);
-    if (update != NULL)
+    if (message != NULL)
     {
-        update->type = PCEP_TYPE_UPDATE;
+        message->header->type = PCEP_TYPE_UPDATE;
     }
 
-    return update;
+    return message;
 }
 
-struct pcep_header*
+struct pcep_message*
 pcep_msg_create_initiate(double_linked_list *lsp_object_list)
 {
     if (lsp_object_list == NULL)
@@ -540,14 +557,14 @@ pcep_msg_create_initiate(double_linked_list *lsp_object_list)
         return NULL;
     }
 
-    struct pcep_header* initiate =
+    struct pcep_message *message =
             pcep_msg_create_from_object_list(lsp_object_list);
-    if (initiate != NULL)
+    if (message != NULL)
     {
-        initiate->type = PCEP_TYPE_INITIATE;
+        message->header->type = PCEP_TYPE_INITIATE;
     }
 
-    return initiate;
+    return message;
 }
 
 void

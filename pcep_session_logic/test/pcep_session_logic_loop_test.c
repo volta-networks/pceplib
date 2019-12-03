@@ -85,10 +85,10 @@ void test_session_logic_msg_ready_handler()
     CU_ASSERT_EQUAL(session_logic_handle_->session_event_queue->num_entries, 0);
 
     /* A pcep_session_event should be created */
-    struct pcep_header* keep_alive_msg = pcep_msg_create_keepalive();
-    write(fd, (char *) keep_alive_msg, ntohs(keep_alive_msg->length));
+    struct pcep_message *keep_alive_msg = pcep_msg_create_keepalive();
+    write(fd, (char *) keep_alive_msg->header, ntohs(keep_alive_msg->header->length));
     lseek(fd, 0, SEEK_SET);
-    CU_ASSERT_EQUAL(session_logic_msg_ready_handler(&session, fd), ntohs(keep_alive_msg->length));
+    CU_ASSERT_EQUAL(session_logic_msg_ready_handler(&session, fd), ntohs(keep_alive_msg->header->length));
     CU_ASSERT_EQUAL(session_logic_handle_->session_event_queue->num_entries, 1);
     pcep_session_event *socket_event =
             (pcep_session_event *) queue_dequeue(session_logic_handle_->session_event_queue);
@@ -98,8 +98,8 @@ void test_session_logic_msg_ready_handler()
     CU_ASSERT_EQUAL(socket_event->expired_timer_id, TIMER_ID_NOT_SET);
     CU_ASSERT_PTR_NOT_NULL(socket_event->received_msg_list);
     pcep_msg_free_message_list(socket_event->received_msg_list);
+    pcep_msg_free_message(keep_alive_msg);
     free(socket_event);
-    free(keep_alive_msg);
     close(fd);
 }
 

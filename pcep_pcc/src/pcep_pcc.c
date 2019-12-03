@@ -108,7 +108,7 @@ void send_pce_report_message(pcep_session *session)
     dll_append(report_list, obj);
 
     /* Create and send the report message */
-    struct pcep_header *report_msg = pcep_msg_create_report(report_list);
+    struct pcep_message *report_msg = pcep_msg_create_report(report_list);
     send_message(session, report_msg, true);
 
     dll_destroy_with_data(report_list);

@@ -15,6 +15,9 @@
 #include "pcep-tools.h"
 #include "pcep_utils_double_linked_list.h"
 
+extern bool validate_message_header(struct pcep_header* msg_hdr);
+
+uint16_t pcep_open_hexbyte_strs_length = 28;
 char *pcep_open_odl_hexbyte_strs[] = {
     "20", "01", "00", "1c", "01", "10", "00", "18",
     "20", "1e", "78", "55", "00", "10", "00", "04",
@@ -57,6 +60,24 @@ char *pcep_update_hexbyte_strs[] = {
     "07", "10", "00", "10", "05", "0c", "10", "01",
     "03", "e8", "a0", "00", "01", "01", "01", "01"};
 
+/* Test that pcep_msg_read() can read multiple messages in 1 call */
+uint16_t pcep_open_initiate_hexbyte_strs_length = 100;
+char *pcep_open_initiate_odl_hexbyte_strs[] = {
+    "20", "01", "00", "1c", "01", "10", "00", "18",
+    "20", "1e", "78", "55", "00", "10", "00", "04",
+    "00", "00", "00", "3f", "00", "1a", "00", "04",
+    "00", "00", "00", "00",
+    "20", "0c", "00", "48", "21", "12", "00", "14",
+    "00", "00", "00", "00", "00", "00", "00", "01",
+    "00", "1c", "00", "04", "00", "00", "00", "01",
+    "20", "10", "00", "14", "00", "00", "00", "09",
+    "00", "11", "00", "08", "36", "65", "31", "31",
+    "38", "39", "32", "31", "04", "10", "00", "0c",
+    "c0", "a8", "14", "05", "01", "01", "01", "01",
+    "07", "10", "00", "10", "05", "0c", "10", "01",
+    "03", "e8", "a0", "00", "01", "01", "01", "01"};
+
+
 /* Reads an array of hexbyte strs, and writes them to a temporary file.
  * The caller should close the returned file. */
 int convert_hexstrs_to_binary(char *hexbyte_strs[], uint16_t hexbyte_strs_length)
@@ -84,9 +105,8 @@ void test_pcep_msg_read_pcep_initiate()
 
     struct pcep_message *msg = (struct pcep_message *) msg_list->head->data;
     CU_ASSERT_EQUAL(msg->obj_list->num_entries, 4);
-
-    CU_ASSERT_EQUAL(msg->header.type, PCEP_TYPE_INITIATE);
-    CU_ASSERT_EQUAL(msg->header.length, pcep_initiate_hexbyte_strs_length);
+    CU_ASSERT_EQUAL(msg->header->type, PCEP_TYPE_INITIATE);
+    CU_ASSERT_EQUAL(msg->header->length, pcep_initiate_hexbyte_strs_length);
 
     /* Verify each of the object types */
 
@@ -167,9 +187,8 @@ void test_pcep_msg_read_pcep_initiate2()
 
     struct pcep_message *msg = (struct pcep_message *) msg_list->head->data;
     CU_ASSERT_EQUAL(msg->obj_list->num_entries, 4);
-
-    CU_ASSERT_EQUAL(msg->header.type, PCEP_TYPE_INITIATE);
-    CU_ASSERT_EQUAL(msg->header.length, pcep_initiate2_hexbyte_strs_length);
+    CU_ASSERT_EQUAL(msg->header->type, PCEP_TYPE_INITIATE);
+    CU_ASSERT_EQUAL(msg->header->length, pcep_initiate2_hexbyte_strs_length);
 
     /* Verify each of the object types */
 
@@ -232,6 +251,44 @@ void test_pcep_msg_read_pcep_initiate2()
     close(fd);
 }
 
+void test_pcep_msg_read_pcep_open()
+{
+    int fd = convert_hexstrs_to_binary(pcep_open_odl_hexbyte_strs, pcep_open_hexbyte_strs_length);
+    double_linked_list *msg_list = pcep_msg_read(fd);
+    CU_ASSERT_PTR_NOT_NULL(msg_list);
+    CU_ASSERT_EQUAL(msg_list->num_entries, 1);
+
+    struct pcep_message *msg = (struct pcep_message *) msg_list->head->data;
+    CU_ASSERT_EQUAL(msg->obj_list->num_entries, 1);
+    CU_ASSERT_EQUAL(msg->header->type, PCEP_TYPE_OPEN);
+    CU_ASSERT_EQUAL(msg->header->length, pcep_open_hexbyte_strs_length);
+
+    /* Verify the Open message */
+    struct pcep_object_header *obj_hdr = (struct pcep_object_header *) msg->obj_list->head->data;
+    CU_ASSERT_EQUAL(obj_hdr->object_class, PCEP_OBJ_CLASS_OPEN);
+    CU_ASSERT_EQUAL(obj_hdr->object_type, PCEP_OBJ_TYPE_OPEN);
+    CU_ASSERT_EQUAL(obj_hdr->object_length, 24);
+    CU_ASSERT_TRUE(pcep_obj_has_tlv(obj_hdr));
+
+    /* Open TLV: Stateful PCE Capability */
+    double_linked_list *tlv_list = pcep_obj_get_tlvs(obj_hdr);
+    CU_ASSERT_EQUAL(tlv_list->num_entries, 2);
+    double_linked_list_node *tlv_node = tlv_list->head;
+    struct pcep_object_tlv *tlv = (struct pcep_object_tlv *) tlv_node->data;
+    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY);
+    CU_ASSERT_EQUAL(tlv->header.length, 4);
+
+    /* Open TLV: SR PCE Capability */
+    tlv_node = tlv_node->next_node;
+    tlv = (struct pcep_object_tlv *) tlv_node->data;
+    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_SR_PCE_CAPABILITY);
+    CU_ASSERT_EQUAL(tlv->header.length, 4);
+
+    dll_destroy(tlv_list);
+    pcep_msg_free_message(msg);
+    dll_destroy(msg_list);
+    close(fd);
+}
 
 void test_pcep_msg_read_pcep_update()
 {
@@ -243,8 +300,8 @@ void test_pcep_msg_read_pcep_update()
     struct pcep_message *msg = (struct pcep_message *) msg_list->head->data;
     CU_ASSERT_EQUAL(msg->obj_list->num_entries, 3);
 
-    CU_ASSERT_EQUAL(msg->header.type, PCEP_TYPE_UPDATE);
-    CU_ASSERT_EQUAL(msg->header.length, pcep_update_hexbyte_strs_length);
+    CU_ASSERT_EQUAL(msg->header->type, PCEP_TYPE_UPDATE);
+    CU_ASSERT_EQUAL(msg->header->length, pcep_update_hexbyte_strs_length);
 
     /* Verify each of the object types */
 
@@ -300,5 +357,52 @@ void test_pcep_msg_read_pcep_update()
     dll_destroy(ero_subobj_list);
     dll_destroy(msg_list);
     close(fd);
+}
+
+void test_pcep_msg_read_pcep_open_initiate()
+{
+    int fd = convert_hexstrs_to_binary(pcep_open_initiate_odl_hexbyte_strs, pcep_open_initiate_hexbyte_strs_length);
+    double_linked_list *msg_list = pcep_msg_read(fd);
+    CU_ASSERT_PTR_NOT_NULL(msg_list);
+    CU_ASSERT_EQUAL(msg_list->num_entries, 2);
+
+    struct pcep_message *msg = (struct pcep_message *) msg_list->head->data;
+    CU_ASSERT_EQUAL(msg->obj_list->num_entries, 1);
+    CU_ASSERT_EQUAL(msg->header->type, PCEP_TYPE_OPEN);
+    CU_ASSERT_EQUAL(msg->header->length, pcep_open_hexbyte_strs_length);
+    pcep_msg_free_message(msg);
+
+    msg = (struct pcep_message *) msg_list->head->next_node->data;
+    CU_ASSERT_EQUAL(msg->obj_list->num_entries, 4);
+    CU_ASSERT_EQUAL(msg->header->type, PCEP_TYPE_INITIATE);
+    CU_ASSERT_EQUAL(msg->header->length, pcep_initiate2_hexbyte_strs_length);
+    pcep_msg_free_message(msg);
+
+    dll_destroy(msg_list);
+    close(fd);
+}
+
+void test_validate_message_header()
+{
+    uint8_t pcep_message_invalid_version[] = {0x22, 0x01, 0x04, 0x00};
+    uint8_t pcep_message_invalid_length[]  = {0x20, 0x01, 0x00, 0x00};
+    uint8_t pcep_message_invalid_type[]    = {0x20, 0xff, 0x04, 0x00};
+    uint8_t pcep_message_valid[]           = {0x20, 0x01, 0x04, 0x00};
+
+    /* Verify invalid message header version */
+    CU_ASSERT_FALSE(validate_message_header((struct pcep_header*) pcep_message_invalid_version));
+
+    /* Verify invalid message header lengths */
+    CU_ASSERT_FALSE(validate_message_header((struct pcep_header*) pcep_message_invalid_length));
+    pcep_message_invalid_length[2] = 0x05;
+    CU_ASSERT_FALSE(validate_message_header((struct pcep_header*) pcep_message_invalid_length));
+
+    /* Verify invalid message header types */
+    CU_ASSERT_FALSE(validate_message_header((struct pcep_header*) pcep_message_invalid_type));
+    pcep_message_invalid_type[1] = 0x00;
+    CU_ASSERT_FALSE(validate_message_header((struct pcep_header*) pcep_message_invalid_type));
+
+    /* Verify a valid message header */
+    CU_ASSERT_TRUE(validate_message_header((struct pcep_header*) pcep_message_valid));
 }
 

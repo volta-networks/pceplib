@@ -70,31 +70,44 @@ struct pcep_header
     uint16_t length;    // Total length of the PCEP message.
 }__attribute__((packed));
 
+/* A pcep message contains the entire PCEP message in contiguous memory.
+ * A pcep_message->obj_list is a double_linked_list of struct pcep_object_header
+ * pointers that point into the actual message, so these should not be deleted.
+ * A pointer to a struct pcep_object_header will point to the PCEP message header
+ * with the actual pcep objects just after the header. */
+typedef struct pcep_message
+{
+    struct pcep_header *header;
+    double_linked_list *obj_list;
+
+} pcep_message;
+
 /* Set the version to 001 and flags to 00000 */
 #define PCEP_COMMON_HEADER_VER_FLAGS 0x20
 
-struct pcep_header*     pcep_msg_create_open            (uint8_t keepalive, uint8_t deadtimer, uint8_t sid);
-struct pcep_header*     pcep_msg_create_open_with_tlvs  (uint8_t keepalive, uint8_t deadtimer, uint8_t sid, double_linked_list *tlv_list);
-struct pcep_header*     pcep_msg_create_request         (struct pcep_object_rp *rp,  struct pcep_object_endpoints_ipv4 *enpoints, struct pcep_object_bandwidth *bandwidth);
-struct pcep_header*     pcep_msg_create_request_svec    (struct pcep_header **requests, uint16_t request_count, float disjointness);
-struct pcep_header*     pcep_msg_create_reply_nopath    (struct pcep_object_rp *rp,  struct pcep_object_nopath *nopath);
-struct pcep_header*     pcep_msg_create_reply           (struct pcep_object_rp *rp,  double_linked_list *object_list);
-struct pcep_header*     pcep_msg_create_close           (uint8_t flags, uint8_t reason);
-struct pcep_header*     pcep_msg_create_error           (uint8_t error_type, uint8_t error_value);
-struct pcep_header*     pcep_msg_create_keepalive       ();
+struct pcep_message*  pcep_msg_create_open            (uint8_t keepalive, uint8_t deadtimer, uint8_t sid);
+struct pcep_message*  pcep_msg_create_open_with_tlvs  (uint8_t keepalive, uint8_t deadtimer, uint8_t sid, double_linked_list *tlv_list);
+struct pcep_message*  pcep_msg_create_request         (struct pcep_object_rp *rp,  struct pcep_object_endpoints_ipv4 *enpoints, struct pcep_object_bandwidth *bandwidth);
+struct pcep_message*  pcep_msg_create_request_svec    (struct pcep_header **requests, uint16_t request_count, float disjointness);
+struct pcep_message*  pcep_msg_create_reply_nopath    (struct pcep_object_rp *rp,  struct pcep_object_nopath *nopath);
+struct pcep_message*  pcep_msg_create_reply           (struct pcep_object_rp *rp,  double_linked_list *object_list);
+struct pcep_message*  pcep_msg_create_close           (uint8_t flags, uint8_t reason);
+struct pcep_message*  pcep_msg_create_error           (uint8_t error_type, uint8_t error_value);
+struct pcep_message*  pcep_msg_create_keepalive       ();
+
 /* Message defined in RFC 8231 section 6.1. Expecting double_linked_list of
  * struct pcep_object_header* objects of type SRP, LSP, or path (ERO, Bandwidth,
  * metrics, and RRO objects). */
-struct pcep_header*     pcep_msg_create_report          (double_linked_list *state_report_object_list);
+struct pcep_message*  pcep_msg_create_report          (double_linked_list *state_report_object_list);
 /* Message defined in RFC 8231. Expecting double_linked_list of at least 3
  * struct pcep_object_header* objects of type SRP, LSP, and path (ERO and
  * intended-attribute-list). The ERO must be present, but may be empty if
  * the PCE cannot find a valid path for a delegated LSP. */
-struct pcep_header*     pcep_msg_create_update          (double_linked_list *update_request_object_list);
+struct pcep_message*  pcep_msg_create_update          (double_linked_list *update_request_object_list);
 /* Message defined in RFC 8281. Expecting double_linked_list of at least 2
  * struct pcep_object_header* objects of type SRP and LSP for LSP deletion, and
  * may also contain Endpoints, ERO and an attribute list for LSP creation. */
-struct pcep_header*     pcep_msg_create_initiate        (double_linked_list *lsp_object_list);
+struct pcep_message*  pcep_msg_create_initiate        (double_linked_list *lsp_object_list);
 
 void pcep_unpack_msg_header(struct pcep_header* hdr);
 

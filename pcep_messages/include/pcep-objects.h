@@ -574,6 +574,7 @@ void pcep_unpack_obj_error(struct pcep_object_error *error);
 void pcep_unpack_obj_close(struct pcep_object_close *close);
 void pcep_unpack_obj_srp(struct pcep_object_srp *srp);
 void pcep_unpack_obj_lsp(struct pcep_object_lsp *lsp);
+void pcep_unpack_obj_notify(struct pcep_object_notify *notify);
 
 /* Used to get Sub-objects for PCEP_OBJ_CLASS_ERO, PCEP_OBJ_CLASS_IRO,
  * and PCEP_OBJ_CLASS_RRO objects. Will return NULL if the obj is not

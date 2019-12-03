@@ -45,22 +45,6 @@ extern "C" {
     #define MIN(a, b) (((a) > (b)) ? (b) : (a))
 #endif
 
-/*
- * A list of pcep messages is a double_linked_list of pcep_message items.
- * A pcep_message->obj_list is a double_linked_list of struct pcep_object_header
- * headers.
- * A pointer to a struct pcep_object_header will point to the header with the actual
- * pcep object just after the header.
- */
-
-typedef struct pcep_message
-{
-    struct pcep_header header;
-    double_linked_list *obj_list;
-
-} pcep_message;
-
-
 /* Returns a double linked list of PCEP messages */
 double_linked_list*          pcep_msg_read    (int sock_fd);
 /* Given a double linked list of PCEP messages, return the first node that has the same message type */

@@ -1038,6 +1038,11 @@ void pcep_unpack_obj_lsp(struct pcep_object_lsp *lsp)
     lsp->plsp_id_flags = ntohl(lsp->plsp_id_flags);
 }
 
+void pcep_unpack_obj_notify(struct pcep_object_notify *notify)
+{
+    // nothing to unpack.
+}
+
 struct pcep_ro_subobj_hdr*
 pcep_obj_get_next_ro_subobject(struct pcep_object_header *base, uint8_t current_index)
 {
