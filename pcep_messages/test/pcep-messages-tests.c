@@ -72,6 +72,7 @@ extern void test_pcep_unpack_obj_ro_sr(void);
 
 extern void test_pcep_msg_read_pcep_initiate(void);
 extern void test_pcep_msg_read_pcep_initiate2(void);
+extern void test_pcep_msg_read_pcep_update(void);
 
 
 int main(int argc, char **argv)
@@ -146,6 +147,7 @@ int main(int argc, char **argv)
     CU_pSuite tools_suite = CU_add_suite("PCEP Tools Test Suite", NULL, NULL);
     CU_add_test(tools_suite, "test_pcep_msg_read_pcep_initiate", test_pcep_msg_read_pcep_initiate);
     CU_add_test(tools_suite, "test_pcep_msg_read_pcep_initiate2", test_pcep_msg_read_pcep_initiate2);
+    CU_add_test(tools_suite, "test_pcep_msg_read_pcep_update", test_pcep_msg_read_pcep_update);
 
 
     CU_basic_set_mode(CU_BRM_VERBOSE);

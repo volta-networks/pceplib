@@ -64,6 +64,13 @@ static uint16_t get_tlvs_length(double_linked_list *tlv_list)
         tlvs_length += ntohs(tlv->length) + sizeof(struct pcep_object_tlv_header);
     }
 
+    /* The TLV length does not include padding, but
+     * must be included in the enclosing object */
+    if (tlvs_length % 4 != 0)
+    {
+        tlvs_length += (4 - (tlvs_length % 4));
+    }
+
     return tlvs_length;
 }
 
@@ -79,8 +86,14 @@ static void append_tlvs(struct pcep_object_header *obj, uint16_t index, double_l
     for( ; node != NULL; node = node->next_node)
     {
         struct pcep_object_tlv_header *tlv = (struct pcep_object_tlv_header *) node->data;
-        memcpy(((uint8_t *) obj) + buffer_index, tlv, ntohs(tlv->length) + sizeof(struct pcep_object_tlv_header));
-        buffer_index += ntohs(tlv->length) + sizeof(struct pcep_object_header);
+        /* Any pad bytes are not specified in the TLV length, but mus be copied */
+        int length = ntohs(tlv->length) + sizeof(struct pcep_object_tlv_header);
+        if (length % 4 != 0)
+        {
+            length += (4 - (length % 4));
+        }
+        memcpy(((uint8_t *) obj) + buffer_index, tlv, length);
+        buffer_index += length;
     }
 }
 

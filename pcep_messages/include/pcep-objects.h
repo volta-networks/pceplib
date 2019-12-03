@@ -282,6 +282,15 @@ struct pcep_ro_subobj_border
     uint8_t swcap_info_thr;
 }__attribute__((packed));
 
+/* The SR ERO and SR RRO subojbects are the same, except
+ * the SR-RRO does not have the L flag in the Type field.
+ * Defined in draft-ietf-pce-segment-routing-16
+  0                   1                   2                   3
+  0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ |L|   Type=36   |     Length    |  NT   |     Flags     |F|S|C|M|
+ +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ */
 enum pcep_sr_subobj_nai
 {
       PCEP_SR_SUBOBJ_NAI_ABSENT = 0,
@@ -301,6 +310,17 @@ enum pcep_sr_subobj_flags
     PCEP_SR_SUBOBJ_F_FLAG = 8
 };
 
+struct pcep_ro_subobj_sr
+{
+    struct pcep_ro_subobj_hdr header;
+    uint16_t nt_flags;
+    /* The SID and NAI are optional depending on the flags,
+     * and the NAI can be variable length */
+    uint32_t sid_nai[];
+}__attribute__((packed));
+
+#define GET_SR_SUBOBJ_NT(sr_subobj_ptr)    ((sr_subobj_ptr)->nt_flags & 0xf000)
+#define GET_SR_SUBOBJ_FLAGS(sr_subobj_ptr) ((sr_subobj_ptr)->nt_flags & 0x000f)
 /* 0                   1                   2                   3
    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
    +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+ Label
@@ -313,26 +333,6 @@ enum pcep_sr_subobj_flags
       (((stack_bottom_bit) << 8) & 0x00000100) | \
        ((ttl_8bits) & 0xff) )
 
-/* The SR ERO and SR RRO subojbects are the same, except
- * the SR-RRO does not have the L flag in the Type field.
- * Defined in draft-ietf-pce-segment-routing-16
- 0                   1                   2                   3
- 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- |L|   Type=36   |     Length    |  NT   |     Flags     |F|S|C|M|
- +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
- */
-struct pcep_ro_subobj_sr
-{
-    struct pcep_ro_subobj_hdr header;
-    uint16_t nt_flags;
-    /* The SID and NAI are optional depending on the flags,
-     * and the NAI can be variable length */
-    uint32_t sid_nai[];
-}__attribute__((packed));
-
-#define GET_SR_SUBOBJ_NT(sr_subobj_ptr) ((sr_subobj_ptr)->nt_flags & 0x000f)
-#define GET_SR_SUBOBJ_FLAGS(sr_subobj_ptr) ((sr_subobj_ptr)->nt_flags & 0xf000)
 
 struct pcep_object_ro_subobj
 {

@@ -115,7 +115,8 @@ pcep_tlv_create_path_setup_type_capability(double_linked_list *pst_list, double_
     /* Calculate the length of the psts */
     /* We need to take into account the padding when allocating the buffer */
     int buffer_length = sizeof(uint32_t) + /* The reserved + Num Pst's is a uint 32_t */
-            pst_list->num_entries + (4 - (pst_list->num_entries % 4));
+            pst_list->num_entries +
+            ((pst_list->num_entries % 4 == 0) ? 0 : (4 - (pst_list->num_entries % 4)));
 
     /* Calculate the length of the sub-tlvs */
     int sub_tlv_length = 0;
@@ -155,7 +156,8 @@ pcep_tlv_create_path_setup_type_capability(double_linked_list *pst_list, double_
     /* Write each of the sub-tlvs */
     if (sub_tlv_list != NULL)
     {
-        index = 4 + pst_list->num_entries + (4 - (pst_list->num_entries % 4));
+        index = 4 + pst_list->num_entries +
+            ((pst_list->num_entries % 4 == 0) ? 0 : (4 - (pst_list->num_entries % 4)));
         node = sub_tlv_list->head;
         for(; node != NULL; node = node->next_node)
         {
@@ -195,15 +197,18 @@ pcep_tlv_create_symbolic_path_name(char *symbolic_path_name, uint16_t symbolic_p
         return NULL;
     }
 
-    uint8_t pad_bytes = (4 - (symbolic_path_name_length % 4));
+    uint8_t pad_bytes = (symbolic_path_name_length % 4 == 0) ? 0 : (4 - (symbolic_path_name_length % 4));
     struct pcep_object_tlv *tlv = malloc(
             sizeof(struct pcep_object_tlv_header) + symbolic_path_name_length + pad_bytes);
     bzero(tlv, sizeof(struct pcep_object_tlv_header) + symbolic_path_name_length + pad_bytes);
 
-    tlv->header.type = htons(PCEP_OBJ_TLV_TYPE_SYMBOLIC_PATH_NAME);
+    /* The enclosing object must include the pad bytes in its length */
     tlv->header.length = htons(symbolic_path_name_length);
-    uint8_t *padded_ptr = (((uint8_t *) tlv->value) + pad_bytes);
-    memcpy(padded_ptr, symbolic_path_name, symbolic_path_name_length);
+    tlv->header.type = htons(PCEP_OBJ_TLV_TYPE_SYMBOLIC_PATH_NAME);
+    /* The padding is at the end of the string, not the beginning */
+    /*uint8_t *padded_ptr = (((uint8_t *) tlv->value) + pad_bytes);
+    memcpy(padded_ptr, symbolic_path_name, symbolic_path_name_length); */
+    memcpy(tlv->value, symbolic_path_name, symbolic_path_name_length);
 
     return tlv;
 }
