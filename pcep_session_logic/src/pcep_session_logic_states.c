@@ -490,8 +490,6 @@ void handle_socket_comm_event(pcep_session_event *event)
         return;
     }
 
-    reset_dead_timer(session);
-
     double_linked_list_node *msg_node;
     for (msg_node = event->received_msg_list->head;
          msg_node != NULL;
