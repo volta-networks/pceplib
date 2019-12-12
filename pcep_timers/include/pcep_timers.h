@@ -11,6 +11,7 @@
 #define PCEPTIMERS_H_
 
 #include <stdbool.h>
+#include <stdint.h>
 
 #define TIMER_ID_NOT_SET -1
 
@@ -40,7 +41,7 @@ bool teardown_timers();
  * Returns a timer_id <= 0 that can be used to cancel_timer.
  * Returns < 0 on error.
  */
-int create_timer(int sleep_seconds, void *data);
+int create_timer(uint16_t sleep_seconds, void *data);
 
 /*
  * Cancel a timer created with create_timer().

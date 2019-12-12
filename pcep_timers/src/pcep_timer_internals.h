@@ -19,6 +19,7 @@
 typedef struct pcep_timer_
 {
     time_t expire_time;
+    uint16_t sleep_seconds;
     int timer_id;
     void *data;
 } pcep_timer;

@@ -83,7 +83,7 @@ void reset_dead_timer(pcep_session *session)
     if (session->timer_id_dead_timer == TIMER_ID_NOT_SET)
     {
         printf("[%ld-%ld] pcep_session_logic set dead timer [%d secs] for session_id [%d]\n",
-                time(NULL), pthread_self(), session->pce_config.keep_alive_seconds, session->session_id);
+                time(NULL), pthread_self(), session->pce_config.dead_timer_seconds, session->session_id);
         session->timer_id_dead_timer = create_timer(session->pce_config.dead_timer_seconds, session);
     }
     else
@@ -483,10 +483,14 @@ void handle_socket_comm_event(pcep_session_event *event)
         return;
     }
 
+    reset_dead_timer(session);
+
     if (event->received_msg_list == NULL)
     {
         return;
     }
+
+    reset_dead_timer(session);
 
     double_linked_list_node *msg_node;
     for (msg_node = event->received_msg_list->head;
@@ -495,7 +499,6 @@ void handle_socket_comm_event(pcep_session_event *event)
     {
         bool message_enqueued = false;
         pcep_message *msg = (pcep_message *) msg_node->data;
-        reset_dead_timer(session);
 
         switch (msg->header->type)
         {
