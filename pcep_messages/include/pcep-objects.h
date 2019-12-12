@@ -334,7 +334,7 @@ struct pcep_ro_subobj_sr
        ((ttl_8bits) & 0xff) )
 #define GET_SR_ERO_SID_LABEL(SID)   ((SID & 0xfffff000) >> 12)
 #define GET_SR_ERO_SID_TC(SID)      ((SID & 0x00000e00) >> 9)
-#define GET_SR_ERO_SID_S(SID)       ((SID & 0x00000100) >> 8
+#define GET_SR_ERO_SID_S(SID)       ((SID & 0x00000100) >> 8)
 #define GET_SR_ERO_SID_TTL(SID)     ((SID & 0x000000ff))
 
 struct pcep_object_ro_subobj

@@ -174,7 +174,7 @@ int get_next_timer_id()
     return timer_id_++;
 }
 
-int create_timer(int sleep_seconds, void *data)
+int create_timer(uint16_t sleep_seconds, void *data)
 {
     if (timers_context_ == NULL)
     {
@@ -185,6 +185,7 @@ int create_timer(int sleep_seconds, void *data)
     pcep_timer *timer = malloc(sizeof(pcep_timer));
     bzero(timer, sizeof(pcep_timer));
     timer->data = data;
+    timer->sleep_seconds = sleep_seconds;
     timer->expire_time = time(NULL) + sleep_seconds;
     timer->timer_id = get_next_timer_id();
 
@@ -258,6 +259,7 @@ bool reset_timer(int timer_id)
         return false;
     }
 
+    timer_toReset->expire_time = time(NULL) + timer_toReset->sleep_seconds;
     if (ordered_list_add_node(timers_context_->timer_list, timer_toReset) == NULL)
     {
         free(timer_toReset);
