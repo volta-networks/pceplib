@@ -483,6 +483,8 @@ void handle_socket_comm_event(pcep_session_event *event)
         return;
     }
 
+    reset_dead_timer(session);
+
     if (event->received_msg_list == NULL)
     {
         return;
