@@ -32,6 +32,22 @@
 #include "pcep-objects.h"
 #include "pcep_utils_double_linked_list.h"
 
+const char* message_type_strs[] = {
+        "NOT_IMPLEMENTED0",
+        "OPEN",
+        "KEEPALIVE",
+        "PCREQ",
+        "PCREP",
+        "PCNOTF",
+        "ERROR",
+        "CLOSE",
+        "NOT_IMPLEMENTED8",
+        "NOT_IMPLEMENTED9",
+        "REPORT",
+        "UPDATE",
+        "INITIATE",
+        "UNKOWN_MESSAGE_TYPE"};
+
 struct pcep_message*
 pcep_msg_create_open(uint8_t keepalive, uint8_t deadtimer, uint8_t sid)
 {
@@ -585,4 +601,11 @@ pcep_msg_encode(struct pcep_message *message)
     }
 
     message->header->length = htons(message->header->length);
+}
+
+const char *get_message_type_str(uint8_t type)
+{
+    uint8_t msg_type = (type > PCEP_TYPE_INITIATE) ? PCEP_TYPE_INITIATE + 1 : type;
+
+    return message_type_strs[msg_type];
 }

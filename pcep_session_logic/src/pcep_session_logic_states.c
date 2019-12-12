@@ -497,18 +497,17 @@ void handle_socket_comm_event(pcep_session_event *event)
     {
         bool message_enqueued = false;
         pcep_message *msg = (pcep_message *) msg_node->data;
+        printf("\t %s message\n", get_message_type_str(msg->header->type));
 
         switch (msg->header->type)
         {
         case PCEP_TYPE_OPEN:
-            printf("\t PCEP_OPEN message\n");
             handle_pcep_open(session, msg);
             enqueue_event(session, MESSAGE_RECEIVED, msg);
             message_enqueued = true;
             break;
 
         case PCEP_TYPE_KEEPALIVE:
-            printf("\t PCEP_KEEPALIVE message\n");
             if (session->session_state == SESSION_STATE_TCP_CONNECTED)
             {
                 session->session_state = SESSION_STATE_OPENED;
@@ -519,7 +518,6 @@ void handle_socket_comm_event(pcep_session_event *event)
             break;
 
         case PCEP_TYPE_PCREP:
-            printf("\t PCEP_PCREP message\n");
             if (session->session_state == SESSION_STATE_WAIT_PCREQ)
             {
                 session->session_state = SESSION_STATE_IDLE;
@@ -536,7 +534,6 @@ void handle_socket_comm_event(pcep_session_event *event)
             break;
 
         case PCEP_TYPE_CLOSE:
-            printf("\t PCEP_CLOSE message\n");
             session->session_state = SESSION_STATE_INITIALIZED;
             socket_comm_session_close_tcp(session->socket_comm_session);
             /* TODO should we also enqueue the message, so they can see the reasons?? */
@@ -544,21 +541,18 @@ void handle_socket_comm_event(pcep_session_event *event)
             break;
 
         case PCEP_TYPE_PCREQ:
-            printf("\t PCEP_PCREQ message\n");
             /* TODO when this reaches a MAX, need to react.
              *      reply with pcep_error msg. */
             session->num_erroneous_messages++;
             break;
 
         case PCEP_TYPE_REPORT:
-            printf("\t PCEP_PCRPT message\n");
             /* TODO when this reaches a MAX, need to react.
              *      reply with pcep_error msg. */
             session->num_erroneous_messages++;
             break;
 
         case PCEP_TYPE_UPDATE:
-            printf("\t PCEP_PCUPD message\n");
             /* Should reply with a PcRpt */
             handle_pcep_update(session, msg);
             enqueue_event(session, MESSAGE_RECEIVED, msg);
@@ -566,7 +560,6 @@ void handle_socket_comm_event(pcep_session_event *event)
             break;
 
         case PCEP_TYPE_INITIATE:
-            printf("\t PCEP_PCInitiate message\n");
             /* Should reply with a PcRpt */
             handle_pcep_initiate(session, msg);
             enqueue_event(session, MESSAGE_RECEIVED, msg);
@@ -574,13 +567,11 @@ void handle_socket_comm_event(pcep_session_event *event)
             break;
 
         case PCEP_TYPE_PCNOTF:
-            printf("\t PCEP_PCNOTF message\n");
             /* TODO implement this */
             enqueue_event(session, MESSAGE_RECEIVED, msg);
             message_enqueued = true;
             break;
         case PCEP_TYPE_ERROR:
-            printf("\t PCEP_ERROR message\n");
             /* TODO implement this */
             enqueue_event(session, MESSAGE_RECEIVED, msg);
             message_enqueued = true;

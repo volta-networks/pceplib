@@ -15,6 +15,19 @@
 #include "pcep-messages.h"
 #include "pcep_pcc_api.h"
 
+/* Not using an array here since the enum pcep_event_type indeces go into the 100's */
+const char MESSAGE_RECEIVED_STR[] = "MESSAGE_RECEIVED";
+const char PCE_CLOSED_SOCKET_STR[] = "PCE_CLOSED_SOCKET";
+const char PCE_SENT_PCEP_CLOSE_STR[] = "PCE_SENT_PCEP_CLOSE";
+const char PCE_DEAD_TIMER_EXPIRED_STR[] = "PCE_DEAD_TIMER_EXPIRED";
+const char PCE_OPEN_KEEP_WAIT_TIMER_EXPIRED_STR[] = "PCE_OPEN_KEEP_WAIT_TIMER_EXPIRED";
+const char PCC_CONNECTED_TO_PCE_STR[] = "PCC_CONNECTED_TO_PCE";
+const char PCC_PCEP_SESSION_CLOSED_STR[] = "PCC_PCEP_SESSION_CLOSED";
+const char PCC_RCVD_INVALID_OPEN_STR[] = "PCC_RCVD_INVALID_OPEN";
+const char PCC_RCVD_MAX_INVALID_MSGS_STR[] = "PCC_RCVD_MAX_INVALID_MSGS";
+const char PCC_RCVD_MAX_UNKOWN_MSGS_STR[] = "PCC_RCVD_MAX_UNKOWN_MSGS";
+const char UNKNOWN_EVENT_STR[] = "UNKNOWN Event Type";
+
 /* Session Logic Handle managed in pcep_session_logic.c */
 extern pcep_event_queue *session_logic_event_queue_;
 
@@ -184,3 +197,44 @@ void destroy_pcep_event(struct pcep_event *event)
     free(event);
 }
 
+const char *get_event_type_str(int event_type)
+{
+    switch(event_type)
+    {
+    case MESSAGE_RECEIVED:
+        return MESSAGE_RECEIVED_STR;
+        break;
+    case PCE_CLOSED_SOCKET:
+        return PCE_CLOSED_SOCKET_STR;
+        break;
+    case PCE_SENT_PCEP_CLOSE:
+        return PCE_SENT_PCEP_CLOSE_STR;
+        break;
+    case PCE_DEAD_TIMER_EXPIRED:
+        return PCE_DEAD_TIMER_EXPIRED_STR;
+        break;
+    case PCE_OPEN_KEEP_WAIT_TIMER_EXPIRED:
+        return PCE_OPEN_KEEP_WAIT_TIMER_EXPIRED_STR;
+        break;
+    case PCC_CONNECTED_TO_PCE:
+        return PCC_CONNECTED_TO_PCE_STR;
+        break;
+    case PCC_PCEP_SESSION_CLOSED:
+        return PCC_PCEP_SESSION_CLOSED_STR;
+        break;
+    case PCC_RCVD_INVALID_OPEN:
+        return PCC_RCVD_INVALID_OPEN_STR;
+        break;
+    case PCC_RCVD_MAX_INVALID_MSGS:
+        return PCC_RCVD_MAX_INVALID_MSGS_STR;
+        break;
+    case PCC_RCVD_MAX_UNKOWN_MSGS:
+        return PCC_RCVD_MAX_UNKOWN_MSGS_STR;
+        break;
+    default:
+        return UNKNOWN_EVENT_STR;
+        break;
+    }
+
+
+}

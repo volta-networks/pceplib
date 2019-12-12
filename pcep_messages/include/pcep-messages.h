@@ -119,6 +119,8 @@ struct pcep_message*  pcep_msg_create_initiate        (double_linked_list *lsp_o
  * and object TLVs. */
 void pcep_msg_encode(struct pcep_message *message);
 
+const char *get_message_type_str(uint8_t type);
+
 #ifdef __cplusplus
 }
 #endif

@@ -67,5 +67,7 @@ struct pcep_event *event_queue_get_event();
 /* Free the PCEP Event resources, including the PCEP message */
 void destroy_pcep_event(struct pcep_event *event);
 
+const char *get_event_type_str(int event_type);
+
 
 #endif /* PCEPPCC_INCLUDE_PCEPPCCAPI_H_ */

@@ -16,20 +16,20 @@
  * https://docs.google.com/presentation/d/1DYc3ZhYA1c_qg9A552HjhneJXQKdh_yrKW6v3NRYPtnbw/edit?usp=sharing
  */
 
+bool pcc_active_ = true;
+
 void handle_signal_action(int sig_number)
 {
     if (sig_number == SIGINT)
     {
         printf("SIGINT was caught!\n");
-        // TODO do something here
+        pcc_active_ = false;
     }
     else if (sig_number == SIGPIPE)
     {
         printf("SIGPIPE was caught!\n");
-        // TODO do something here
+        pcc_active_ = false;
     }
-
-    exit(1);
 }
 
 
@@ -115,6 +115,19 @@ void send_pce_report_message(pcep_session *session)
     dll_destroy_with_data(ero_subobj_list);
 }
 
+void print_queue_event(struct pcep_event *event)
+{
+    printf("[%ld-%ld] Received Event: type [%s] on session [%d] occurred at [%ld]\n",
+            time(NULL), pthread_self(),
+            get_event_type_str(event->event_type),
+            event->session->session_id,
+            event->event_time);
+
+    if (event->event_type == MESSAGE_RECEIVED)
+    {
+        printf("\t Event message type [%s]\n", get_message_type_str(event->message->header->type));
+    }
+}
 
 int main(int argc, char **argv)
 {
@@ -155,8 +168,18 @@ int main(int argc, char **argv)
 
     send_pce_report_message(session);
 
-    /* Sleep for a while to let the timers expire */
-    sleep(30);
+    while(pcc_active_)
+    {
+        if (event_queue_is_empty() == false)
+        {
+            struct pcep_event *event = event_queue_get_event();
+            print_queue_event(event);
+            destroy_pcep_event(event);
+        }
+
+        sleep(5);
+    }
+
 
     printf("Disconnecting from PCE\n");
     disconnect_pce(session);
