@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <strings.h>
 
+#include "pcep_utils_logging.h"
 #include "pcep_utils_queue.h"
 
 queue_handle *queue_initialize()
@@ -40,13 +41,13 @@ queue_node *queue_enqueue(queue_handle *handle, void *data)
 {
     if (handle == NULL)
     {
-        fprintf(stderr, "ERROR queue_enqueue, the queue has not been initialized\n");
+        pcep_log(LOG_WARNING, "queue_enqueue, the queue has not been initialized\n");
         return NULL;
     }
 
     if (handle->max_entries > 0 && handle->num_entries >= handle->max_entries)
     {
-        fprintf(stderr, "WARN queue_enqueue, cannot enqueue: max entries hit [%u]\n",
+        pcep_log(LOG_WARNING, "queue_enqueue, cannot enqueue: max entries hit [%u]\n",
                 handle->num_entries);
         return NULL;
     }
@@ -76,13 +77,13 @@ void *queue_dequeue(queue_handle *handle)
 {
     if (handle == NULL)
     {
-        fprintf(stderr, "ERROR queue_dequeue, the queue has not been initialized\n");
+        pcep_log(LOG_WARNING, "queue_dequeue, the queue has not been initialized\n");
         return NULL;
     }
 
     if (handle->head == NULL)
     {
-        //printf("DEBUG queue_dequeue, the queue is empty\n");
+        pcep_log(LOG_DEBUG, "queue_dequeue, the queue is empty\n");
         return NULL;
     }
 

@@ -9,6 +9,7 @@
 #include <strings.h>
 
 #include "pcep_utils_double_linked_list.h"
+#include "pcep_utils_logging.h"
 
 double_linked_list *dll_initialize()
 {
@@ -22,7 +23,7 @@ double_linked_list *dll_initialize()
     }
     else
     {
-        fprintf(stderr, "ERROR dll_initialize cannot allocate memory for handle\n");
+        pcep_log(LOG_WARNING, "dll_initialize cannot allocate memory for handle\n");
         return NULL;
     }
 
@@ -34,7 +35,7 @@ void dll_destroy(double_linked_list *handle)
 {
     if (handle == NULL)
     {
-        fprintf(stderr, "ERROR dll_destroy cannot destroy NULL handle\n");
+        pcep_log(LOG_WARNING, "dll_destroy cannot destroy NULL handle\n");
         return;
     }
 
@@ -54,7 +55,7 @@ void dll_destroy_with_data(double_linked_list *handle)
 {
     if (handle == NULL)
     {
-        fprintf(stderr, "ERROR dll_destroy_with_data cannot destroy NULL handle\n");
+        pcep_log(LOG_WARNING, "dll_destroy_with_data cannot destroy NULL handle\n");
         return;
     }
 
@@ -76,7 +77,7 @@ double_linked_list_node *dll_prepend(double_linked_list *handle, void *data)
 {
     if (handle == NULL)
     {
-        fprintf(stderr, "ERROR dll_prepend_data NULL handle\n");
+        pcep_log(LOG_WARNING, "dll_prepend_data NULL handle\n");
         return NULL;
     }
 
@@ -108,7 +109,7 @@ double_linked_list_node *dll_append(double_linked_list *handle, void *data)
 {
     if (handle == NULL)
     {
-        fprintf(stderr, "ERROR dll_append_data NULL handle\n");
+        pcep_log(LOG_WARNING, "dll_append_data NULL handle\n");
         return NULL;
     }
 
@@ -140,7 +141,7 @@ void *dll_delete_first_node(double_linked_list *handle)
 {
     if (handle == NULL)
     {
-        fprintf(stderr, "ERROR dll_delete_first_node NULL handle\n");
+        pcep_log(LOG_WARNING, "dll_delete_first_node NULL handle\n");
         return NULL;
     }
 
@@ -176,7 +177,7 @@ void *dll_delete_last_node(double_linked_list *handle)
 {
     if (handle == NULL)
     {
-        fprintf(stderr, "ERROR dll_delete_last_node NULL handle\n");
+        pcep_log(LOG_WARNING, "dll_delete_last_node NULL handle\n");
         return NULL;
     }
 
@@ -212,7 +213,7 @@ void *dll_delete_node(double_linked_list *handle, double_linked_list_node *node)
 {
     if (handle == NULL)
     {
-        fprintf(stderr, "ERROR dll_delete_node NULL handle\n");
+        pcep_log(LOG_WARNING, "dll_delete_node NULL handle\n");
         return NULL;
     }
 

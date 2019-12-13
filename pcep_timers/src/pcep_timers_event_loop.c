@@ -13,8 +13,9 @@
 #include <strings.h>
 #include <sys/select.h>
 
-#include "pcep_utils_ordered_list.h"
 #include "pcep_timer_internals.h"
+#include "pcep_utils_ordered_list.h"
+#include "pcep_utils_logging.h"
 
 /* For each expired timer: remove the timer from the list, call the
  * expire_handler, and free the timer. */
@@ -55,11 +56,11 @@ void *event_loop(void *context)
 {
     if (context == NULL)
     {
-        fprintf(stderr, "pcep_timers_event_loop cannot start event_loop with NULL data\n");
+        pcep_log(LOG_WARNING, "pcep_timers_event_loop cannot start event_loop with NULL data\n");
         return NULL;
     }
 
-    printf("[%ld-%ld] Starting timers_event_loop thread\n", time(NULL), pthread_self());
+    pcep_log(LOG_NOTICE, "[%ld-%ld] Starting timers_event_loop thread\n", time(NULL), pthread_self());
 
     pcep_timers_context *timers_context = (pcep_timers_context *) context;
     struct timeval timer;
@@ -82,7 +83,7 @@ void *event_loop(void *context)
         walk_and_process_timers(timers_context);
     }
 
-    printf("[%ld-%ld] Finished timers_event_loop thread\n", time(NULL), pthread_self());
+    pcep_log(LOG_WARNING, "[%ld-%ld] Finished timers_event_loop thread\n", time(NULL), pthread_self());
 
     return NULL;
 }

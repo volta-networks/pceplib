@@ -10,6 +10,7 @@
 
 #include "pcep_pcc_api.h"
 #include "pcep_utils_double_linked_list.h"
+#include "pcep_utils_logging.h"
 
 /*
  * PCEP PCC design spec:
@@ -22,12 +23,12 @@ void handle_signal_action(int sig_number)
 {
     if (sig_number == SIGINT)
     {
-        printf("SIGINT was caught!\n");
+        pcep_log(LOG_INFO, "SIGINT was caught!\n");
         pcc_active_ = false;
     }
     else if (sig_number == SIGPIPE)
     {
-        printf("SIGPIPE was caught!\n");
+        pcep_log(LOG_INFO, "SIGPIPE was caught!\n");
         pcc_active_ = false;
     }
 }
@@ -71,7 +72,7 @@ void send_pce_report_message(pcep_session *session)
             (struct pcep_object_header*) pcep_obj_create_srp(false, srp_id_number, NULL);
     if (obj == NULL)
     {
-        fprintf(stderr, "send_pce_report_message SRP object was NULL\n");
+        pcep_log(LOG_WARNING, "send_pce_report_message SRP object was NULL\n");
         return;
     }
     dll_append(report_list, obj);
@@ -81,7 +82,7 @@ void send_pce_report_message(pcep_session *session)
             pcep_obj_create_lsp(plsp_id, lsp_status, c_flag, a_flag, r_flag, s_flag, d_flag, NULL);
     if (obj == NULL)
     {
-        fprintf(stderr, "send_pce_report_message LSP object was NULL\n");
+        pcep_log(LOG_WARNING, "send_pce_report_message LSP object was NULL\n");
         return;
     }
     dll_append(report_list, obj);
@@ -93,7 +94,7 @@ void send_pce_report_message(pcep_session *session)
             pcep_obj_create_ro_subobj_sr_ipv4_node(false, false, false, true, 16060, &sr_subobj_ipv4);
     if (subobj == NULL)
     {
-        fprintf(stderr, "send_pce_report_message ERO sub-object was NULL\n");
+        pcep_log(LOG_WARNING, "send_pce_report_message ERO sub-object was NULL\n");
         return;
     }
     dll_append(ero_subobj_list, subobj);
@@ -102,7 +103,7 @@ void send_pce_report_message(pcep_session *session)
     obj = (struct pcep_object_header *) pcep_obj_create_ero(ero_subobj_list);
     if (obj == NULL)
     {
-        fprintf(stderr, "send_pce_report_message ERO object was NULL\n");
+        pcep_log(LOG_WARNING, "send_pce_report_message ERO object was NULL\n");
         return;
     }
     dll_append(report_list, obj);
@@ -117,7 +118,7 @@ void send_pce_report_message(pcep_session *session)
 
 void print_queue_event(struct pcep_event *event)
 {
-    printf("[%ld-%ld] Received Event: type [%s] on session [%d] occurred at [%ld]\n",
+    pcep_log(LOG_INFO, "[%ld-%ld] Received Event: type [%s] on session [%d] occurred at [%ld]\n",
             time(NULL), pthread_self(),
             get_event_type_str(event->event_type),
             event->session->session_id,
@@ -125,13 +126,13 @@ void print_queue_event(struct pcep_event *event)
 
     if (event->event_type == MESSAGE_RECEIVED)
     {
-        printf("\t Event message type [%s]\n", get_message_type_str(event->message->header->type));
+        pcep_log(LOG_INFO, "\t Event message type [%s]\n", get_message_type_str(event->message->header->type));
     }
 }
 
 int main(int argc, char **argv)
 {
-    printf("[%ld-%ld] starting pcc_pcep example client\n",
+    pcep_log(LOG_NOTICE, "[%ld-%ld] starting pcc_pcep example client\n",
             time(NULL), pthread_self());
 
     setup_signals();
@@ -141,13 +142,13 @@ int main(int argc, char **argv)
 
     if (!initialize_pcc())
     {
-        fprintf(stderr, "Error initializing PCC.\n");
+        pcep_log(LOG_ERR, "Error initializing PCC.\n");
         return -1;
     }
 
     struct hostent *host_info = gethostbyname("localhost");
     if(host_info == NULL) {
-        fprintf(stderr, "Error getting IP address.\n");
+        pcep_log(LOG_ERR, "Error getting IP address.\n");
         return -1;
     }
 
@@ -160,7 +161,7 @@ int main(int argc, char **argv)
     free(config);
     if (session == NULL)
     {
-        fprintf(stderr, "Error in connect_pce.\n");
+        pcep_log(LOG_WARNING, "Error in connect_pce.\n");
         return -1;
     }
 
@@ -181,12 +182,12 @@ int main(int argc, char **argv)
     }
 
 
-    printf("Disconnecting from PCE\n");
+    pcep_log(LOG_NOTICE, "Disconnecting from PCE\n");
     disconnect_pce(session);
 
     if (!destroy_pcc())
     {
-        fprintf(stderr, "Error stopping PCC.\n");
+        pcep_log(LOG_NOTICE, "Error stopping PCC.\n");
     }
 
     return 0;
