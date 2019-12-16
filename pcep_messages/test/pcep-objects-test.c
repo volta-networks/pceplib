@@ -594,7 +594,7 @@ void test_pcep_obj_create_ro_subobj_asn()
 void test_pcep_obj_create_ro_subobj_sr_nonai()
 {
     uint32_t sid = 0x01020304;
-    struct pcep_object_ro_subobj *sr = pcep_obj_create_ro_subobj_sr_nonai(false, sid);
+    struct pcep_object_ro_subobj *sr = pcep_obj_create_ro_subobj_sr_nonai(false, sid, false/*draft07*/);
     CU_ASSERT_PTR_NOT_NULL(sr);
     encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
@@ -603,10 +603,11 @@ void test_pcep_obj_create_ro_subobj_sr_nonai()
     CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_ABSENT | PCEP_SR_SUBOBJ_F_FLAG)));
     free(sr);
 
-    sr = pcep_obj_create_ro_subobj_sr_nonai(true, sid);
+    sr = pcep_obj_create_ro_subobj_sr_nonai(true, sid, false/*draft07*/);
     CU_ASSERT_PTR_NOT_NULL(sr);
     encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
+    CU_ASSERT_NOT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR_DRAFT07));
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + sizeof(uint32_t));
     CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_ABSENT | PCEP_SR_SUBOBJ_F_FLAG)));
@@ -621,24 +622,26 @@ void test_pcep_obj_create_ro_subobj_sr_ipv4_node()
 
     /* (loose_hop, sid_absent, c_flag, m_flag, sid, ipv4_node_id) */
     struct pcep_object_ro_subobj *sr =
-            pcep_obj_create_ro_subobj_sr_ipv4_node(true, false, true, true, sid, NULL);
+            pcep_obj_create_ro_subobj_sr_ipv4_node(true, false, true, true, sid, NULL, false/*draft07*/);
     CU_ASSERT_PTR_NULL(sr);
 
     /* Test the sid is absent */
-    sr = pcep_obj_create_ro_subobj_sr_ipv4_node(true, true, false, false, sid, &ipv4_node_id);
+    sr = pcep_obj_create_ro_subobj_sr_ipv4_node(true, true, false, false, sid, &ipv4_node_id, false/*draft07*/);
     CU_ASSERT_PTR_NOT_NULL(sr);
     encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
+    CU_ASSERT_NOT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR_DRAFT07));
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length, sizeof(struct pcep_ro_subobj_sr) + sizeof(struct in_addr));
     CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_IPV4_NODE | PCEP_SR_SUBOBJ_S_FLAG)));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[0], htonl(ipv4_node_id.s_addr));
     free(sr);
 
     /* Test the sid is present */
-    sr = pcep_obj_create_ro_subobj_sr_ipv4_node(false, false, true, true, sid, &ipv4_node_id);
+    sr = pcep_obj_create_ro_subobj_sr_ipv4_node(false, false, true, true, sid, &ipv4_node_id, false/*draft07*/);
     CU_ASSERT_PTR_NOT_NULL(sr);
     encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
+    CU_ASSERT_NOT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR_DRAFT07);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + sizeof(struct in_addr) + sizeof(uint32_t));
     CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_IPV4_NODE | PCEP_SR_SUBOBJ_C_FLAG | PCEP_SR_SUBOBJ_M_FLAG)));
@@ -654,11 +657,11 @@ void test_pcep_obj_create_ro_subobj_sr_ipv6_node()
     inet_pton(AF_INET6, "2001:db8::8a2e:370:7334", &ipv6_node_id);
 
     /* (loose_hop, sid_absent, c_flag, m_flag, sid, ipv6_node_id) */
-    struct pcep_object_ro_subobj *sr = pcep_obj_create_ro_subobj_sr_ipv6_node(false, true, true, true, sid, NULL);
+    struct pcep_object_ro_subobj *sr = pcep_obj_create_ro_subobj_sr_ipv6_node(false, true, true, true, sid, NULL, false/*draft07*/);
     CU_ASSERT_PTR_NULL(sr);
 
     /* Test the sid is absent */
-    sr = pcep_obj_create_ro_subobj_sr_ipv6_node(true, true, true, true, sid, &ipv6_node_id);
+    sr = pcep_obj_create_ro_subobj_sr_ipv6_node(true, true, true, true, sid, &ipv6_node_id, false/*draft07*/);
     CU_ASSERT_PTR_NOT_NULL(sr);
     encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
@@ -671,10 +674,11 @@ void test_pcep_obj_create_ro_subobj_sr_ipv6_node()
     free(sr);
 
     /* Test the sid is present */
-    sr = pcep_obj_create_ro_subobj_sr_ipv6_node(false, false, true, true, sid, &ipv6_node_id);
+    sr = pcep_obj_create_ro_subobj_sr_ipv6_node(false, false, true, true, sid, &ipv6_node_id, false/*draft07*/);
     CU_ASSERT_PTR_NOT_NULL(sr);
     encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
+    CU_ASSERT_NOT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR_DRAFT07);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + sizeof(struct in6_addr) + sizeof(uint32_t));
     CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_IPV6_NODE | PCEP_SR_SUBOBJ_C_FLAG | PCEP_SR_SUBOBJ_M_FLAG)));
@@ -698,20 +702,21 @@ void test_pcep_obj_create_ro_subobj_sr_ipv4_adj()
 
     /* (loose_hop, sid_absent, c_flag, m_flag, sid, local_ipv4, remote_ipv4) */
     struct pcep_object_ro_subobj *sr =
-            pcep_obj_create_ro_subobj_sr_ipv4_adj(false, true, true, true, sid, NULL, NULL);
+            pcep_obj_create_ro_subobj_sr_ipv4_adj(false, true, true, true, sid, NULL, NULL, false/*draft07*/);
     CU_ASSERT_PTR_NULL(sr);
 
-    sr = pcep_obj_create_ro_subobj_sr_ipv4_adj(false, true, true, true, sid, &local_ipv4, NULL);
+    sr = pcep_obj_create_ro_subobj_sr_ipv4_adj(false, true, true, true, sid, &local_ipv4, NULL, false/*draft07*/);
     CU_ASSERT_PTR_NULL(sr);
 
-    sr = pcep_obj_create_ro_subobj_sr_ipv4_adj(false, true, true, true, sid, NULL, &remote_ipv4);
+    sr = pcep_obj_create_ro_subobj_sr_ipv4_adj(false, true, true, true, sid, NULL, &remote_ipv4, false/*draft07*/);
     CU_ASSERT_PTR_NULL(sr);
 
     /* Test the sid is absent */
-    sr = pcep_obj_create_ro_subobj_sr_ipv4_adj(true, true, true, true, sid, &local_ipv4, &remote_ipv4);
+    sr = pcep_obj_create_ro_subobj_sr_ipv4_adj(true, true, true, true, sid, &local_ipv4, &remote_ipv4, false/*draft07*/);
     CU_ASSERT_PTR_NOT_NULL(sr);
     encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
+    CU_ASSERT_NOT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR_DRAFT07));
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + (sizeof(struct in_addr) * 2));
     CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY | PCEP_SR_SUBOBJ_S_FLAG)));
@@ -720,10 +725,11 @@ void test_pcep_obj_create_ro_subobj_sr_ipv4_adj()
     free(sr);
 
     /* Test the sid is present */
-    sr = pcep_obj_create_ro_subobj_sr_ipv4_adj(false, false, true, true, sid, &local_ipv4, &remote_ipv4);
+    sr = pcep_obj_create_ro_subobj_sr_ipv4_adj(false, false, true, true, sid, &local_ipv4, &remote_ipv4, false/*draft07*/);
     CU_ASSERT_PTR_NOT_NULL(sr);
     encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
+    CU_ASSERT_NOT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR_DRAFT07);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + (sizeof(struct in_addr) * 2) + sizeof(uint32_t));
     CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY | PCEP_SR_SUBOBJ_C_FLAG | PCEP_SR_SUBOBJ_M_FLAG)));
@@ -742,20 +748,21 @@ void test_pcep_obj_create_ro_subobj_sr_ipv6_adj()
     inet_pton(AF_INET6, "2001:db8::8a2e:370:7334", &remote_ipv6);
 
     /* (loose_hop, sid_absent, c_flag, m_flag, sid, local_ipv6, remote_ipv6) */
-    struct pcep_object_ro_subobj *sr = pcep_obj_create_ro_subobj_sr_ipv6_adj(false, true, true, true, sid, NULL, NULL);
+    struct pcep_object_ro_subobj *sr = pcep_obj_create_ro_subobj_sr_ipv6_adj(false, true, true, true, sid, NULL, NULL, false/*draft07*/);
     CU_ASSERT_PTR_NULL(sr);
 
-    sr = pcep_obj_create_ro_subobj_sr_ipv6_adj(false, true, true, true, sid, &local_ipv6, NULL);
+    sr = pcep_obj_create_ro_subobj_sr_ipv6_adj(false, true, true, true, sid, &local_ipv6, NULL, false/*draft07*/);
     CU_ASSERT_PTR_NULL(sr);
 
-    sr = pcep_obj_create_ro_subobj_sr_ipv6_adj(false, true, true, true, sid, NULL, &remote_ipv6);
+    sr = pcep_obj_create_ro_subobj_sr_ipv6_adj(false, true, true, true, sid, NULL, &remote_ipv6, false/*draft07*/);
     CU_ASSERT_PTR_NULL(sr);
 
     /* Test the sid is absent */
-    sr = pcep_obj_create_ro_subobj_sr_ipv6_adj(true, true, true, true, sid, &local_ipv6, &remote_ipv6);
+    sr = pcep_obj_create_ro_subobj_sr_ipv6_adj(true, true, true, true, sid, &local_ipv6, &remote_ipv6, false/*draft07*/);
     CU_ASSERT_PTR_NOT_NULL(sr);
     encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
+    CU_ASSERT_NOT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR_DRAFT07));
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length, sizeof(struct pcep_ro_subobj_sr) + (sizeof(struct in6_addr) * 2));
     CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons((PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY | PCEP_SR_SUBOBJ_S_FLAG)));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[0], htonl(local_ipv6.__in6_u.__u6_addr32[0]));
@@ -769,10 +776,11 @@ void test_pcep_obj_create_ro_subobj_sr_ipv6_adj()
     free(sr);
 
     /* Test the sid is present */
-    sr = pcep_obj_create_ro_subobj_sr_ipv6_adj(false, false, true, false, sid, &local_ipv6, &remote_ipv6);
+    sr = pcep_obj_create_ro_subobj_sr_ipv6_adj(false, false, true, false, sid, &local_ipv6, &remote_ipv6, false/*draft07*/);
     CU_ASSERT_PTR_NOT_NULL(sr);
     encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
+    CU_ASSERT_NOT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR_DRAFT07);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.length,
             sizeof(struct pcep_ro_subobj_sr) + (sizeof(struct in6_addr) * 2) + sizeof(uint32_t));
     CU_ASSERT_EQUAL(sr->subobj.sr.nt_flags, htons(PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY));
@@ -802,7 +810,7 @@ void test_pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj()
     /* Test the sid is absent */
     struct pcep_object_ro_subobj *sr = pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(
             true, true, true, true, sid,
-            local_node_id, local_if_id, remote_node_id, remote_if_id);
+            local_node_id, local_if_id, remote_node_id, remote_if_id, false/*draft07*/);
     CU_ASSERT_PTR_NOT_NULL(sr);
     encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
@@ -818,7 +826,7 @@ void test_pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj()
     /* Test the sid is present */
     sr = pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(
             false, false, true, true, sid,
-            local_node_id, local_if_id, remote_node_id, remote_if_id);
+            local_node_id, local_if_id, remote_node_id, remote_if_id, false/*draft07*/);
     CU_ASSERT_PTR_NOT_NULL(sr);
     encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
@@ -830,6 +838,21 @@ void test_pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj()
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[2], htonl(local_if_id));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[3], htonl(remote_node_id));
     CU_ASSERT_EQUAL(sr->subobj.sr.sid_nai[4], htonl(remote_if_id));
+    free(sr);
+
+    /* Test draft07 types  */
+    sr = pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(
+            false, false, true, true, sid,
+            local_node_id, local_if_id, remote_node_id, remote_if_id, false/*draft07*/);
+    CU_ASSERT_PTR_NOT_NULL(sr);
+    CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR);
+    free(sr);
+
+    sr = pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(
+            false, false, true, true, sid,
+            local_node_id, local_if_id, remote_node_id, remote_if_id, true/*draft07*/);
+    CU_ASSERT_PTR_NOT_NULL(sr);
+    CU_ASSERT_EQUAL(sr->subobj.sr.header.type, RO_SUBOBJ_TYPE_SR_DRAFT07);
     free(sr);
 }
 
@@ -845,20 +868,20 @@ void test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj()
 
     /* (loose_hop, sid_absent, c_flag, m_flag, sid, local_ipv6, local_if_id, remote_ipv6, remote_if_id */
     struct pcep_object_ro_subobj *sr = pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
-            false, true, true, true, sid, NULL, local_if_id, NULL, remote_if_id);
+            false, true, true, true, sid, NULL, local_if_id, NULL, remote_if_id, false);
     CU_ASSERT_PTR_NULL(sr);
 
     sr = pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
-            false, true, true, true, sid, &local_ipv6, local_if_id, NULL, remote_if_id);
+            false, true, true, true, sid, &local_ipv6, local_if_id, NULL, remote_if_id, false);
     CU_ASSERT_PTR_NULL(sr);
 
     sr = pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
-            false, true, true, true, sid, NULL, local_if_id, &remote_ipv6, remote_if_id);
+            false, true, true, true, sid, NULL, local_if_id, &remote_ipv6, remote_if_id, false);
     CU_ASSERT_PTR_NULL(sr);
 
     /* Test the sid is absent */
     sr = pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
-            true, true, true, true, sid, &local_ipv6, local_if_id, &remote_ipv6, remote_if_id);
+            true, true, true, true, sid, &local_ipv6, local_if_id, &remote_ipv6, remote_if_id, false);
     CU_ASSERT_PTR_NOT_NULL(sr);
     encode_ro_subobj(sr);
     CU_ASSERT_EQUAL(sr->subobj.sr.header.type, (LOOSE_HOP_BIT | RO_SUBOBJ_TYPE_SR));
@@ -882,7 +905,7 @@ void test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj()
 
     /* Test the sid is present */
     sr = pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
-            false, false, true, true, sid, &local_ipv6, local_if_id, &remote_ipv6, remote_if_id);
+            false, false, true, true, sid, &local_ipv6, local_if_id, &remote_ipv6, remote_if_id, false);
     CU_ASSERT_PTR_NOT_NULL(sr);
     encode_ro_subobj(sr);
 
@@ -908,6 +931,37 @@ void test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj()
     free(sr);
 }
 
+void test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj_sr_draft07()
+{
+    uint32_t sid = 0x01020304;
+    uint32_t local_if_id = 0x11002200;
+    uint32_t remote_if_id = 0x00110022;
+    struct in6_addr local_ipv6;
+    struct in6_addr remote_ipv6;
+    inet_pton(AF_INET6, "2001:db8::8a2e:370:8221", &local_ipv6);
+    inet_pton(AF_INET6, "2001:db8::8a2e:370:7334", &remote_ipv6);
+
+    /* (loose_hop, sid_absent, c_flag, m_flag, sid, local_ipv6, local_if_id, remote_ipv6, remote_if_id */
+    struct pcep_object_ro_subobj *sr = pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
+            false, true, true, true, sid, NULL, local_if_id, NULL, remote_if_id, false /*draft07*/);
+    CU_ASSERT_PTR_NULL(sr);
+
+    sr = pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
+            false, true, true, true, sid, NULL, local_if_id, NULL, remote_if_id, true /*draft07*/);
+    CU_ASSERT_PTR_NULL(sr);
+
+    sr = pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
+            false, false, true, true, sid, &local_ipv6, local_if_id, &remote_ipv6, remote_if_id, false);
+    CU_ASSERT_PTR_NOT_NULL(sr);
+    CU_ASSERT_NOT_EQUAL(sr->subobj.sr.header.type , RO_SUBOBJ_TYPE_SR_DRAFT07);
+    CU_ASSERT_EQUAL(sr->subobj.sr.header.type , RO_SUBOBJ_TYPE_SR);
+    free(sr);
+
+
+
+
+
+}
 void test_pcep_decode_obj_ro()
 {
     struct in_addr local_ipv4;
@@ -1010,7 +1064,7 @@ void test_pcep_decode_obj_ro_sr()
 
     /* PCEP_SR_SUBOBJ_NAI_IPV4_NODE */
     struct pcep_object_ro_subobj *sr =
-            pcep_obj_create_ro_subobj_sr_ipv4_node(true, false, true, true, sid, &local_ipv4);
+            pcep_obj_create_ro_subobj_sr_ipv4_node(true, false, true, true, sid, &local_ipv4, false/*draft07*/);
     compare_entries[0] = sid;
     compare_entries[1] = local_ipv4.s_addr;
     verify_sid_nai("sr_ipv4_node", &sr->subobj.sr, compare_entries, 2);
@@ -1019,7 +1073,7 @@ void test_pcep_decode_obj_ro_sr()
     free(sr);
 
     /* PCEP_SR_SUBOBJ_NAI_IPV6_NODE */
-    sr = pcep_obj_create_ro_subobj_sr_ipv6_node(false, false, true, true, sid, &local_ipv6);
+    sr = pcep_obj_create_ro_subobj_sr_ipv6_node(false, false, true, true, sid, &local_ipv6, false/*draft07*/);
     compare_entries[0] = sid;
     memcpy(&(compare_entries[1]), local_ipv6.__in6_u.__u6_addr32, sizeof(uint32_t) * 4);
     verify_sid_nai("sr_ipv6_node", &sr->subobj.sr, compare_entries, 5);
@@ -1028,7 +1082,7 @@ void test_pcep_decode_obj_ro_sr()
     free(sr);
 
     /* PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY */
-    sr = pcep_obj_create_ro_subobj_sr_ipv4_adj(false, false, true, true, sid, &local_ipv4, &remote_ipv4);
+    sr = pcep_obj_create_ro_subobj_sr_ipv4_adj(false, false, true, true, sid, &local_ipv4, &remote_ipv4, false/*draft07*/);
     compare_entries[0] = sid;
     compare_entries[1] = local_ipv4.s_addr;
     compare_entries[2] = remote_ipv4.s_addr;
@@ -1038,7 +1092,7 @@ void test_pcep_decode_obj_ro_sr()
     free(sr);
 
     /* PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY */
-    sr = pcep_obj_create_ro_subobj_sr_ipv6_adj(false, false, true, true, sid, &local_ipv6, &remote_ipv6);
+    sr = pcep_obj_create_ro_subobj_sr_ipv6_adj(false, false, true, true, sid, &local_ipv6, &remote_ipv6, false/*draft07*/);
     compare_entries[0] = sid;
     memcpy(&(compare_entries[1]), local_ipv6.__in6_u.__u6_addr32, sizeof(uint32_t) * 4);
     memcpy(&(compare_entries[5]), remote_ipv6.__in6_u.__u6_addr32, sizeof(uint32_t) * 4);
@@ -1049,7 +1103,7 @@ void test_pcep_decode_obj_ro_sr()
 
     /* PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY */
     sr = pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(false, false, true, true,
-            sid, local_node_id, local_if_id, remote_node_id, remote_if_id);
+            sid, local_node_id, local_if_id, remote_node_id, remote_if_id, false/*draft07*/);
     compare_entries[0] = sid;
     compare_entries[1] = local_node_id;
     compare_entries[2] = local_if_id;
@@ -1062,7 +1116,7 @@ void test_pcep_decode_obj_ro_sr()
 
     /* PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY sid absent */
     sr = pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
-            true, true, true, true, sid, &local_ipv6, local_if_id, &remote_ipv6, remote_if_id);
+            true, true, true, true, sid, &local_ipv6, local_if_id, &remote_ipv6, remote_if_id, false);
     compare_entries[4] = local_if_id;
     compare_entries[9] = remote_if_id;
     memcpy(&(compare_entries[0]), local_ipv6.__in6_u.__u6_addr32, sizeof(uint32_t) * 4);
@@ -1074,7 +1128,7 @@ void test_pcep_decode_obj_ro_sr()
 
     /* PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY sid present */
     sr = pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
-            true, false, true, true, sid, &local_ipv6, local_if_id, &remote_ipv6, remote_if_id);
+            true, false, true, true, sid, &local_ipv6, local_if_id, &remote_ipv6, remote_if_id, false);
     compare_entries[0] = sid;
     compare_entries[5] = local_if_id;
     compare_entries[10] = remote_if_id;

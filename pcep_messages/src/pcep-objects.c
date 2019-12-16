@@ -592,7 +592,7 @@ pcep_obj_create_ro_subobj_asn(uint16_t asn)
 /* Internal util function to create pcep_object_ro_subobj sub-objects */
 static struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_sr_common(uint8_t extra_length, enum pcep_sr_subobj_nai nai,
-        bool loose_hop, bool f_flag, bool s_flag, bool c_flag_in, bool m_flag_in)
+        bool loose_hop, bool f_flag, bool s_flag, bool c_flag_in, bool m_flag_in, bool draft07)
 {
     uint8_t *buffer = malloc(sizeof(struct pcep_object_ro_subobj) + extra_length);
     bzero(buffer, sizeof(struct pcep_object_ro_subobj));
@@ -614,7 +614,12 @@ pcep_obj_create_ro_subobj_sr_common(uint8_t extra_length, enum pcep_sr_subobj_na
     struct pcep_object_ro_subobj *obj = (struct pcep_object_ro_subobj*) buffer;
 
     obj->subobj.sr.header.length = sizeof(struct pcep_ro_subobj_sr) + extra_length;
-    obj->subobj.sr.header.type = RO_SUBOBJ_TYPE_SR;
+    if(draft07)
+    {
+        obj->subobj.sr.header.type = RO_SUBOBJ_TYPE_SR_DRAFT07;
+    }else{
+        obj->subobj.sr.header.type = RO_SUBOBJ_TYPE_SR;
+    }
     obj->subobj.sr.nt_flags = nai;
 
     obj->subobj.sr.nt_flags |= (f_flag == true) ? PCEP_SR_SUBOBJ_F_FLAG : 0;
@@ -632,14 +637,14 @@ pcep_obj_create_ro_subobj_sr_common(uint8_t extra_length, enum pcep_sr_subobj_na
 }
 
 struct pcep_object_ro_subobj*
-pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, uint32_t sid)
+pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, uint32_t sid, bool draft07)
 {
     /* According to draft-ietf-pce-segment-routing-16#section-5.2.1
      * If NT=0, the F bit MUST be 1, the S bit MUST be zero and the
      * Length MUST be 8. */
     struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
             sizeof(uint32_t), PCEP_SR_SUBOBJ_NAI_ABSENT,
-            loose_hop, true, false, false, false);
+            loose_hop, true, false, false, false, draft07);
     obj->subobj.sr.sid_nai[0] = sid;
 
     return obj;
@@ -648,7 +653,7 @@ pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, uint32_t sid)
 struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_sr_ipv4_node(
         bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
-        uint32_t sid, struct in_addr *ipv4_node_id)
+        uint32_t sid, struct in_addr *ipv4_node_id, bool draft07)
 {
     if (ipv4_node_id == NULL)
     {
@@ -662,7 +667,7 @@ pcep_obj_create_ro_subobj_sr_ipv4_node(
      * MUST be 8, otherwise the Length MUST be 12 */
     struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
             extra_buf_len, PCEP_SR_SUBOBJ_NAI_IPV4_NODE,
-            loose_hop, false, sid_absent, c_flag, m_flag);
+            loose_hop, false, sid_absent, c_flag, m_flag, draft07);
 
     int index = 0;
     if (! sid_absent)
@@ -677,7 +682,7 @@ pcep_obj_create_ro_subobj_sr_ipv4_node(
 struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_sr_ipv6_node(
         bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
-        uint32_t sid, struct in6_addr *ipv6_node_id)
+        uint32_t sid, struct in6_addr *ipv6_node_id, bool draft07)
 {
     if (ipv6_node_id == NULL)
     {
@@ -695,7 +700,7 @@ pcep_obj_create_ro_subobj_sr_ipv6_node(
      * MUST be 20, otherwise the Length MUST be 24. */
     struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
             extra_buf_len, PCEP_SR_SUBOBJ_NAI_IPV6_NODE,
-            loose_hop, false, sid_absent, c_flag, m_flag);
+            loose_hop, false, sid_absent, c_flag, m_flag, draft07);
 
     int index = 0;
     if (! sid_absent)
@@ -713,7 +718,7 @@ pcep_obj_create_ro_subobj_sr_ipv6_node(
 struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_sr_ipv4_adj(
         bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
-        uint32_t sid, struct in_addr *local_ipv4, struct in_addr *remote_ipv4)
+        uint32_t sid, struct in_addr *local_ipv4, struct in_addr *remote_ipv4, bool draft07)
 {
     if (local_ipv4 == NULL || remote_ipv4 == NULL)
     {
@@ -731,7 +736,7 @@ pcep_obj_create_ro_subobj_sr_ipv4_adj(
      * MUST be 12, otherwise the Length MUST be 16 */
     struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
             extra_buf_len, PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY,
-            loose_hop, false, sid_absent, c_flag, m_flag);
+            loose_hop, false, sid_absent, c_flag, m_flag, draft07);
 
     int index = 0;
     if (! sid_absent)
@@ -747,7 +752,7 @@ pcep_obj_create_ro_subobj_sr_ipv4_adj(
 struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_sr_ipv6_adj(
         bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
-        uint32_t sid, struct in6_addr *local_ipv6, struct in6_addr *remote_ipv6)
+        uint32_t sid, struct in6_addr *local_ipv6, struct in6_addr *remote_ipv6, bool draft07)
 {
     if (local_ipv6 == NULL || remote_ipv6 == NULL)
     {
@@ -765,7 +770,7 @@ pcep_obj_create_ro_subobj_sr_ipv6_adj(
      * MUST be 36, otherwise the Length MUST be 40 */
     struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
             extra_buf_len, PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY,
-            loose_hop, false, sid_absent, c_flag, m_flag);
+            loose_hop, false, sid_absent, c_flag, m_flag, draft07);
 
     int index = 0;
     if (! sid_absent)
@@ -789,7 +794,7 @@ struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(
         bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
         uint32_t sid, uint32_t local_node_id, uint32_t local_if_id,
-        uint32_t remote_node_id, uint32_t remote_if_id)
+        uint32_t remote_node_id, uint32_t remote_if_id, bool draft07)
 {
     uint8_t extra_buf_len = (sid_absent ? sizeof(uint32_t) * 4 : sizeof(uint32_t) * 5);
 
@@ -798,7 +803,7 @@ pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(
      * MUST be 20, otherwise the Length MUST be 24. */
     struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
             extra_buf_len, PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY,
-            loose_hop, false, sid_absent, c_flag, m_flag);
+            loose_hop, false, sid_absent, c_flag, m_flag, draft07);
 
     int index = 0;
     if (! sid_absent)
@@ -817,8 +822,16 @@ struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
         bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
         uint32_t sid, struct in6_addr *local_ipv6, uint32_t local_if_id,
-        struct in6_addr *remote_ipv6, uint32_t remote_if_id)
+        struct in6_addr *remote_ipv6, uint32_t remote_if_id,
+        bool draft07)
 {
+    if(draft07)
+    {
+        /*
+         * This NAI type 6 is only supported in draft16 and RFC8664
+         */
+        return NULL;
+    }
     if (local_ipv6 == NULL || remote_ipv6 == NULL)
     {
         return NULL;
@@ -835,7 +848,7 @@ pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
      * MUST be 44, otherwise the Length MUST be 48 */
     struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
             extra_buf_len, PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY,
-            loose_hop, false, sid_absent, c_flag, m_flag);
+            loose_hop, false, sid_absent, c_flag, m_flag, draft07);
 
     int index = 0;
     if (! sid_absent)

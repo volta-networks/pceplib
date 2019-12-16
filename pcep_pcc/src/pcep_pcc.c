@@ -91,7 +91,7 @@ void send_pce_report_message(pcep_session *session)
     double_linked_list* ero_subobj_list = dll_initialize();
     inet_pton(AF_INET, "9.9.9.1", &(sr_subobj_ipv4.s_addr));
     struct pcep_object_ro_subobj *subobj =
-            pcep_obj_create_ro_subobj_sr_ipv4_node(false, false, false, true, 16060, &sr_subobj_ipv4);
+            pcep_obj_create_ro_subobj_sr_ipv4_node(false, false, false, true, 16060, &sr_subobj_ipv4, false/*draft07*/);
     if (subobj == NULL)
     {
         pcep_log(LOG_WARNING, "send_pce_report_message ERO sub-object was NULL\n");

@@ -554,21 +554,21 @@ struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_asn      (uint16_t a
  *  - The PCC MUST set these fields according to its local policy and MPLS
  *    forwarding rules.
  *  - If the M flag is false then the C bit MUST be false. */
-struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, uint32_t sid);
+struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, uint32_t sid, bool draft07);
 struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_ipv4_node(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
-                                                                         uint32_t sid, struct in_addr *ipv4_node_id);
+                                                                         uint32_t sid, struct in_addr *ipv4_node_id,bool draft07);
 struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_ipv6_node(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
-                                                                         uint32_t sid, struct in6_addr *ipv6_node_id);
+                                                                         uint32_t sid, struct in6_addr *ipv6_node_id, bool draft07);
 struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_ipv4_adj(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
-                                                                        uint32_t sid, struct in_addr *local_ipv4, struct in_addr *remote_ipv4);
+                                                                        uint32_t sid, struct in_addr *local_ipv4, struct in_addr *remote_ipv4, bool draft07);
 struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_ipv6_adj(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
-                                                                        uint32_t sid, struct in6_addr *local_ipv6, struct in6_addr *remote_ipv6);
+                                                                        uint32_t sid, struct in6_addr *local_ipv6, struct in6_addr *remote_ipv6, bool draft07);
 struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
                                                                                    uint32_t sid, uint32_t local_node_id, uint32_t local_if_id,
-                                                                                   uint32_t remote_node_id, uint32_t remote_if_id);
+                                                                                   uint32_t remote_node_id, uint32_t remote_if_id, bool draft07);
 struct pcep_object_ro_subobj*     pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
                                                                                   uint32_t sid, struct in6_addr *local_ipv6, uint32_t local_if_id,
-                                                                                  struct in6_addr *remote_ipv6, uint32_t remote_if_id);
+                                                                                  struct in6_addr *remote_ipv6, uint32_t remote_if_id, bool draft07);
 
 uint32_t*       pcep_obj_svec_get       (struct pcep_object_svec* obj, uint16_t *length, bool host_byte_order);
 void            pcep_obj_svec_print     (struct pcep_object_svec* obj, bool host_byte_order);
