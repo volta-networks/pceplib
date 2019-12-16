@@ -21,13 +21,14 @@
 
 void pcep_session_logic_test_setup()
 {
-    reset_mock_socket_comm_info();
+    setup_mock_socket_comm_info();
 }
 
 
 void pcep_session_logic_test_teardown()
 {
     stop_session_logic();
+    teardown_mock_socket_comm_info();
 }
 
 
@@ -87,7 +88,8 @@ void test_create_destroy_pcep_session()
     mock_info->send_message_save_message = true;
     session = create_pcep_session(&config, &pce_ip, port);
     CU_ASSERT_PTR_NOT_NULL(session);
-    struct pcep_header* open_msg = (struct pcep_header*) mock_info->sent_message;
+    struct pcep_header* open_msg = (struct pcep_header*)
+        dll_delete_first_node(mock_info->sent_message_list);
     CU_ASSERT_PTR_NOT_NULL(open_msg);
     /* Should be an Open, with no TLVs: length = 12 */
     CU_ASSERT_EQUAL(open_msg->type, PCEP_TYPE_OPEN);
@@ -121,7 +123,8 @@ void test_create_pcep_session_open_tlvs()
     session = create_pcep_session(&config, &pce_ip, port);
     CU_ASSERT_PTR_NOT_NULL(session);
     /* Get and verify the Open Message */
-    open_msg = (struct pcep_header*) mock_info->sent_message;
+    open_msg = (struct pcep_header*)
+        dll_delete_first_node(mock_info->sent_message_list);
     CU_ASSERT_PTR_NOT_NULL(open_msg);
     /* Get and verify the Open Message objects */
     obj_list = pcep_msg_get_objects(open_msg, false);
@@ -154,7 +157,8 @@ void test_create_pcep_session_open_tlvs()
     session = create_pcep_session(&config, &pce_ip, port);
     CU_ASSERT_PTR_NOT_NULL(session);
     /* Get and verify the Open Message */
-    open_msg = (struct pcep_header*) mock_info->sent_message;
+    open_msg = (struct pcep_header*)
+        dll_delete_first_node(mock_info->sent_message_list);
     CU_ASSERT_PTR_NOT_NULL(open_msg);
     /* Get and verify the Open Message objects */
     obj_list = pcep_msg_get_objects(open_msg, false);
@@ -191,7 +195,8 @@ void test_create_pcep_session_open_tlvs()
     session = create_pcep_session(&config, &pce_ip, port);
     CU_ASSERT_PTR_NOT_NULL(session);
     /* Get and verify the Open Message */
-    open_msg = (struct pcep_header*) mock_info->sent_message;
+    open_msg = (struct pcep_header*)
+        dll_delete_first_node(mock_info->sent_message_list);
     CU_ASSERT_PTR_NOT_NULL(open_msg);
     /* Get and verify the Open Message objects */
     obj_list = pcep_msg_get_objects(open_msg, false);
@@ -232,7 +237,8 @@ void test_create_pcep_session_open_tlvs()
     session = create_pcep_session(&config, &pce_ip, port);
     CU_ASSERT_PTR_NOT_NULL(session);
     /* Get and verify the Open Message */
-    open_msg = (struct pcep_header*) mock_info->sent_message;
+    open_msg = (struct pcep_header*)
+        dll_delete_first_node(mock_info->sent_message_list);
     CU_ASSERT_PTR_NOT_NULL(open_msg);
     /* Get and verify the Open Message objects */
     obj_list = pcep_msg_get_objects(open_msg, false);

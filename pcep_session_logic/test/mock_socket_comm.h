@@ -10,6 +10,8 @@
 
 #include <stdbool.h>
 
+#include "pcep_utils_double_linked_list.h"
+
 typedef struct mock_socket_comm_info_
 {
     int socket_comm_session_initialize_times_called;
@@ -25,11 +27,14 @@ typedef struct mock_socket_comm_info_
 
     /* Used to access messages sent with socket_comm_session_send_message() */
     bool send_message_save_message;
-    char *sent_message;
+    double_linked_list *sent_message_list;
 
 } mock_socket_comm_info;
 
+void setup_mock_socket_comm_info();
+void teardown_mock_socket_comm_info();
 void reset_mock_socket_comm_info();
+
 mock_socket_comm_info *get_mock_socket_comm_info();
 void verify_socket_comm_times_called(int initialized,
                                      int teardown,

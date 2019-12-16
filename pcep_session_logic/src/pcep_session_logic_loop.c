@@ -18,6 +18,11 @@
 /* global var needed for callback handlers */
 extern pcep_session_logic_handle *session_logic_handle_;
 
+/* function defined in pcep_session_logic_states.c */
+extern void send_pcep_error(pcep_session *session,
+                            enum pcep_error_type error_type,
+                            enum pcep_error_value error_value);
+
 /* internal util function to create session_event's */
 static pcep_session_event *create_session_event(pcep_session *session)
 {
@@ -56,11 +61,12 @@ int session_logic_msg_ready_handler(void *data, int socket_fd)
 
     pthread_mutex_lock(&(session_logic_handle_->session_logic_mutex));
     session_logic_handle_->session_logic_condition = true;
-    /* TODO how to determine if the socket was closed */
+
     double_linked_list *msg_list = pcep_msg_read(socket_fd);
     if (msg_list == NULL || msg_list->num_entries == 0)
     {
         pcep_log(LOG_WARNING, "Error marshaling PCEP message\n");
+        send_pcep_error(session, PCEP_ERRT_CAPABILITY_NOT_SUPPORTED, PCEP_ERRV_UNASSIGNED);
         pthread_mutex_unlock(&(session_logic_handle_->session_logic_mutex));
         dll_destroy(msg_list);
 

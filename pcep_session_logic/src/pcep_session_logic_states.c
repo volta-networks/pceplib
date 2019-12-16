@@ -38,14 +38,14 @@ void send_keep_alive(pcep_session *session)
 }
 
 
-/* Send an error message with the "corrected" open object */
-void send_pcep_open_error(pcep_session *session, struct pcep_object_open *open_obj)
+/* Send an error message with the corrected or offending object */
+void send_pcep_error_with_object(pcep_session *session, enum pcep_error_type error_type,
+        enum pcep_error_value error_value, struct pcep_object_header *object)
 {
-    struct pcep_object_error *error_obj =
-            pcep_obj_create_error(PCEP_ERRT_SESSION_FAILURE, PCEP_ERRV_RECVD_INVALID_OPEN_MSG);
+    struct pcep_object_error *error_obj = pcep_obj_create_error(error_type, error_value);
 
     uint16_t buffer_len = sizeof(struct pcep_header) +
-            open_obj->header.object_length +
+            object->object_length +
             error_obj->header.object_length;
     uint8_t *buffer = malloc(buffer_len);
     bzero(buffer, buffer_len);
@@ -59,7 +59,7 @@ void send_pcep_open_error(pcep_session *session, struct pcep_object_open *open_o
     memcpy(buffer + sizeof(struct pcep_header), error_obj, error_obj->header.object_length);
     dll_append(message->obj_list, buffer + sizeof(struct pcep_header));
     memcpy(buffer + sizeof(struct pcep_header) + error_obj->header.object_length,
-           open_obj, open_obj->header.object_length);
+            object, object->object_length);
     dll_append(message->obj_list, buffer + sizeof(struct pcep_header) + error_obj->header.object_length);
 
     session_send_message(session, message);
@@ -72,10 +72,11 @@ void send_pcep_open_error(pcep_session *session, struct pcep_object_open *open_o
 void send_pcep_error(pcep_session *session, enum pcep_error_type error_type, enum pcep_error_value error_value)
 {
     struct pcep_message *error_msg = pcep_msg_create_error(error_type, error_value);
-    session_send_message(session, error_msg);
 
     pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send error message [%d][%d] len [%d] for session_id [%d]\n",
             time(NULL), pthread_self(), error_type, error_value, error_msg->header->length, session->session_id);
+
+    session_send_message(session, error_msg);
 }
 
 
@@ -120,7 +121,7 @@ void enqueue_event(pcep_session *session, pcep_event_type event_type, struct pce
 /* Verify the received PCEP Open object parameters are acceptable. If not,
  * update the unacceptable value(s) with an acceptable value so it can be sent
  * back to the sender. */
-bool verify_pcep_open(pcep_session *session, struct pcep_object_open *open_object)
+bool verify_pcep_open_object(pcep_session *session, struct pcep_object_open *open_object)
 {
     int retval = true;
 
@@ -227,156 +228,246 @@ bool verify_pcep_open(pcep_session *session, struct pcep_object_open *open_objec
 }
 
 
-void handle_pcep_open(pcep_session *session, pcep_message *open_msg)
+bool handle_pcep_open(pcep_session *session, pcep_message *open_msg)
 {
+    /* Open Message validation and errors according to:
+     * https://tools.ietf.org/html/rfc5440#section-7.15 */
+
     if (session->pcep_open_received == true)
     {
-        /* TODO when this reaches a MAX, need to react */
-        session->num_erroneous_messages++;
-        return;
+        send_pcep_error(session, PCEP_ERRT_ATTEMPT_TO_ESTABLISH_2ND_PCEP_SESSION,
+                        PCEP_ERRV_RECVD_INVALID_OPEN_MSG);
+        return false;
     }
 
     struct pcep_object_open *open_object =
             (struct pcep_object_open *) pcep_obj_get(open_msg->obj_list, PCEP_OBJ_CLASS_OPEN);
     if (open_object == NULL)
     {
-        /* TODO when this reaches a MAX, need to react */
-        session->num_erroneous_messages++;
-        return;
+        send_pcep_error(session, PCEP_ERRT_SESSION_FAILURE, PCEP_ERRV_RECVD_INVALID_OPEN_MSG);
+        return false;
     }
 
-    /* Verify the open object parameters */
-    if (verify_pcep_open(session, open_object) == false)
+    /* Check for additional Open Msg objects */
+    if (open_msg->obj_list->num_entries > 1)
+    {
+        pcep_log(LOG_INFO, "Found additional unsupported objects in the Open message\n");
+        send_pcep_error(session, PCEP_ERRT_SESSION_FAILURE, PCEP_ERRV_RECVD_INVALID_OPEN_MSG);
+        return false;
+    }
+
+    /* Verify the open object parameters and TLVs */
+    if (verify_pcep_open_object(session, open_object) == false)
     {
         if (session->pcep_open_rejected)
         {
             /* The Open message was already rejected once, so according to
              * the spec, send an error message and close the TCP connection. */
-            send_pcep_error(session, PCEP_ERRT_SESSION_FAILURE, PCEP_ERRV_RECVD_INVALID_OPEN_MSG);
+            send_pcep_error(session, PCEP_ERRT_SESSION_FAILURE,
+                            PCEP_ERRV_RECVD_SECOND_OPEN_MSG_UNACCEPTABLE);
             socket_comm_session_close_tcp_after_write(session->socket_comm_session);
             session->session_state = SESSION_STATE_INITIALIZED;
         }
         else
         {
             session->pcep_open_rejected = true;
-            send_pcep_open_error(session, open_object);
+            send_pcep_error_with_object(session, PCEP_ERRT_SESSION_FAILURE,
+                    PCEP_ERRV_UNACCEPTABLE_OPEN_MSG_NO_NEG, &open_object->header);
         }
 
-        return;
+        return false;
     }
 
-    /* Check for additional Open Msg objects */
-    if (open_msg->obj_list->num_entries > 1)
-    {
-        /* TODO finish this */
-        pcep_log(LOG_INFO, "There are additional objects in the Open message\n");
-    }
-
+    /* Open Message accepted */
     session->pce_config.dead_timer_seconds = open_object->open_deadtimer;
     session->pce_config.keep_alive_seconds = open_object->open_keepalive;
     session->pcep_open_received = true;
     send_keep_alive(session);
+
+    return true;
 }
 
 
-void handle_pcep_update(pcep_session *session, pcep_message *upd_msg)
+bool handle_pcep_update(pcep_session *session, pcep_message *upd_msg)
 {
+    /* Update Message validation and errors according to:
+     * https://tools.ietf.org/html/rfc8231#section-6.2 */
+
     if (upd_msg->obj_list == NULL)
     {
-        /* TODO reply with error */
         pcep_log(LOG_INFO, "Invalid PcUpd message: Message has no objects\n");
+        send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
+                PCEP_ERRV_SRP_OBJECT_MISSING);
+        return false;
     }
 
-    if (upd_msg->obj_list->num_entries < 3)
+    /* Verify the mandatory objects are present */
+    struct pcep_object_header *obj = pcep_obj_get(upd_msg->obj_list, PCEP_OBJ_CLASS_SRP);
+    if (obj == NULL)
     {
-        /* TODO reply with error */
-        pcep_log(LOG_INFO, "Invalid PcUpd message: Message only has [%d] objects, minimum 3 required\n",
-                upd_msg->obj_list->num_entries);
+        pcep_log(LOG_INFO, "Invalid PcUpd message: Missing SRP object\n");
+        send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
+                PCEP_ERRV_SRP_OBJECT_MISSING);
+        return false;
     }
 
+    obj = pcep_obj_get(upd_msg->obj_list, PCEP_OBJ_CLASS_LSP);
+    if (obj == NULL)
+    {
+        pcep_log(LOG_INFO, "Invalid PcUpd message: Missing LSP object\n");
+        send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
+                PCEP_ERRV_LSP_OBJECT_MISSING);
+        return false;
+    }
+
+    obj = pcep_obj_get(upd_msg->obj_list, PCEP_OBJ_CLASS_ERO);
+    if (obj == NULL)
+    {
+        pcep_log(LOG_INFO, "Invalid PcUpd message: Missing ERO object\n");
+        send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
+                PCEP_ERRV_ERO_OBJECT_MISSING);
+        return false;
+    }
+
+    /* Verify the objects are are in the correct order */
     double_linked_list_node *node = upd_msg->obj_list->head;
     struct pcep_object_srp *srp_object = (struct pcep_object_srp *) node->data;
     if (srp_object->header.object_class != PCEP_OBJ_CLASS_SRP)
     {
-        /* TODO reply with error */
         pcep_log(LOG_INFO, "Invalid PcUpd message: First object must be an SRP, found [%d]\n",
                 srp_object->header.object_class);
+        send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
+                PCEP_ERRV_SRP_OBJECT_MISSING);
+        return false;
     }
 
     node = node->next_node;
     struct pcep_object_lsp *lsp_object = (struct pcep_object_lsp *) node->data;
     if (lsp_object->header.object_class != PCEP_OBJ_CLASS_LSP)
     {
-        /* TODO reply with error */
         pcep_log(LOG_INFO, "Invalid PcUpd message: Second object must be an LSP, found [%d]\n",
                 lsp_object->header.object_class);
+        send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
+                PCEP_ERRV_LSP_OBJECT_MISSING);
+        return false;
     }
 
     node = node->next_node;
     struct pcep_object_ro *ero_object = node->data;
     if (ero_object->header.object_class != PCEP_OBJ_CLASS_ERO)
     {
-        /* TODO reply with error */
         pcep_log(LOG_INFO, "Invalid PcUpd message: Third object must be an ERO, found [%d]\n",
                 ero_object->header.object_class);
+        send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
+                PCEP_ERRV_ERO_OBJECT_MISSING);
+        return false;
     }
 
-    /* TODO finish this */
-
-    if (upd_msg->obj_list->num_entries > 3)
+    /* Check if there are any additional, unsupported objects */
+    node = node->next_node;
+    if (node != NULL)
     {
-        for (; node != NULL; node = node->next_node)
-        {
-            struct pcep_object_header *object = node->data;
-            pcep_log(LOG_INFO, "Extra PcUpd object: Class [%d] Type [%d] len [%d]\n",
-                   object->object_class, object->object_type, object->object_length);
-        }
+        struct pcep_object_header *object = node->data;
+        pcep_log(LOG_INFO, "Invalid PcUpd message: Extra PcUpd object: Class [%d] Type [%d] len [%d]\n",
+                object->object_class, object->object_type, object->object_length);
+        /* Send the offending object with the error */
+        send_pcep_error_with_object(session, PCEP_ERRT_NOT_SUPPORTED_OBJECT,
+                                    PCEP_ERRV_NOT_SUPPORTED_OBJECT_CLASS, object);
+        return false;
     }
+
+    return true;
 }
 
-void handle_pcep_initiate(pcep_session *session, pcep_message *init_msg)
+bool handle_pcep_initiate(pcep_session *session, pcep_message *init_msg)
 {
+    /* Instantiate Message validation and errors according to:
+     * https://tools.ietf.org/html/rfc8281#section-5 */
+
     if (init_msg->obj_list == NULL)
     {
-        /* TODO reply with error */
         pcep_log(LOG_INFO, "Invalid PcInitiate message: Message has no objects\n");
+        send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
+                PCEP_ERRV_SRP_OBJECT_MISSING);
+        return false;
     }
 
-    if (init_msg->obj_list->num_entries < 2)
+    /* Verify the mandatory objects are present */
+    struct pcep_object_header *obj = pcep_obj_get(init_msg->obj_list, PCEP_OBJ_CLASS_SRP);
+    if (obj == NULL)
     {
-        /* TODO reply with error */
-        pcep_log(LOG_INFO, "Invalid PcInitiate message: Message only has [%d] objects, minimum 2 required\n",
-                init_msg->obj_list->num_entries);
+        pcep_log(LOG_INFO, "Invalid PcInitiate message: Missing SRP object\n");
+        send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
+                PCEP_ERRV_SRP_OBJECT_MISSING);
+        return false;
     }
 
+    obj = pcep_obj_get(init_msg->obj_list, PCEP_OBJ_CLASS_LSP);
+    if (obj == NULL)
+    {
+        pcep_log(LOG_INFO, "Invalid PcInitiate message: Missing LSP object\n");
+        send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
+                PCEP_ERRV_LSP_OBJECT_MISSING);
+        return false;
+    }
+
+    /* Verify the objects are are in the correct order */
     double_linked_list_node *node = init_msg->obj_list->head;
     struct pcep_object_srp *srp_object = (struct pcep_object_srp *) node->data;
     if (srp_object->header.object_class != PCEP_OBJ_CLASS_SRP)
     {
-        /* TODO reply with error */
         pcep_log(LOG_INFO, "Invalid PcInitiate message: First object must be an SRP, found [%d]\n",
                 srp_object->header.object_class);
+        send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
+                PCEP_ERRV_SRP_OBJECT_MISSING);
+        return false;
     }
 
     node = node->next_node;
     struct pcep_object_lsp *lsp_object = (struct pcep_object_lsp *) node->data;
     if (lsp_object->header.object_class != PCEP_OBJ_CLASS_LSP)
     {
-        /* TODO reply with error */
         pcep_log(LOG_INFO, "Invalid PcInitiate message: Second object must be an LSP, found [%d]\n",
                 lsp_object->header.object_class);
+        send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
+                PCEP_ERRV_LSP_OBJECT_MISSING);
+        return false;
     }
 
-    /* TODO finish this */
+    /* There may be more optional objects */
+    return true;
+}
 
-    if (init_msg->obj_list->num_entries > 3)
+void increment_unknown_message(pcep_session *session)
+{
+    /* https://tools.ietf.org/html/rfc5440#section-6.9
+     * If a PCC/PCE receives unrecognized messages at a rate equal or
+     * greater than MAX-UNKNOWN-MESSAGES unknown message requests per
+     * minute, the PCC/PCE MUST send a PCEP CLOSE message */
+
+    time_t *unknown_message_time = malloc(sizeof(time_t));
+    *unknown_message_time = time(NULL);
+    time_t expire_time = *unknown_message_time + 60;
+    queue_enqueue(session->num_unknown_messages_time_queue, unknown_message_time);
+
+    /* Purge any entries older than 1 minute. The oldest entries are at the queue head */
+    queue_node *time_node = session->num_unknown_messages_time_queue->head;
+    while(time_node != NULL)
     {
-        for (; node != NULL; node = node->next_node)
+        if (*((time_t *) time_node->data) > expire_time)
         {
-            struct pcep_object_header *object = node->data;
-            pcep_log(LOG_INFO, "Extra PcInitiate object: Class [%d] Type [%d] len [%d]\n",
-                   object->object_class, object->object_type, object->object_length);
+            free(queue_dequeue(session->num_unknown_messages_time_queue));
+            time_node = session->num_unknown_messages_time_queue->head;
         }
+        else
+        {
+            time_node = NULL;
+        }
+    }
+
+    if (session->num_unknown_messages_time_queue->num_entries >= session->pcc_config.max_unknown_messages)
+    {
+        close_pcep_session_with_reason(session, PCEP_CLOSE_REASON_UNREC_MSG);
     }
 }
 
@@ -389,6 +480,12 @@ void handle_pcep_initiate(pcep_session *session, pcep_message *init_msg)
 /* state machine handling for expired timers */
 void handle_timer_event(pcep_session_event *event)
 {
+    if (event == NULL)
+    {
+        pcep_log(LOG_INFO, "handle_timer_event NULL event\n");
+        return;
+    }
+
     pcep_session *session = event->session;
 
     pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic handle_timer_event: session_id [%d] event timer_id [%d] "
@@ -460,7 +557,7 @@ void handle_socket_comm_event(pcep_session_event *event)
 {
     if (event == NULL)
     {
-        pcep_log(LOG_INFO, "WARN handle_socket_comm_event NULL event\n");
+        pcep_log(LOG_INFO, "handle_socket_comm_event NULL event\n");
         return;
     }
 
@@ -503,9 +600,12 @@ void handle_socket_comm_event(pcep_session_event *event)
         switch (msg->header->type)
         {
         case PCEP_TYPE_OPEN:
-            handle_pcep_open(session, msg);
-            enqueue_event(session, MESSAGE_RECEIVED, msg);
-            message_enqueued = true;
+            /* handle_pcep_open() checks for duplicate erroneous open messages */
+            if (handle_pcep_open(session, msg) == true)
+            {
+                enqueue_event(session, MESSAGE_RECEIVED, msg);
+                message_enqueued = true;
+            }
             break;
 
         case PCEP_TYPE_KEEPALIVE:
@@ -516,6 +616,7 @@ void handle_socket_comm_event(pcep_session_event *event)
                 session->timer_id_open_keep_wait = TIMER_ID_NOT_SET;
                 enqueue_event(session, PCC_CONNECTED_TO_PCE, NULL);
             }
+            /* The dead_timer was already reset above, so nothing extra to do here */
             break;
 
         case PCEP_TYPE_PCREP:
@@ -529,8 +630,7 @@ void handle_socket_comm_event(pcep_session_event *event)
             }
             else
             {
-                /* TODO when this reaches a MAX, need to react */
-                session->num_erroneous_messages++;
+                send_pcep_error(session, PCEP_ERRT_UNKNOWN_REQ_REF, PCEP_ERRV_UNASSIGNED);
             }
             break;
 
@@ -542,47 +642,51 @@ void handle_socket_comm_event(pcep_session_event *event)
             break;
 
         case PCEP_TYPE_PCREQ:
-            /* TODO when this reaches a MAX, need to react.
-             *      reply with pcep_error msg. */
-            session->num_erroneous_messages++;
+            /* The PCC does not support receiving PcReq messages */
+            send_pcep_error(session, PCEP_ERRT_CAPABILITY_NOT_SUPPORTED, PCEP_ERRV_UNASSIGNED);
             break;
 
         case PCEP_TYPE_REPORT:
-            /* TODO when this reaches a MAX, need to react.
-             *      reply with pcep_error msg. */
-            session->num_erroneous_messages++;
+            /* The PCC does not support receiving Report messages */
+            send_pcep_error(session, PCEP_ERRT_CAPABILITY_NOT_SUPPORTED, PCEP_ERRV_UNASSIGNED);
             break;
 
         case PCEP_TYPE_UPDATE:
             /* Should reply with a PcRpt */
-            handle_pcep_update(session, msg);
-            enqueue_event(session, MESSAGE_RECEIVED, msg);
-            message_enqueued = true;
+            if (handle_pcep_update(session, msg) == true)
+            {
+                enqueue_event(session, MESSAGE_RECEIVED, msg);
+                message_enqueued = true;
+            }
             break;
 
         case PCEP_TYPE_INITIATE:
             /* Should reply with a PcRpt */
-            handle_pcep_initiate(session, msg);
+            if (handle_pcep_initiate(session, msg) == true)
+            {
+                enqueue_event(session, MESSAGE_RECEIVED, msg);
+                message_enqueued = true;
+            }
+            break;
+
+        case PCEP_TYPE_PCNOTF:
             enqueue_event(session, MESSAGE_RECEIVED, msg);
             message_enqueued = true;
             break;
 
-        case PCEP_TYPE_PCNOTF:
-            /* TODO implement this */
-            enqueue_event(session, MESSAGE_RECEIVED, msg);
-            message_enqueued = true;
-            break;
         case PCEP_TYPE_ERROR:
-            /* TODO implement this */
             enqueue_event(session, MESSAGE_RECEIVED, msg);
             message_enqueued = true;
             break;
 
         default:
             pcep_log(LOG_INFO, "\t UnSupported message\n");
+            send_pcep_error(session, PCEP_ERRT_CAPABILITY_NOT_SUPPORTED, PCEP_ERRV_UNASSIGNED);
+            increment_unknown_message(session);
             break;
         }
 
+        /* if the message was enqueued, dont free it yet */
         if (message_enqueued == false)
         {
             pcep_msg_free_message(msg);

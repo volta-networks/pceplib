@@ -41,6 +41,13 @@ extern void test_handle_socket_comm_event_close(void);
 extern void test_handle_socket_comm_event_open(void);
 extern void test_handle_socket_comm_event_keep_alive(void);
 extern void test_handle_socket_comm_event_pcrep(void);
+extern void test_handle_socket_comm_event_pcreq(void);
+extern void test_handle_socket_comm_event_report(void);
+extern void test_handle_socket_comm_event_update(void);
+extern void test_handle_socket_comm_event_initiate(void);
+extern void test_handle_socket_comm_event_notify(void);
+extern void test_handle_socket_comm_event_error(void);
+extern void test_handle_socket_comm_event_unknown_msg(void);
 
 
 int main(int argc, char **argv)
@@ -133,6 +140,27 @@ int main(int argc, char **argv)
     CU_add_test(test_session_logic_states_suite,
                 "test_handle_socket_comm_event_pcrep",
                 test_handle_socket_comm_event_pcrep);
+    CU_add_test(test_session_logic_states_suite,
+                "test_handle_socket_comm_event_pcreq",
+                test_handle_socket_comm_event_pcreq);
+    CU_add_test(test_session_logic_states_suite,
+                "test_handle_socket_comm_event_report",
+                test_handle_socket_comm_event_report);
+    CU_add_test(test_session_logic_states_suite,
+                "test_handle_socket_comm_event_update",
+                test_handle_socket_comm_event_update);
+    CU_add_test(test_session_logic_states_suite,
+                "test_handle_socket_comm_event_initiate",
+                test_handle_socket_comm_event_initiate);
+    CU_add_test(test_session_logic_states_suite,
+                "test_handle_socket_comm_event_notify",
+                test_handle_socket_comm_event_notify);
+    CU_add_test(test_session_logic_states_suite,
+                "test_handle_socket_comm_event_error",
+                test_handle_socket_comm_event_error);
+    CU_add_test(test_session_logic_states_suite,
+                "test_handle_socket_comm_event_unknown_msg",
+                test_handle_socket_comm_event_unknown_msg);
 
     /*
      * Run the tests and cleanup.

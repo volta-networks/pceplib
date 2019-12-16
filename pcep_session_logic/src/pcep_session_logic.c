@@ -163,7 +163,7 @@ void destroy_pcep_session(pcep_session *session)
 {
     if (session == NULL)
     {
-        pcep_log(LOG_WARNING, "WARN cannot destroy NULL session\n");
+        pcep_log(LOG_WARNING, "Cannot destroy NULL session\n");
         return;
     }
 
@@ -186,6 +186,8 @@ void destroy_pcep_session(pcep_session *session)
     {
         cancel_timer(session->timer_id_pc_req_wait);
     }
+
+    queue_destroy_with_data(session->num_unknown_messages_time_queue);
 
     pcep_log(LOG_INFO, "[%ld-%ld] pcep_session [%d] destroyed\n", time(NULL), pthread_self(), session->session_id);
 
@@ -229,7 +231,7 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
     session->timer_id_dead_timer = TIMER_ID_NOT_SET;
     session->timer_id_keep_alive = TIMER_ID_NOT_SET;
     session->stateful_pce = false;
-    session->num_erroneous_messages = 0;
+    session->num_unknown_messages_time_queue = queue_initialize();
     session->pcep_open_received = false;
     session->pcep_open_rejected = false;
     session->destroy_session_after_write = false;

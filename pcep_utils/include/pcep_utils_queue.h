@@ -28,6 +28,7 @@ typedef struct queue_handle_
 queue_handle *queue_initialize();
 queue_handle *queue_initialize_with_size(unsigned int max_entries);
 void queue_destroy(queue_handle *handle);
+void queue_destroy_with_data(queue_handle *handle);
 queue_node *queue_enqueue(queue_handle *handle, void *data);
 void *queue_dequeue(queue_handle *handle);
 

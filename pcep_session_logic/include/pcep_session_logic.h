@@ -13,7 +13,7 @@
 #include "pcep_socket_comm.h"
 #include "pcep-objects.h"
 #include "pcep-tools.h"
-#include "pcep_utils_double_linked_list.h"
+#include "pcep_utils_queue.h"
 
 
 typedef struct pcep_configuration_
@@ -23,8 +23,6 @@ typedef struct pcep_configuration_
     int keep_alive_seconds;
     int dead_timer_seconds;
     int request_time_seconds;
-    int max_unknown_requests;
-    int max_unknown_messages;
 
     /* These are the acceptable ranges of values received by
      * the PCE in the initial PCEP Open Message. If a value is
@@ -34,6 +32,11 @@ typedef struct pcep_configuration_
     int max_keep_alive_seconds;
     int min_dead_timer_seconds;
     int max_dead_timer_seconds;
+
+    /* If more than this many unknown messages/requests are received
+     * per minute, then the session will be closed. */
+    int max_unknown_messages;
+    int max_unknown_requests;
 
     /* Maximum amount of time to wait to connect to the
      * PCE TCP socket before failing, in milliseconds. */
@@ -110,7 +113,7 @@ typedef struct pcep_session_
     bool pcep_open_rejected;
     bool stateful_pce;
     uint64_t lsp_db_version;
-    int num_erroneous_messages;
+    queue_handle *num_unknown_messages_time_queue;
     /* set this flag when finalizing the session */
     bool destroy_session_after_write;
     pcep_socket_comm_session *socket_comm_session;

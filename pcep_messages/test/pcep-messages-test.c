@@ -187,7 +187,7 @@ void test_pcep_msg_create_reply()
 void test_pcep_msg_create_close()
 {
     uint8_t flags = 0xFF;
-    uint8_t reason = PCEP_CLOSE_REASON_UNREC;
+    uint8_t reason = PCEP_CLOSE_REASON_UNREC_MSG;
 
     struct pcep_message *message = pcep_msg_create_close(flags, reason);
     CU_ASSERT_PTR_NOT_NULL(message);

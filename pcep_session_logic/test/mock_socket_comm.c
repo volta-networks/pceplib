@@ -12,14 +12,14 @@
 
 #include <CUnit/CUnit.h>
 
-#include "pcep_utils_queue.h"
 #include "pcep_socket_comm.h"
 #include "mock_socket_comm.h"
+#include "pcep_utils_queue.h"
 
 /* reset_mock_socket_comm_info() should be used before each test */
 mock_socket_comm_info mock_socket_metadata;
 
-void reset_mock_socket_comm_info()
+void setup_mock_socket_comm_info()
 {
     mock_socket_metadata.socket_comm_session_initialize_times_called = 0;
     mock_socket_metadata.socket_comm_session_teardown_times_called = 0;
@@ -29,6 +29,18 @@ void reset_mock_socket_comm_info()
     mock_socket_metadata.socket_comm_session_close_tcp_times_called = 0;
     mock_socket_metadata.destroy_socket_comm_loop_times_called = 0;
     mock_socket_metadata.send_message_save_message = false;
+    mock_socket_metadata.sent_message_list = dll_initialize();
+}
+
+void teardown_mock_socket_comm_info()
+{
+    dll_destroy(mock_socket_metadata.sent_message_list);
+}
+
+void reset_mock_socket_comm_info()
+{
+    teardown_mock_socket_comm_info();
+    setup_mock_socket_comm_info();
 }
 
 mock_socket_comm_info *get_mock_socket_comm_info()
@@ -125,7 +137,7 @@ void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_sess
     if (mock_socket_metadata.send_message_save_message == true)
     {
         /* the caller/test case is responsible for freeing the message */
-        mock_socket_metadata.sent_message = unmarshalled_message;
+        dll_append(mock_socket_metadata.sent_message_list, unmarshalled_message);
     }
     else
     {

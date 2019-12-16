@@ -37,6 +37,18 @@ void queue_destroy(queue_handle *handle)
 }
 
 
+void queue_destroy_with_data(queue_handle *handle)
+{
+    void *data = queue_dequeue(handle);
+    while (data != NULL)
+    {
+        free(data);
+        data = queue_dequeue(handle);
+    }
+    free(handle);
+}
+
+
 queue_node *queue_enqueue(queue_handle *handle, void *data)
 {
     if (handle == NULL)
