@@ -16,6 +16,7 @@
 #include "pcep_socket_comm_internals.h"
 #include "pcep_utils_logging.h"
 #include "pcep_utils_ordered_list.h"
+#include "pcep_utils_logging.h"
 
 
 void write_message(int socket_fd, const char *message, unsigned int msg_length)
@@ -34,7 +35,7 @@ void write_message(int socket_fd, const char *message, unsigned int msg_length)
         {
               if (errno != EAGAIN && errno != EWOULDBLOCK)
               {
-                perror("send() failure");
+                pcep_log(LOG_WARNING, "send() failure");
 
                 return;
               }

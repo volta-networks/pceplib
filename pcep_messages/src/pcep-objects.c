@@ -28,9 +28,10 @@
 #include <stdarg.h>
 #include <unistd.h>
 
-#include "pcep_utils_double_linked_list.h"
 #include "pcep-objects.h"
 #include "pcep-tlvs.h"
+#include "pcep_utils_double_linked_list.h"
+#include "pcep_utils_logging.h"
 
 static uint8_t pcep_object_class_lengths[] = {
         0, sizeof(struct pcep_object_open), sizeof(struct pcep_object_rp), 8,
@@ -271,10 +272,10 @@ pcep_obj_svec_print(struct pcep_object_svec* obj, bool host_byte_order)
     uint32_t i = 0;
     uint32_t *array = pcep_obj_svec_get(obj, &len, host_byte_order);
 
-    printf("PCEP_OBJ_CLASS_SVEC request IDs:\n");
+    pcep_log(LOG_INFO, "PCEP_OBJ_CLASS_SVEC request IDs:\n");
 
     for(i = 0; i < len; i++) {
-        printf("\tID: 0x%x\n", array[i]);
+        pcep_log(LOG_INFO, "\tID: 0x%x\n", array[i]);
     }
 }
 
@@ -358,7 +359,7 @@ pcep_obj_create_lsp(uint32_t plsp_id, enum pcep_lsp_operational_status status,
     /* The plsp_id is only 20 bits */
     if (plsp_id > MAX_PLSP_ID)
     {
-        fprintf(stderr, "pcep_obj_create_lsp invalid plsp_id [%d] max value [%d]\n",
+        pcep_log(LOG_INFO, "pcep_obj_create_lsp invalid plsp_id [%d] max value [%d]\n",
                 plsp_id, MAX_PLSP_ID);
         return NULL;
     }
@@ -366,7 +367,7 @@ pcep_obj_create_lsp(uint32_t plsp_id, enum pcep_lsp_operational_status status,
     /* The status is only 3 bits */
     if (status > MAX_LSP_STATUS)
     {
-        fprintf(stderr, "pcep_obj_create_lsp invalid status [%d] max value [%d]\n",
+        pcep_log(LOG_INFO, "pcep_obj_create_lsp invalid status [%d] max value [%d]\n",
                 plsp_id, MAX_PLSP_ID);
         return NULL;
     }

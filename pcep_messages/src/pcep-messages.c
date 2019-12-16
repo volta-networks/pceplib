@@ -31,6 +31,7 @@
 #include "pcep-messages.h"
 #include "pcep-objects.h"
 #include "pcep_utils_double_linked_list.h"
+#include "pcep_utils_logging.h"
 
 const char* message_type_strs[] = {
         "NOT_IMPLEMENTED0",
@@ -124,7 +125,7 @@ pcep_msg_get_request_id(struct pcep_header *hdr)
         buffer_pos += obj->object_length;
     }
 
-    fprintf(stderr, "WARNING pcep_msg_get_request_id: Failed to find the RP object.\n");
+    pcep_log(LOG_INFO, "pcep_msg_get_request_id: Failed to find the RP object.\n");
 
     return 0;
 }
@@ -427,13 +428,13 @@ pcep_msg_create_from_object_list(double_linked_list *object_list)
 {
     if (object_list == NULL)
     {
-        fprintf(stderr, "pcep_msg_create_from_object_list NULL object_list\n");
+        pcep_log(LOG_INFO, "pcep_msg_create_from_object_list NULL object_list\n");
         return NULL;
     }
 
     if (object_list->num_entries == 0)
     {
-        fprintf(stderr, "pcep_msg_create_from_object_list empty object_list\n");
+        pcep_log(LOG_INFO, "pcep_msg_create_from_object_list empty object_list\n");
         return NULL;
     }
 
@@ -485,7 +486,7 @@ pcep_msg_create_update(double_linked_list *update_request_object_list)
 {
     if (update_request_object_list == NULL)
     {
-        fprintf(stderr, "pcep_msg_create_update NULL update_request_object_list\n");
+        pcep_log(LOG_INFO, "pcep_msg_create_update NULL update_request_object_list\n");
         return NULL;
     }
 
@@ -493,7 +494,7 @@ pcep_msg_create_update(double_linked_list *update_request_object_list)
      * These 3 are mandatory: SRP, LSP, and ERO. The ERO may be empty */
     if (update_request_object_list->num_entries < 3)
     {
-        fprintf(stderr, "pcep_msg_create_update there must be at least 3 update objects\n");
+        pcep_log(LOG_INFO, "pcep_msg_create_update there must be at least 3 update objects\n");
         return NULL;
     }
 
@@ -506,7 +507,7 @@ pcep_msg_create_update(double_linked_list *update_request_object_list)
         /* If the SRP object is missing, the receiving PCC MUST send a PCErr
          * message with Error-type=6 (Mandatory Object missing) and Error-value=10
          * (SRP object missing). */
-        fprintf(stderr, "pcep_msg_create_update missing mandatory first SRP object\n");
+        pcep_log(LOG_INFO, "pcep_msg_create_update missing mandatory first SRP object\n");
         return NULL;
     }
 
@@ -518,7 +519,7 @@ pcep_msg_create_update(double_linked_list *update_request_object_list)
         /* If the LSP object is missing, the receiving PCC MUST send a PCErr
          * message with Error-type=6 (Mandatory Object missing) and Error-value=8
          * (LSP object missing). */
-        fprintf(stderr, "pcep_msg_create_update missing mandatory second LSP object\n");
+        pcep_log(LOG_INFO, "pcep_msg_create_update missing mandatory second LSP object\n");
         return NULL;
     }
 
@@ -530,7 +531,7 @@ pcep_msg_create_update(double_linked_list *update_request_object_list)
         /* If the ERO object is missing, the receiving PCC MUST send a PCErr
          * message with Error-type=6 (Mandatory Object missing) and Error-value=9
          * (ERO object missing). */
-        fprintf(stderr, "pcep_msg_create_update missing mandatory third ERO object\n");
+        pcep_log(LOG_INFO, "pcep_msg_create_update missing mandatory third ERO object\n");
         return NULL;
     }
 
@@ -549,14 +550,14 @@ pcep_msg_create_initiate(double_linked_list *lsp_object_list)
 {
     if (lsp_object_list == NULL)
     {
-        fprintf(stderr, "pcep_msg_create_initiate NULL update_request_object_list\n");
+        pcep_log(LOG_INFO, "pcep_msg_create_initiate NULL update_request_object_list\n");
         return NULL;
     }
 
     /* There must be at least 2 objects: SRP and LSP. */
     if (lsp_object_list->num_entries < 2)
     {
-        fprintf(stderr, "pcep_msg_create_initiate there must be at least 2 objects\n");
+        pcep_log(LOG_INFO, "pcep_msg_create_initiate there must be at least 2 objects\n");
         return NULL;
     }
 
@@ -566,7 +567,7 @@ pcep_msg_create_initiate(double_linked_list *lsp_object_list)
     /* Check for the mandatory first SRP object */
     if (obj_hdr->object_class != PCEP_OBJ_CLASS_SRP)
     {
-        fprintf(stderr, "pcep_msg_create_initiate missing mandatory first SRP object\n");
+        pcep_log(LOG_INFO, "pcep_msg_create_initiate missing mandatory first SRP object\n");
         return NULL;
     }
 
@@ -575,7 +576,7 @@ pcep_msg_create_initiate(double_linked_list *lsp_object_list)
     obj_hdr = (struct pcep_object_header*) node->data;
     if (obj_hdr->object_class != PCEP_OBJ_CLASS_LSP)
     {
-        fprintf(stderr, "pcep_msg_create_initiate missing mandatory second LSP object\n");
+        pcep_log(LOG_INFO, "pcep_msg_create_initiate missing mandatory second LSP object\n");
         return NULL;
     }
 

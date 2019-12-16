@@ -9,6 +9,7 @@
 
 #include "pcep-objects.h"
 #include "pcep-tlvs.h"
+#include "pcep_utils_logging.h"
 
 /* forward declarations */
 void pcep_decode_obj_tlv(struct pcep_object_tlv *tlv);
@@ -322,7 +323,7 @@ void pcep_decode_obj_tlv(struct pcep_object_tlv *tlv)
         words_to_decode = 1;
         break;
     default:
-        printf("WARN cannot decode unknown TLV type [%d]\n", tlv->header.type);
+        pcep_log(LOG_INFO, "Cannot decode unknown TLV type [%d]\n", tlv->header.type);
         break;
     }
 
@@ -390,7 +391,7 @@ bool pcep_obj_parse_decode(struct pcep_object_header* hdr)
             pcep_decode_obj_notify((struct pcep_object_notify*) hdr);
             break;
         default:
-            fprintf(stderr, "WARNING pcep_obj_parse: Unknown object class\n");
+            pcep_log(LOG_INFO, "pcep_obj_parse: Unknown object class\n");
             return false;
     }
 
@@ -719,7 +720,7 @@ void pcep_encode_obj_tlv(struct pcep_object_tlv *tlv)
         words_to_encode = 1;
         break;
     default:
-        printf("WARN cannot encode unknown TLV type [%d]\n", tlv->header.type);
+        pcep_log(LOG_INFO, "Cannot encode unknown TLV type [%d]\n", tlv->header.type);
         break;
     }
 
@@ -786,7 +787,7 @@ void pcep_obj_encode(struct pcep_object_header* hdr)
             break;
         case PCEP_OBJ_CLASS_NOTF:
         default:
-            fprintf(stderr, "WARNING pcep_obj_encode: Unknown object class\n");
+            pcep_log(LOG_INFO, "pcep_obj_encode: Unknown object class\n");
     }
 
     /* Encode the TLVs, if the object has them, but not for Route

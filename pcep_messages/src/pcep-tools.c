@@ -25,7 +25,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <malloc.h>
+
 #include "pcep-tools.h"
+#include "pcep_utils_logging.h"
 
 void pcep_decode_msg_header(struct pcep_header* hdr)
 {
@@ -39,13 +41,13 @@ bool validate_message_header(struct pcep_header* msg_hdr)
      * size or if its not a multiple of 4 */
     if (msg_hdr->length < sizeof(struct pcep_header) || (msg_hdr->length % 4) != 0)
     {
-        fprintf(stderr, "Invalid PCEP header length [%d]\n", msg_hdr->length);
+        pcep_log(LOG_INFO, "Invalid PCEP header length [%d]\n", msg_hdr->length);
         return false;
     }
 
     if (msg_hdr->ver_flags != PCEP_COMMON_HEADER_VER_FLAGS)
     {
-        fprintf(stderr, "Invalid PCEP header flags [0x%x]\n", msg_hdr->ver_flags);
+        pcep_log(LOG_INFO, "Invalid PCEP header flags [0x%x]\n", msg_hdr->ver_flags);
         return false;
     }
 
@@ -64,7 +66,7 @@ bool validate_message_header(struct pcep_header* msg_hdr)
     case PCEP_TYPE_INITIATE:
         break;
     default:
-        fprintf(stderr, "Invalid PCEP header message type [%d]\n", msg_hdr->type);
+        pcep_log(LOG_INFO, "Invalid PCEP header message type [%d]\n", msg_hdr->type);
         return false;
         break;
     }
@@ -88,11 +90,10 @@ pcep_msg_read(int sock_fd)
     ret = read(sock_fd, &buffer, PCEP_MAX_SIZE);
 
     if(ret < 0) {
-        perror("WARNING pcep_msg_read");
-        fprintf(stderr, "WARNING pcep_msg_read: Failed to read from socket\n");
+        pcep_log(LOG_INFO, "pcep_msg_read: Failed to read from socket\n");
         return msg_list;
     } else if(ret == 0) {
-        fprintf(stderr, "WARNING pcep_msg_read: Remote shutdown\n");
+        pcep_log(LOG_INFO, "pcep_msg_read: Remote shutdown\n");
         return msg_list;
     }
 
@@ -105,19 +106,19 @@ pcep_msg_read(int sock_fd)
         pcep_decode_msg_header(msg_hdr);
         if (validate_message_header(msg_hdr) == false)
         {
-            fprintf(stderr, "WARNING pcep_msg_read: Received an invalid message\n");
+            pcep_log(LOG_INFO, "pcep_msg_read: Received an invalid message\n");
             return msg_list;
         }
 
         if((ret - buffer_read) < msg_hdr->length) {
             int read_len = (msg_hdr->length - (ret - buffer_read));
             int read_ret = 0;
-            fprintf(stderr, "WARNING pcep_msg_read: Message not fully read! Trying to read %d bytes more\n", read_len);
+            pcep_log(LOG_INFO, "pcep_msg_read: Message not fully read! Trying to read %d bytes more\n", read_len);
 
             read_ret = read(sock_fd, &buffer[ret], read_len);
 
             if(read_ret != read_len) {
-                fprintf(stderr, "WARNING pcep_msg_read: Did not manage to read enough data (%d != %d)\n", read_ret, read_len);
+                pcep_log(LOG_INFO, "pcep_msg_read: Did not manage to read enough data (%d != %d)\n", read_ret, read_len);
                 return msg_list;
             }
         }
@@ -266,28 +267,28 @@ pcep_msg_print(double_linked_list* list)
     for (item = list->head; item != NULL; item = item->next_node) {
         switch(((pcep_message *) item->data)->header->type) {
             case PCEP_TYPE_OPEN:
-                printf("PCEP_TYPE_OPEN\n");
+                pcep_log(LOG_INFO, "PCEP_TYPE_OPEN\n");
                 break;
             case PCEP_TYPE_KEEPALIVE:
-                printf("PCEP_TYPE_KEEPALIVE\n");
+                pcep_log(LOG_INFO, "PCEP_TYPE_KEEPALIVE\n");
                 break;
             case PCEP_TYPE_PCREQ:
-                printf("PCEP_TYPE_PCREQ\n");
+                pcep_log(LOG_INFO, "PCEP_TYPE_PCREQ\n");
                 break;
             case PCEP_TYPE_PCREP:
-                printf("PCEP_TYPE_PCREP\n");
+                pcep_log(LOG_INFO, "PCEP_TYPE_PCREP\n");
                 break;
             case PCEP_TYPE_PCNOTF:
-                printf("PCEP_TYPE_PCNOTF\n");
+                pcep_log(LOG_INFO, "PCEP_TYPE_PCNOTF\n");
                 break;
             case PCEP_TYPE_ERROR:
-                printf("PCEP_TYPE_ERROR\n");
+                pcep_log(LOG_INFO, "PCEP_TYPE_ERROR\n");
                 break;
             case PCEP_TYPE_CLOSE:
-                printf("PCEP_TYPE_CLOSE\n");
+                pcep_log(LOG_INFO, "PCEP_TYPE_CLOSE\n");
                 break;
             default:
-                printf("UNKOWN\n");
+                pcep_log(LOG_INFO, "UNKOWN\n");
                 continue;
         }
 
@@ -295,51 +296,50 @@ pcep_msg_print(double_linked_list* list)
         for (obj_item = ((pcep_message *) item->data)->obj_list->head;
              obj_item != NULL;
              obj_item = obj_item->next_node) {
-            printf("\t");
             struct pcep_object_header *obj_header = ((struct pcep_object_header *) obj_item->data);
             switch(obj_header->object_class) {
                 case PCEP_OBJ_CLASS_OPEN:
-                    printf("PCEP_OBJ_CLASS_OPEN\n");
+                    pcep_log(LOG_INFO, "\tPCEP_OBJ_CLASS_OPEN\n");
                     break;
                 case PCEP_OBJ_CLASS_RP:
-                    printf("PCEP_OBJ_CLASS_RP\n");
+                    pcep_log(LOG_INFO, "\tPCEP_OBJ_CLASS_RP\n");
                     break;
                 case PCEP_OBJ_CLASS_NOPATH:
-                    printf("PCEP_OBJ_CLASS_NOPATH\n");
+                    pcep_log(LOG_INFO, "\tPCEP_OBJ_CLASS_NOPATH\n");
                     break;
                 case PCEP_OBJ_CLASS_ENDPOINTS:
                     if(obj_header->object_type == PCEP_OBJ_TYPE_ENDPOINT_IPV4) {
-                        printf("PCEP_OBJ_CLASS_ENDPOINTS IPv4\n");
+                        pcep_log(LOG_INFO, "\tPCEP_OBJ_CLASS_ENDPOINTS IPv4\n");
                     } else if(obj_header->object_type == PCEP_OBJ_TYPE_ENDPOINT_IPV6) {
-                        printf("PCEP_OBJ_CLASS_ENDPOINTS IPv6\n");
+                        pcep_log(LOG_INFO, "\tPCEP_OBJ_CLASS_ENDPOINTS IPv6\n");
                     }
                     break;
                 case PCEP_OBJ_CLASS_BANDWIDTH:
-                    printf("PCEP_OBJ_CLASS_BANDWIDTH\n");
+                    pcep_log(LOG_INFO, "\tPCEP_OBJ_CLASS_BANDWIDTH\n");
                     break;
                 case PCEP_OBJ_CLASS_METRIC:
-                    printf("PCEP_OBJ_CLASS_METRIC\n");
+                    pcep_log(LOG_INFO, "\tPCEP_OBJ_CLASS_METRIC\n");
                     break;
                 case PCEP_OBJ_CLASS_ERO:
-                    printf("PCEP_OBJ_CLASS_ERO\n");
+                    pcep_log(LOG_INFO, "\tPCEP_OBJ_CLASS_ERO\n");
                     break;
                 case PCEP_OBJ_CLASS_LSPA:
-                    printf("PCEP_OBJ_CLASS_LSPA\n");
+                    pcep_log(LOG_INFO, "\tPCEP_OBJ_CLASS_LSPA\n");
                     break;
                 case PCEP_OBJ_CLASS_SVEC:
-                    printf("PCEP_OBJ_CLASS_SVEC\n");
+                    pcep_log(LOG_INFO, "\tPCEP_OBJ_CLASS_SVEC\n");
                     break;
                 case PCEP_OBJ_CLASS_ERROR:
-                    printf("PCEP_OBJ_CLASS_ERROR\n");
+                    pcep_log(LOG_INFO, "\tPCEP_OBJ_CLASS_ERROR\n");
                     break;
                 case PCEP_OBJ_CLASS_CLOSE:
-                    printf("PCEP_OBJ_CLASS_CLOSE\n");
+                    pcep_log(LOG_INFO, "PCEP_OBJ_CLASS_CLOSE\n");
                     break;
                 case PCEP_OBJ_CLASS_RRO:
                 case PCEP_OBJ_CLASS_IRO:
                 case PCEP_OBJ_CLASS_NOTF:
                 default:
-                    printf("UNSUPPORTED CLASS\n");
+                    pcep_log(LOG_INFO, "\tUNSUPPORTED CLASS\n");
                     break;
             }
         }
