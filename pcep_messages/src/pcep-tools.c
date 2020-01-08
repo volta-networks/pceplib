@@ -29,6 +29,27 @@
 #include "pcep-tools.h"
 #include "pcep_utils_logging.h"
 
+static const int ANY_OBJECT = 0;
+static const int NO_OBJECT = -1;
+static const int NUM_CHECKED_OBJECTS = 4;
+static const int MAX_PCEP_MESSAGE_TYPE = PCEP_TYPE_INITIATE;
+//static const int MANDATORY_MESSAGE_OBJECT_CLASSES[PCEP_TYPE_INITIATE+1][NUM_CHECKED_OBJECTS] = {
+static const int MANDATORY_MESSAGE_OBJECT_CLASSES[13][4] = {
+    {NO_OBJECT, NO_OBJECT, NO_OBJECT, NO_OBJECT},                     /* unsupported message ID = 0 */
+    {PCEP_OBJ_CLASS_OPEN, NO_OBJECT, NO_OBJECT, NO_OBJECT},           /* PCEP_TYPE_OPEN = 1 */
+    {NO_OBJECT, NO_OBJECT, NO_OBJECT, NO_OBJECT},                     /* PCEP_TYPE_KEEPALIVE = 2 */
+    {PCEP_OBJ_CLASS_RP, PCEP_OBJ_CLASS_ENDPOINTS, ANY_OBJECT, ANY_OBJECT}, /* PCEP_TYPE_PCREQ = 3 */
+    {PCEP_OBJ_CLASS_RP, ANY_OBJECT, ANY_OBJECT, ANY_OBJECT},          /* PCEP_TYPE_PCREP = 4 */
+    {PCEP_OBJ_CLASS_NOTF, ANY_OBJECT, ANY_OBJECT, ANY_OBJECT},        /* PCEP_TYPE_PCNOTF = 5 */
+    {PCEP_OBJ_CLASS_ERROR, ANY_OBJECT, ANY_OBJECT, ANY_OBJECT},       /* PCEP_TYPE_ERROR = 6 */
+    {PCEP_OBJ_CLASS_CLOSE, NO_OBJECT, NO_OBJECT, NO_OBJECT},          /* PCEP_TYPE_CLOSE = 7 */
+    {NO_OBJECT, NO_OBJECT, NO_OBJECT, NO_OBJECT},                     /* unsupported message ID = 8 */
+    {NO_OBJECT, NO_OBJECT, NO_OBJECT, NO_OBJECT},                     /* unsupported message ID = 9 */
+    {PCEP_OBJ_CLASS_SRP, PCEP_OBJ_CLASS_LSP, ANY_OBJECT, ANY_OBJECT}, /* PCEP_TYPE_REPORT = 10 */
+    {PCEP_OBJ_CLASS_SRP, PCEP_OBJ_CLASS_LSP, ANY_OBJECT, ANY_OBJECT}, /* PCEP_TYPE_UPDATE = 11 */
+    {PCEP_OBJ_CLASS_SRP, PCEP_OBJ_CLASS_LSP, ANY_OBJECT, ANY_OBJECT}, /* PCEP_TYPE_INITIATE = 12 */
+};
+
 void pcep_decode_msg_header(struct pcep_header* hdr)
 {
     hdr->length = ntohs(hdr->length);
@@ -74,6 +95,53 @@ bool validate_message_header(struct pcep_header* msg_hdr)
     return true;
 }
 
+bool validate_message_objects(struct pcep_message *msg)
+{
+    if (msg->header->type > MAX_PCEP_MESSAGE_TYPE)
+    {
+        pcep_log(LOG_INFO, "Rejecting received message: Unknown message type [%d]\n",
+                msg->header->type);
+        return false;
+    }
+
+    const int *object_classes = MANDATORY_MESSAGE_OBJECT_CLASSES[msg->header->type];
+    double_linked_list_node *node;
+    int index;
+    for (node = msg->obj_list->head, index = 0;
+         index < NUM_CHECKED_OBJECTS;
+         index++, (node = (node==NULL ? NULL : node->next_node)))
+    {
+        struct pcep_object_header *obj = ((node == NULL) ? NULL : (struct pcep_object_header*) node->data);
+
+        if (object_classes[index] == NO_OBJECT)
+        {
+            if (node != NULL)
+            {
+                pcep_log(LOG_INFO, "Rejecting received message: Unexpected object [%d] present\n",
+                         obj->object_class);
+                return false;
+            }
+        }
+        else if (object_classes[index] != ANY_OBJECT)
+        {
+            if (node == NULL)
+            {
+                pcep_log(LOG_INFO, "Rejecting received message: Expecting object in position [%d], but none received\n",
+                         index);
+                return false;
+            }
+            else if (object_classes[index] != obj->object_class)
+            {
+                pcep_log(LOG_INFO, "Rejecting received message: Unexpected Object Class received [%d]\n",
+                         object_classes[index]);
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+
 double_linked_list*
 pcep_msg_read(int sock_fd)
 {
@@ -106,6 +174,8 @@ pcep_msg_read(int sock_fd)
         pcep_decode_msg_header(msg_hdr);
         if (validate_message_header(msg_hdr) == false)
         {
+            /* If the message header is invalid, we cant keep reading,
+             * since the length may be invalid */
             pcep_log(LOG_INFO, "pcep_msg_read: Received an invalid message\n");
             return msg_list;
         }
@@ -127,7 +197,6 @@ pcep_msg_read(int sock_fd)
 
         msg = malloc(sizeof(struct pcep_message));
         bzero(msg, sizeof(struct pcep_message));
-        dll_append(msg_list, msg);
 
         msg->obj_list = dll_initialize();
         msg->header = malloc(msg_hdr->length);
@@ -146,6 +215,16 @@ pcep_msg_read(int sock_fd)
             obj_read += obj_hdr->object_length;
 
             if(err_count > 5) break;
+        }
+
+        if (validate_message_objects(msg) == false)
+        {
+            pcep_log(LOG_INFO, "Discarding invalid message");
+            pcep_msg_free_message(msg);
+        }
+        else
+        {
+            dll_append(msg_list, msg);
         }
     }
 

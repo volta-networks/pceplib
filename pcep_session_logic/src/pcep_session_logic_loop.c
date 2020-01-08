@@ -18,11 +18,6 @@
 /* global var needed for callback handlers */
 extern pcep_session_logic_handle *session_logic_handle_;
 
-/* function defined in pcep_session_logic_states.c */
-extern void send_pcep_error(pcep_session *session,
-                            enum pcep_error_type error_type,
-                            enum pcep_error_value error_value);
-
 /* internal util function to create session_event's */
 static pcep_session_event *create_session_event(pcep_session *session)
 {
