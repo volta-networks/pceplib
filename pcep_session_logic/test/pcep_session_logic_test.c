@@ -12,7 +12,7 @@
 
 #include <CUnit/CUnit.h>
 
-#include "mock_socket_comm.h"
+#include "pcep_socket_comm_mock.h"
 #include "pcep_session_logic.h"
 
 /*
@@ -61,11 +61,10 @@ void test_create_pcep_session_null_params()
 {
     pcep_configuration config;
     struct in_addr pce_ip;
-    short port = 4789;
 
-    CU_ASSERT_PTR_NULL(create_pcep_session(NULL, NULL, port));
-    CU_ASSERT_PTR_NULL(create_pcep_session(NULL, &pce_ip, port));
-    CU_ASSERT_PTR_NULL(create_pcep_session(&config, NULL, port));
+    CU_ASSERT_PTR_NULL(create_pcep_session(NULL, NULL));
+    CU_ASSERT_PTR_NULL(create_pcep_session(NULL, &pce_ip));
+    CU_ASSERT_PTR_NULL(create_pcep_session(&config, NULL));
 }
 
 
@@ -74,7 +73,6 @@ void test_create_destroy_pcep_session()
     pcep_session *session;
     pcep_configuration config;
     struct in_addr pce_ip;
-    short port = 4789;
 
     bzero(&config, sizeof(pcep_configuration));
     config.keep_alive_seconds = 5;
@@ -86,7 +84,7 @@ void test_create_destroy_pcep_session()
 
     mock_socket_comm_info *mock_info = get_mock_socket_comm_info();
     mock_info->send_message_save_message = true;
-    session = create_pcep_session(&config, &pce_ip, port);
+    session = create_pcep_session(&config, &pce_ip);
     CU_ASSERT_PTR_NOT_NULL(session);
     struct pcep_header* open_msg = (struct pcep_header*)
         dll_delete_first_node(mock_info->sent_message_list);
@@ -103,7 +101,6 @@ void test_create_pcep_session_open_tlvs()
 {
     pcep_session *session;
     struct in_addr pce_ip;
-    short port = 4789;
     struct pcep_header* open_msg;
     struct pcep_object_header *open_obj;
     double_linked_list *obj_list;
@@ -120,7 +117,7 @@ void test_create_pcep_session_open_tlvs()
     config.use_pcep_sr_draft07 = false;
     config.support_sr_te_pst = false;
 
-    session = create_pcep_session(&config, &pce_ip, port);
+    session = create_pcep_session(&config, &pce_ip);
     CU_ASSERT_PTR_NOT_NULL(session);
     /* Get and verify the Open Message */
     open_msg = (struct pcep_header*)
@@ -154,7 +151,7 @@ void test_create_pcep_session_open_tlvs()
     config.support_include_db_version = true;
     config.lsp_db_version = 100;
 
-    session = create_pcep_session(&config, &pce_ip, port);
+    session = create_pcep_session(&config, &pce_ip);
     CU_ASSERT_PTR_NOT_NULL(session);
     /* Get and verify the Open Message */
     open_msg = (struct pcep_header*)
@@ -192,7 +189,7 @@ void test_create_pcep_session_open_tlvs()
     mock_info->send_message_save_message = true;
     config.support_sr_te_pst = true;
 
-    session = create_pcep_session(&config, &pce_ip, port);
+    session = create_pcep_session(&config, &pce_ip);
     CU_ASSERT_PTR_NOT_NULL(session);
     /* Get and verify the Open Message */
     open_msg = (struct pcep_header*)
@@ -234,7 +231,7 @@ void test_create_pcep_session_open_tlvs()
     mock_info->send_message_save_message = true;
     config.use_pcep_sr_draft07 = true;
 
-    session = create_pcep_session(&config, &pce_ip, port);
+    session = create_pcep_session(&config, &pce_ip);
     CU_ASSERT_PTR_NOT_NULL(session);
     /* Get and verify the Open Message */
     open_msg = (struct pcep_header*)

@@ -79,6 +79,21 @@ void test_pcep_socket_comm_initialize()
 }
 
 
+void test_pcep_socket_comm_initialize_with_src()
+{
+    /* Test that INADDR_ANY will be used when src_ip is NULL */
+    test_session = socket_comm_session_initialize_with_src(
+            test_message_received_handler,
+            NULL,
+            NULL,
+            test_connection_except_notifier,
+            NULL, 0,
+            &test_host_ip, test_port, connect_timeout_millis, NULL);
+    CU_ASSERT_PTR_NOT_NULL(test_session);
+    CU_ASSERT_EQUAL(test_session->src_sock_addr.sin_addr.s_addr, INADDR_ANY);
+}
+
+
 void test_pcep_socket_comm_initialize_handlers()
 {
     /* Verify incorrect handler usage is correctly handled */

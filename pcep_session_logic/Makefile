@@ -19,7 +19,7 @@ PCEP_TIMERS_INC_DIR = ../pcep_timers/include
 PCEP_SOCKETCOMM_INC_DIR = ../pcep_socket_comm/include
 TEST_DIR = ./test
 TEST_LIB_DIRS = -L$(BUILD_DIR) -L/usr/local/lib
-TEST_LIBS = -l$(LIB_NAME) -lpcep_messages -lpcep_utils -lpcep_timers -lcunit -lpthread
+TEST_LIBS = -l$(LIB_NAME) -lpcep_messages -lpcep_utils -lpcep_socket_comm_mock -lpcep_timers -lcunit -lpthread
 VALGRIND=G_SLICE=always-malloc G_DEBUG=gc-friendly valgrind -v --tool=memcheck --leak-check=full --num-callers=40 --error-exitcode=1
 
 LIB_NAME = pcep_session_logic
@@ -36,7 +36,7 @@ EXTERNAL_DEPS = $(patsubst %,$(PCEP_UTILS_INC_DIR)/%,$(_DEPS))  \
 _OBJ = pcep_session_logic.o pcep_session_logic_loop.o pcep_session_logic_states.o
 OBJ = $(patsubst %,$(OBJ_DIR)/%,$(_OBJ))
 
-_TEST_OBJ = mock_socket_comm.o pcep_session_logic_tests.o pcep_session_logic_test.o pcep_session_logic_loop_test.o pcep_session_logic_states_test.o
+_TEST_OBJ = pcep_session_logic_tests.o pcep_session_logic_test.o pcep_session_logic_loop_test.o pcep_session_logic_states_test.o
 TEST_OBJ = $(patsubst %,$(TEST_DIR)/%,$(_TEST_OBJ))
 
 all: $(LIB) $(TEST_BIN)

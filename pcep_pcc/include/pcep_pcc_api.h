@@ -12,7 +12,7 @@
 
 #include "pcep_session_logic.h"
 
-#define PCEP_TCP_PORT 4189
+#define DEFAULT_PCEP_TCP_PORT 4189
 #define DEFAULT_CONFIG_KEEP_ALIVE 30
 #define DEFAULT_CONFIG_DEAD_TIMER DEFAULT_CONFIG_KEEP_ALIVE * 4
 #define DEFAULT_CONFIG_REQUEST_TIME 30
@@ -43,10 +43,12 @@ bool destroy_pcc();
  */
 
 pcep_configuration *create_default_pcep_configuration();
+void destroy_pcep_configuration(pcep_configuration *config);
 
-/* uses the standard PCEP TCP port = 4189 */
+/* Uses the standard PCEP TCP src and dest port = 4189.
+ * To use a specific dest or src port, set them other than 0 in the pcep_configuration. */
 pcep_session *connect_pce(pcep_configuration *config, struct in_addr *pce_ip);
-pcep_session *connect_pce_with_port(pcep_configuration *config, struct in_addr *pce_ip, short port);
+pcep_session *connect_pce_with_src_ip(pcep_configuration *config, struct in_addr *pce_ip, struct in_addr *src_ip);
 void disconnect_pce(pcep_session *session);
 void send_message(pcep_session *session, struct pcep_message *msg, bool free_after_send);
 

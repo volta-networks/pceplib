@@ -90,20 +90,35 @@ pcep_configuration *create_default_pcep_configuration()
     config->pcc_can_resolve_nai_to_sid = true;
     config->max_sid_depth = 0;
     config->use_pcep_sr_draft07 = false;
+    config->dst_pcep_port = 0;
+    config->src_pcep_port = 0;
+    config->src_ip = NULL;
 
     return config;
 }
 
-
-pcep_session *connect_pce(pcep_configuration *config, struct in_addr *host)
+void destroy_pcep_configuration(pcep_configuration *config)
 {
-    return connect_pce_with_port(config, host, PCEP_TCP_PORT);
+    if (config->src_ip != NULL)
+    {
+        free(config->src_ip);
+    }
+
+    free(config);
+}
+
+pcep_session *connect_pce(pcep_configuration *config, struct in_addr *pce_ip)
+{
+    return create_pcep_session(config, pce_ip);
 }
 
 
-pcep_session *connect_pce_with_port(pcep_configuration *config, struct in_addr *host, short port)
+pcep_session *connect_pce_with_src_ip(pcep_configuration *config, struct in_addr *pce_ip, struct in_addr *src_ip)
 {
-    return create_pcep_session(config, host, port);
+    config->src_ip = malloc(sizeof(struct in_addr));
+    config->src_ip->s_addr = src_ip->s_addr;
+
+    return create_pcep_session(config, pce_ip);
 }
 
 

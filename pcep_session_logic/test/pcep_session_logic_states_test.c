@@ -11,7 +11,7 @@
 
 #include <CUnit/CUnit.h>
 
-#include "mock_socket_comm.h"
+#include "pcep_socket_comm_mock.h"
 #include "pcep_session_logic.h"
 #include "pcep_session_logic_internals.h"
 #include "pcep_timers.h"

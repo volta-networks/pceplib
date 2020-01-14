@@ -15,6 +15,7 @@
 #include "pcep-tools.h"
 #include "pcep_utils_queue.h"
 
+#define PCEP_TCP_PORT 4189
 
 typedef struct pcep_configuration_
 {
@@ -85,6 +86,16 @@ typedef struct pcep_configuration_
     /* Use draft-ietf-pce-segment-routing-07 if true, otherwise use
      * draft-ietf-pce-segment-routing-16 */
     bool use_pcep_sr_draft07;
+
+    /* If set to 0, then the default 4189 PCEP port will be used */
+    uint16_t dst_pcep_port;
+
+    /* If set to 0, then the default 4189 PCEP port will be used.
+     * This is according to the RFC5440, Section 5 */
+    uint16_t src_pcep_port;
+
+    /* If set to NULL, IN_ADDR_ANY will be used */
+    struct in_addr *src_ip;
 
 } pcep_configuration;
 
@@ -165,7 +176,9 @@ bool run_session_logic_wait_for_completion();
 
 bool stop_session_logic();
 
-pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pce_ip, short port);
+/* Uses the standard PCEP TCP dest port = 4189 and an ephemeral src port.
+ * To use a specific dest or src port, set them other than 0 in the pcep_configuration. */
+pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pce_ip);
 
 /* Send a PCEP close for this pcep_session */
 void close_pcep_session(pcep_session *session);

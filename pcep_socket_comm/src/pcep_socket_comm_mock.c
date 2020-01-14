@@ -13,7 +13,7 @@
 #include <CUnit/CUnit.h>
 
 #include "pcep_socket_comm.h"
-#include "mock_socket_comm.h"
+#include "pcep_socket_comm_mock.h"
 #include "pcep_utils_queue.h"
 
 /* reset_mock_socket_comm_info() should be used before each test */
@@ -22,6 +22,7 @@ mock_socket_comm_info mock_socket_metadata;
 void setup_mock_socket_comm_info()
 {
     mock_socket_metadata.socket_comm_session_initialize_times_called = 0;
+    mock_socket_metadata.socket_comm_session_initialize_src_times_called = 0;
     mock_socket_metadata.socket_comm_session_teardown_times_called = 0;
     mock_socket_metadata.socket_comm_session_connect_tcp_times_called = 0;
     mock_socket_metadata.socket_comm_session_send_message_times_called = 0;
@@ -83,8 +84,8 @@ socket_comm_session_initialize(message_received_handler msg_rcv_handler,
                             message_ready_to_read_handler msg_ready_handler,
                             message_sent_notifier msg_sent_notifier,
                             connection_except_notifier notifier,
-                            struct in_addr *host_ip,
-                            short port,
+                            struct in_addr *dst_ip,
+                            short dst_port,
                             uint32_t connect_timeout_millis,
                             void *session_data)
 {
@@ -99,14 +100,47 @@ socket_comm_session_initialize(message_received_handler msg_rcv_handler,
     comm_session->message_queue = queue_initialize();
     comm_session->session_data = session_data;
     comm_session->close_after_write = false;
-    comm_session->dest_sock_addr.sin_family = AF_INET;
-    comm_session->dest_sock_addr.sin_port = htons(port);
     comm_session->connect_timeout_millis = connect_timeout_millis;
-    memcpy(&(comm_session->dest_sock_addr.sin_addr), host_ip, sizeof(struct in_addr));
+    comm_session->dest_sock_addr.sin_family = AF_INET;
+    comm_session->dest_sock_addr.sin_port = htons(dst_port);
+    comm_session->dest_sock_addr.sin_addr.s_addr = dst_ip->s_addr;
 
     return comm_session;
 }
 
+pcep_socket_comm_session *
+socket_comm_session_initialize_with_src(message_received_handler msg_rcv_handler,
+                            message_ready_to_read_handler msg_ready_handler,
+                            message_sent_notifier msg_sent_notifier,
+                            connection_except_notifier notifier,
+                            struct in_addr *src_ip,
+                            short src_port,
+                            struct in_addr *dst_ip,
+                            short dst_port,
+                            uint32_t connect_timeout_millis,
+                            void *session_data)
+{
+    mock_socket_metadata.socket_comm_session_initialize_src_times_called++;
+
+    pcep_socket_comm_session *comm_session = malloc(sizeof(pcep_socket_comm_session));
+    bzero(comm_session, sizeof(pcep_socket_comm_session));
+
+    comm_session->message_handler = msg_rcv_handler;
+    comm_session->message_ready_to_read_handler = msg_ready_handler;
+    comm_session->conn_except_notifier = notifier;
+    comm_session->message_queue = queue_initialize();
+    comm_session->session_data = session_data;
+    comm_session->close_after_write = false;
+    comm_session->connect_timeout_millis = connect_timeout_millis;
+    comm_session->src_sock_addr.sin_family = AF_INET;
+    comm_session->src_sock_addr.sin_port = htons(src_port);
+    comm_session->src_sock_addr.sin_addr.s_addr = ((src_ip == NULL) ? INADDR_ANY : src_ip->s_addr);
+    comm_session->dest_sock_addr.sin_family = AF_INET;
+    comm_session->dest_sock_addr.sin_port = htons(dst_port);
+    comm_session->dest_sock_addr.sin_addr.s_addr = dst_ip->s_addr;
+
+    return comm_session;
+}
 
 bool socket_comm_session_teardown(pcep_socket_comm_session *socket_comm_session)
 {

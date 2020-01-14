@@ -1,12 +1,16 @@
 /*
- * mock_socket_comm.h
+ * pcep_socket_comm_mock.h
+ *
+ * This module is built into a separate library, and is used by several
+ * other modules for unit testing, so that real sockets dont have to be
+ * created.
  *
  *  Created on: Oct 10, 2019
  *      Author: brady
  */
 
-#ifndef PCEP_SESSION_LOGIC_TEST_MOCK_SOCKET_COMM_H_
-#define PCEP_SESSION_LOGIC_TEST_MOCK_SOCKET_COMM_H_
+#ifndef PCEP_SOCKET_COMM_MOCK_SOCKET_COMM_H_
+#define PCEP_SOCKET_COMM_MOCK_SOCKET_COMM_H_
 
 #include <stdbool.h>
 
@@ -15,6 +19,7 @@
 typedef struct mock_socket_comm_info_
 {
     int socket_comm_session_initialize_times_called;
+    int socket_comm_session_initialize_src_times_called;
     int socket_comm_session_teardown_times_called;
     int socket_comm_session_connect_tcp_times_called;
     int socket_comm_session_send_message_times_called;
@@ -44,4 +49,4 @@ void verify_socket_comm_times_called(int initialized,
                                      int close,
                                      int destroy);
 
-#endif /* PCEP_SESSION_LOGIC_TEST_MOCK_SOCKET_COMM_H_ */
+#endif /* PCEP_SOCKET_COMM_MOCK_SOCKET_COMM_H_ */

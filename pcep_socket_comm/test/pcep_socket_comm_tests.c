@@ -15,6 +15,7 @@
 extern void pcep_socket_comm_test_teardown(void);
 extern void pcep_socket_comm_test_setup(void);
 extern void test_pcep_socket_comm_initialize(void);
+extern void test_pcep_socket_comm_initialize_with_src(void);
 extern void test_pcep_socket_comm_initialize_handlers(void);
 extern void test_pcep_socket_comm_session_not_initialized(void);
 extern void test_pcep_socket_comm_session_destroy(void);
@@ -47,6 +48,9 @@ int main(int argc, char **argv)
     CU_add_test(test_socket_comm_suite,
                 "test_pcep_socket_comm_initialize",
                 test_pcep_socket_comm_initialize);
+    CU_add_test(test_socket_comm_suite,
+                "test_pcep_socket_comm_initialize_with_src",
+                test_pcep_socket_comm_initialize_with_src);
     CU_add_test(test_socket_comm_suite,
                 "test_pcep_socket_comm_initialize_handlers",
                 test_pcep_socket_comm_initialize_handlers);

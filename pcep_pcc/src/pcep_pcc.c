@@ -157,6 +157,7 @@ int main(int argc, char **argv)
 
     pcep_configuration *config = create_default_pcep_configuration();
     config->use_pcep_sr_draft07 = true;
+    config->src_pcep_port = 4999;
     pcep_session *session = connect_pce(config, &host_address);
     free(config);
     if (session == NULL)

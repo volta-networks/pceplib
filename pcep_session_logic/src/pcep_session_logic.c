@@ -209,7 +209,7 @@ static int get_next_session_id()
 }
 
 
-pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pce_ip, short port)
+pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pce_ip)
 {
     if (config == NULL)
     {
@@ -240,13 +240,15 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
     /* copy the pcc_config to the pce_config until we receive the open keep_alive response */
     memcpy(&(session->pce_config), config, sizeof(pcep_configuration));
 
-    session->socket_comm_session = socket_comm_session_initialize(
+    session->socket_comm_session = socket_comm_session_initialize_with_src(
             NULL,
             session_logic_msg_ready_handler,
             session_logic_message_sent_handler,
             session_logic_conn_except_notifier,
+            config->src_ip,
+            ((config->src_pcep_port == 0) ? PCEP_TCP_PORT : config->src_pcep_port),
             pce_ip,
-            port,
+            ((config->dst_pcep_port == 0) ? PCEP_TCP_PORT : config->dst_pcep_port),
             config->socket_connect_timeout_millis,
             session);
     if (session->socket_comm_session == NULL)

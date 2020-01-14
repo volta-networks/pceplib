@@ -8,6 +8,7 @@
  */
 
 
+#include <errno.h>
 #include <fcntl.h>
 #include <malloc.h>
 #include <netdb.h> // gethostbyname
@@ -91,8 +92,26 @@ socket_comm_session_initialize(message_received_handler message_handler,
                             message_ready_to_read_handler message_ready_handler,
                             message_sent_notifier msg_sent_notifier,
                             connection_except_notifier notifier,
-                            struct in_addr *host_ip,
-                            short port,
+                            struct in_addr *dest_ip,
+                            short dest_port,
+                            uint32_t connect_timeout_millis,
+                            void *session_data)
+{
+    return socket_comm_session_initialize_with_src(
+            message_handler, message_ready_handler, msg_sent_notifier, notifier,
+            NULL, 0, dest_ip, dest_port, connect_timeout_millis, session_data);
+}
+
+
+pcep_socket_comm_session *
+socket_comm_session_initialize_with_src(message_received_handler message_handler,
+                            message_ready_to_read_handler message_ready_handler,
+                            message_sent_notifier msg_sent_notifier,
+                            connection_except_notifier notifier,
+                            struct in_addr *src_ip,
+                            short src_port,
+                            struct in_addr *dest_ip,
+                            short dest_port,
                             uint32_t connect_timeout_millis,
                             void *session_data)
 {
@@ -110,6 +129,12 @@ socket_comm_session_initialize(message_received_handler message_handler,
         return NULL;
     }
 
+    if (dest_ip == NULL)
+    {
+        pcep_log(LOG_WARNING, "dest_ip is NULL\n");
+        return NULL;
+    }
+
     if (!initialize_socket_comm_loop())
     {
         pcep_log(LOG_WARNING, "ERROR: cannot initialize socket_comm_loop.\n");
@@ -124,7 +149,7 @@ socket_comm_session_initialize(message_received_handler message_handler,
 
     socket_comm_session->socket_fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (socket_comm_session->socket_fd == -1) {
-        pcep_log(LOG_WARNING, "Cannot create socket.\n");
+        pcep_log(LOG_WARNING, "Cannot create socket errno [%d %s].\n", errno, strerror(errno));
         socket_comm_session_teardown(socket_comm_session);
 
         return NULL;
@@ -138,10 +163,43 @@ socket_comm_session_initialize(message_received_handler message_handler,
     socket_comm_session->message_sent_handler = msg_sent_notifier;
     socket_comm_session->conn_except_notifier = notifier;
     socket_comm_session->message_queue = queue_initialize();
-    socket_comm_session->dest_sock_addr.sin_family = AF_INET;
-    socket_comm_session->dest_sock_addr.sin_port = htons(port);
     socket_comm_session->connect_timeout_millis = connect_timeout_millis;
-    memcpy(&(socket_comm_session->dest_sock_addr.sin_addr), host_ip, sizeof(struct in_addr));
+    socket_comm_session->dest_sock_addr.sin_family = AF_INET;
+    socket_comm_session->dest_sock_addr.sin_port = htons(dest_port);
+    memcpy(&(socket_comm_session->dest_sock_addr.sin_addr), dest_ip, sizeof(struct in_addr));
+    socket_comm_session->src_sock_addr.sin_family = AF_INET;
+    socket_comm_session->src_sock_addr.sin_port = htons(src_port);
+    if (src_ip != NULL)
+    {
+        socket_comm_session->src_sock_addr.sin_addr.s_addr = src_ip->s_addr;
+    }
+    else
+    {
+        socket_comm_session->src_sock_addr.sin_addr.s_addr = INADDR_ANY;
+    }
+
+    /* If we dont use SO_REUSEADDR, the socket will take 2 TIME_WAIT
+     * periods before being closed in the kernel if bind() was called */
+    int reuse_addr = 1;
+    if (setsockopt(socket_comm_session->socket_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(int)) < 0)
+    {
+        pcep_log(LOG_WARNING, "Error in setsockopt() SO_REUSEADDR errno [%d %s].\n",
+                errno, strerror(errno));
+        socket_comm_session_teardown(socket_comm_session);
+
+        return NULL;
+    }
+
+    if (bind(socket_comm_session->socket_fd,
+         (struct sockaddr *) &(socket_comm_session->src_sock_addr),
+         sizeof(struct sockaddr)) == -1)
+    {
+        pcep_log(LOG_WARNING, "Cannot bind address to socket errno [%d %s].\n",
+                errno, strerror(errno));
+        socket_comm_session_teardown(socket_comm_session);
+
+        return NULL;
+    }
 
     /* dont connect to the destination yet, since the PCE will have a timer
      * for max time between TCP connect and PCEP open. we'll connect later

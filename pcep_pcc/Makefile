@@ -19,9 +19,15 @@ PCEP_UTILS_INC_DIR = ../pcep_utils/include
 PCEP_MESSAGES_INC_DIR = ../pcep_messages/include
 PCEP_TIMERS_INC_DIR = ../pcep_timers/include
 PCEP_SOCKETCOMM_INC_DIR = ../pcep_socket_comm/include
+TEST_DIR = ./test
+TEST_LIB_DIRS = -L$(BUILD_DIR) -L/usr/local/lib
+TEST_LIBS = -l$(LIB_NAME) -lpcep_session_logic -lpcep_socket_comm_mock -lpcep_messages -lpcep_utils -lpcep_timers -lcunit -lpthread
+VALGRIND=G_SLICE=always-malloc G_DEBUG=gc-friendly valgrind -v --tool=memcheck --leak-check=full --num-callers=40 --error-exitcode=1
 
-LIB = $(BUILD_DIR)/libpcep_pcc_api.a
+LIB_NAME = pcep_pcc_api
+LIB = $(BUILD_DIR)/lib$(LIB_NAME).a
 BIN = $(BUILD_DIR)/pcep_pcc
+TEST_BIN = $(BUILD_DIR)/pcep_pcc_api_tests
 
 LIB_DEPS = $(LIB) \
  $(BUILD_DIR)/libpcep_session_logic.a \
@@ -40,8 +46,10 @@ EXTERNAL_DEPS = $(patsubst %,$(PCEP_SESSION_LOGIC_INC_DIR)/%,$(_DEPS))
 # The primary target is the API library
 BIN_OBJ = $(OBJ_DIR)/pcep_pcc.o
 LIB_OBJ = $(OBJ_DIR)/pcep_pcc_api.o
+_TEST_OBJ = pcep_pcc_api_tests.o pcap_pcc_api_test.o
+TEST_OBJ = $(patsubst %,$(TEST_DIR)/%,$(_TEST_OBJ))
 
-all: $(LIB) $(BIN)
+all: $(LIB) $(BIN) $(TEST_BIN)
 
 $(LIB): $(LIB_OBJ)
 	$(shell [ ! -d $(@D) ] && mkdir -p $(@D))
@@ -56,10 +64,17 @@ $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(DEPS) $(EXTERNAL_DEPS)
 	$(shell [ ! -d $(@D) ] && mkdir -p $(@D))
 	$(CC) -c -o $@ $< $(CFLAGS)
 
+$(TEST_BIN): $(TEST_OBJ) $(LIB)
+	$(CC) -o $@ $(TEST_OBJ) $(CFLAGS) $(TEST_LIB_DIRS) $(TEST_LIBS)
+
+$(TEST_DIR)/%.o: $(TEST_DIR)/%.c $(DEPS)
+	$(CC) -c -o $@ $< $(CFLAGS) -I$(SRC_DIR)
+
 .PHONY: all clean test
 
-test:
+test: $(TEST_BIN)
+	$(VALGRIND) --log-file=valgrind.$(LIB_NAME).log $(TEST_BIN) || ({ echo "Valgrind memory check error"; exit 1; })
 
 clean:
-	rm -f $(LIB) $(BIN) $(OBJ_DIR)/*.o *~ core $(SRC_DIR)/*~
+	rm -f $(LIB) $(BIN) $(TEST_BIN) $(OBJ_DIR)/*.o $(TEST_DIR)/*.o valgrind*.log *~ core $(INC_DIR)/*~ $(SRC_DIR)/*~
 
