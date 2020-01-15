@@ -370,7 +370,10 @@ void create_and_send_open(pcep_session *session)
         dll_append(pst_list, &pst);
         dll_append(tlv_list, pcep_tlv_create_path_setup_type_capability(pst_list, sub_tlv_list));
         dll_destroy(pst_list);
-        dll_destroy_with_data(sub_tlv_list);
+        if (sub_tlv_list != NULL)
+        {
+            dll_destroy_with_data(sub_tlv_list);
+        }
     }
 
     struct pcep_message *open_msg;

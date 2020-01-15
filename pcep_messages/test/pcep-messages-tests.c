@@ -78,6 +78,8 @@ extern void test_pcep_msg_read_pcep_update(void);
 extern void test_pcep_msg_read_pcep_open(void);
 extern void test_pcep_msg_read_pcep_open_initiate(void);
 extern void test_validate_message_header(void);
+extern void test_validate_message_objects(void);
+extern void test_validate_message_objects_invalid(void);
 
 
 int main(int argc, char **argv)
@@ -158,6 +160,8 @@ int main(int argc, char **argv)
     CU_add_test(tools_suite, "test_pcep_msg_read_pcep_open", test_pcep_msg_read_pcep_open);
     CU_add_test(tools_suite, "test_pcep_msg_read_pcep_open_initiate", test_pcep_msg_read_pcep_open_initiate);
     CU_add_test(tools_suite, "test_validate_message_header", test_validate_message_header);
+    CU_add_test(tools_suite, "test_validate_message_objects", test_validate_message_objects);
+    CU_add_test(tools_suite, "test_validate_message_objects_invalid", test_validate_message_objects_invalid);
 
     CU_basic_set_mode(CU_BRM_VERBOSE);
     CU_basic_run_tests();

@@ -15,7 +15,10 @@
 #include "pcep-tools.h"
 #include "pcep_utils_double_linked_list.h"
 
+const uint8_t any_obj_class = 255;
+
 extern bool validate_message_header(struct pcep_header* msg_hdr);
+extern bool validate_message_objects(struct pcep_message *msg);
 
 uint16_t pcep_open_hexbyte_strs_length = 28;
 char *pcep_open_odl_hexbyte_strs[] = {
@@ -408,3 +411,244 @@ void test_validate_message_header()
     CU_ASSERT_TRUE(validate_message_header((struct pcep_header*) pcep_message_valid));
 }
 
+/* Internal util function */
+struct pcep_message *create_message(uint8_t msg_type, uint8_t obj1_class, uint8_t obj2_class, uint8_t obj3_class, uint8_t obj4_class)
+{
+    struct pcep_message *msg = malloc(sizeof(struct pcep_message));
+    msg->obj_list = dll_initialize();
+    msg->header = malloc(sizeof(struct pcep_header) + (sizeof(struct pcep_object_header) * 4));
+    msg->header->type = msg_type;
+
+    struct pcep_object_header *obj_hdr = (struct pcep_object_header *) (msg->header + 1);
+    if (obj1_class > 0)
+    {
+        obj_hdr->object_class = obj1_class;
+        obj_hdr->object_length = sizeof(struct pcep_object_header);
+        dll_append(msg->obj_list, obj_hdr);
+    }
+
+    if (obj2_class > 0)
+    {
+        obj_hdr += 1;
+        obj_hdr->object_class = obj2_class;
+        obj_hdr->object_length = sizeof(struct pcep_object_header);
+        dll_append(msg->obj_list, obj_hdr);
+    }
+
+    if (obj3_class > 0)
+    {
+        obj_hdr += 1;
+        obj_hdr->object_class = obj3_class;
+        obj_hdr->object_length = sizeof(struct pcep_object_header);
+        dll_append(msg->obj_list, obj_hdr);
+    }
+
+    if (obj4_class > 0)
+    {
+        obj_hdr += 1;
+        obj_hdr->object_class = obj4_class;
+        obj_hdr->object_length = sizeof(struct pcep_object_header);
+        dll_append(msg->obj_list, obj_hdr);
+    }
+
+    return msg;
+}
+
+void test_validate_message_objects()
+{
+    /* Valid Open message */
+    struct pcep_message *msg = create_message(PCEP_TYPE_OPEN, PCEP_OBJ_CLASS_OPEN, 0, 0, 0);
+    CU_ASSERT_TRUE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* Valid KeepAlive message */
+    msg = create_message(PCEP_TYPE_KEEPALIVE, 0, 0, 0, 0);
+    CU_ASSERT_TRUE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* Valid PcReq message */
+    /* Using object_class=255 to verify it can take any object */
+    msg = create_message(PCEP_TYPE_PCREQ, PCEP_OBJ_CLASS_RP, PCEP_OBJ_CLASS_ENDPOINTS, any_obj_class, 0);
+    CU_ASSERT_TRUE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* Valid PcRep message */
+    msg = create_message(PCEP_TYPE_PCREP, PCEP_OBJ_CLASS_RP, any_obj_class, 0, 0);
+    CU_ASSERT_TRUE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* Valid Notify message */
+    msg = create_message(PCEP_TYPE_PCNOTF, PCEP_OBJ_CLASS_NOTF, any_obj_class, 0, 0);
+    CU_ASSERT_TRUE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* Valid Error message */
+    msg = create_message(PCEP_TYPE_ERROR, PCEP_OBJ_CLASS_ERROR, any_obj_class, 0, 0);
+    CU_ASSERT_TRUE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* Valid Close message */
+    msg = create_message(PCEP_TYPE_CLOSE, PCEP_OBJ_CLASS_CLOSE, 0, 0, 0);
+    CU_ASSERT_TRUE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* Valid Report message */
+    msg = create_message(PCEP_TYPE_REPORT, PCEP_OBJ_CLASS_SRP, PCEP_OBJ_CLASS_LSP, any_obj_class, any_obj_class);
+    CU_ASSERT_TRUE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* Valid Update message */
+    msg = create_message(PCEP_TYPE_UPDATE, PCEP_OBJ_CLASS_SRP, PCEP_OBJ_CLASS_LSP, any_obj_class, any_obj_class);
+    CU_ASSERT_TRUE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* Valid Initiate message */
+    msg = create_message(PCEP_TYPE_INITIATE, PCEP_OBJ_CLASS_SRP, PCEP_OBJ_CLASS_LSP, any_obj_class, any_obj_class);
+    CU_ASSERT_TRUE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+}
+
+void test_validate_message_objects_invalid()
+{
+    /* unsupported message ID = 0
+     * {NO_OBJECT, NO_OBJECT, NO_OBJECT, NO_OBJECT} */
+    struct pcep_message *msg = create_message(0, any_obj_class, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* Open message
+     * {PCEP_OBJ_CLASS_OPEN, NO_OBJECT, NO_OBJECT, NO_OBJECT} */
+    msg = create_message(PCEP_TYPE_OPEN, 0, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    msg = create_message(PCEP_TYPE_OPEN, any_obj_class, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    msg = create_message(PCEP_TYPE_OPEN, PCEP_OBJ_CLASS_OPEN, any_obj_class, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* KeepAlive message
+     * {NO_OBJECT, NO_OBJECT, NO_OBJECT, NO_OBJECT} */
+    msg = create_message(PCEP_TYPE_KEEPALIVE, any_obj_class, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* PcReq message
+     * {PCEP_OBJ_CLASS_RP, PCEP_OBJ_CLASS_ENDPOINTS, ANY_OBJECT, ANY_OBJECT} */
+    msg = create_message(PCEP_TYPE_PCREQ, 0, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    msg = create_message(PCEP_TYPE_PCREQ, PCEP_OBJ_CLASS_RP, any_obj_class, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* PcRep message
+     * {PCEP_OBJ_CLASS_RP, ANY_OBJECT, ANY_OBJECT, ANY_OBJECT} */
+    msg = create_message(PCEP_TYPE_PCREP, 0, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    msg = create_message(PCEP_TYPE_PCREP, any_obj_class, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* Notify message
+     * {PCEP_OBJ_CLASS_NOTF, ANY_OBJECT, ANY_OBJECT, ANY_OBJECT} */
+    msg = create_message(PCEP_TYPE_PCNOTF, 0, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    msg = create_message(PCEP_TYPE_PCNOTF, any_obj_class, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* Error message
+     * {PCEP_OBJ_CLASS_ERROR, ANY_OBJECT, ANY_OBJECT, ANY_OBJECT} */
+    msg = create_message(PCEP_TYPE_ERROR, 0, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    msg = create_message(PCEP_TYPE_ERROR, any_obj_class, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* Close message
+     * {PCEP_OBJ_CLASS_CLOSE, NO_OBJECT, NO_OBJECT, NO_OBJECT} */
+    msg = create_message(PCEP_TYPE_CLOSE, 0, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    msg = create_message(PCEP_TYPE_CLOSE, any_obj_class, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* unsupported message ID = 8
+     * {NO_OBJECT, NO_OBJECT, NO_OBJECT, NO_OBJECT} */
+    msg = create_message(8, any_obj_class, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* unsupported message ID = 9
+     * {NO_OBJECT, NO_OBJECT, NO_OBJECT, NO_OBJECT} */
+    msg = create_message(9, any_obj_class, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* Report message
+     * {PCEP_OBJ_CLASS_SRP, PCEP_OBJ_CLASS_LSP, ANY_OBJECT, ANY_OBJECT} */
+    msg = create_message(PCEP_TYPE_REPORT, 0, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    msg = create_message(PCEP_TYPE_REPORT, any_obj_class, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    msg = create_message(PCEP_TYPE_REPORT, PCEP_OBJ_CLASS_SRP, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    msg = create_message(PCEP_TYPE_REPORT, PCEP_OBJ_CLASS_SRP, any_obj_class, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* Update message
+     * {PCEP_OBJ_CLASS_SRP, PCEP_OBJ_CLASS_LSP, ANY_OBJECT, ANY_OBJECT} */
+    msg = create_message(PCEP_TYPE_UPDATE, 0, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    msg = create_message(PCEP_TYPE_UPDATE, any_obj_class, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    msg = create_message(PCEP_TYPE_UPDATE, PCEP_OBJ_CLASS_SRP, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    msg = create_message(PCEP_TYPE_UPDATE, PCEP_OBJ_CLASS_SRP, any_obj_class, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    /* Initiate message
+     * {PCEP_OBJ_CLASS_SRP, PCEP_OBJ_CLASS_LSP, ANY_OBJECT, ANY_OBJECT} */
+    msg = create_message(PCEP_TYPE_INITIATE, 0, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    msg = create_message(PCEP_TYPE_INITIATE, any_obj_class, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    msg = create_message(PCEP_TYPE_INITIATE, PCEP_OBJ_CLASS_SRP, 0, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+
+    msg = create_message(PCEP_TYPE_INITIATE, PCEP_OBJ_CLASS_SRP, any_obj_class, 0, 0);
+    CU_ASSERT_FALSE(validate_message_objects(msg));
+    pcep_msg_free_message(msg);
+}

@@ -29,25 +29,25 @@
 #include "pcep-tools.h"
 #include "pcep_utils_logging.h"
 
-static const int ANY_OBJECT = 0;
-static const int NO_OBJECT = -1;
-static const int NUM_CHECKED_OBJECTS = 4;
+#define ANY_OBJECT 0
+#define NO_OBJECT -1
+#define NUM_CHECKED_OBJECTS 4
 static const int MAX_PCEP_MESSAGE_TYPE = PCEP_TYPE_INITIATE;
 //static const int MANDATORY_MESSAGE_OBJECT_CLASSES[PCEP_TYPE_INITIATE+1][NUM_CHECKED_OBJECTS] = {
 static const int MANDATORY_MESSAGE_OBJECT_CLASSES[13][4] = {
-    {NO_OBJECT, NO_OBJECT, NO_OBJECT, NO_OBJECT},                     /* unsupported message ID = 0 */
-    {PCEP_OBJ_CLASS_OPEN, NO_OBJECT, NO_OBJECT, NO_OBJECT},           /* PCEP_TYPE_OPEN = 1 */
-    {NO_OBJECT, NO_OBJECT, NO_OBJECT, NO_OBJECT},                     /* PCEP_TYPE_KEEPALIVE = 2 */
+    {NO_OBJECT, NO_OBJECT, NO_OBJECT, NO_OBJECT},                          /* unsupported message ID = 0 */
+    {PCEP_OBJ_CLASS_OPEN, NO_OBJECT, NO_OBJECT, NO_OBJECT},                /* PCEP_TYPE_OPEN = 1 */
+    {NO_OBJECT, NO_OBJECT, NO_OBJECT, NO_OBJECT},                          /* PCEP_TYPE_KEEPALIVE = 2 */
     {PCEP_OBJ_CLASS_RP, PCEP_OBJ_CLASS_ENDPOINTS, ANY_OBJECT, ANY_OBJECT}, /* PCEP_TYPE_PCREQ = 3 */
-    {PCEP_OBJ_CLASS_RP, ANY_OBJECT, ANY_OBJECT, ANY_OBJECT},          /* PCEP_TYPE_PCREP = 4 */
-    {PCEP_OBJ_CLASS_NOTF, ANY_OBJECT, ANY_OBJECT, ANY_OBJECT},        /* PCEP_TYPE_PCNOTF = 5 */
-    {PCEP_OBJ_CLASS_ERROR, ANY_OBJECT, ANY_OBJECT, ANY_OBJECT},       /* PCEP_TYPE_ERROR = 6 */
-    {PCEP_OBJ_CLASS_CLOSE, NO_OBJECT, NO_OBJECT, NO_OBJECT},          /* PCEP_TYPE_CLOSE = 7 */
-    {NO_OBJECT, NO_OBJECT, NO_OBJECT, NO_OBJECT},                     /* unsupported message ID = 8 */
-    {NO_OBJECT, NO_OBJECT, NO_OBJECT, NO_OBJECT},                     /* unsupported message ID = 9 */
-    {PCEP_OBJ_CLASS_SRP, PCEP_OBJ_CLASS_LSP, ANY_OBJECT, ANY_OBJECT}, /* PCEP_TYPE_REPORT = 10 */
-    {PCEP_OBJ_CLASS_SRP, PCEP_OBJ_CLASS_LSP, ANY_OBJECT, ANY_OBJECT}, /* PCEP_TYPE_UPDATE = 11 */
-    {PCEP_OBJ_CLASS_SRP, PCEP_OBJ_CLASS_LSP, ANY_OBJECT, ANY_OBJECT}, /* PCEP_TYPE_INITIATE = 12 */
+    {PCEP_OBJ_CLASS_RP, ANY_OBJECT, ANY_OBJECT, ANY_OBJECT},               /* PCEP_TYPE_PCREP = 4 */
+    {PCEP_OBJ_CLASS_NOTF, ANY_OBJECT, ANY_OBJECT, ANY_OBJECT},             /* PCEP_TYPE_PCNOTF = 5 */
+    {PCEP_OBJ_CLASS_ERROR, ANY_OBJECT, ANY_OBJECT, ANY_OBJECT},            /* PCEP_TYPE_ERROR = 6 */
+    {PCEP_OBJ_CLASS_CLOSE, NO_OBJECT, NO_OBJECT, NO_OBJECT},               /* PCEP_TYPE_CLOSE = 7 */
+    {NO_OBJECT, NO_OBJECT, NO_OBJECT, NO_OBJECT},                          /* unsupported message ID = 8 */
+    {NO_OBJECT, NO_OBJECT, NO_OBJECT, NO_OBJECT},                          /* unsupported message ID = 9 */
+    {PCEP_OBJ_CLASS_SRP, PCEP_OBJ_CLASS_LSP, ANY_OBJECT, ANY_OBJECT},      /* PCEP_TYPE_REPORT = 10 */
+    {PCEP_OBJ_CLASS_SRP, PCEP_OBJ_CLASS_LSP, ANY_OBJECT, ANY_OBJECT},      /* PCEP_TYPE_UPDATE = 11 */
+    {PCEP_OBJ_CLASS_SRP, PCEP_OBJ_CLASS_LSP, ANY_OBJECT, ANY_OBJECT},      /* PCEP_TYPE_INITIATE = 12 */
 };
 
 void pcep_decode_msg_header(struct pcep_header* hdr)
@@ -107,7 +107,7 @@ bool validate_message_objects(struct pcep_message *msg)
     const int *object_classes = MANDATORY_MESSAGE_OBJECT_CLASSES[msg->header->type];
     double_linked_list_node *node;
     int index;
-    for (node = msg->obj_list->head, index = 0;
+    for (node = (msg->obj_list == NULL ? NULL : msg->obj_list->head), index = 0;
          index < NUM_CHECKED_OBJECTS;
          index++, (node = (node==NULL ? NULL : node->next_node)))
     {
