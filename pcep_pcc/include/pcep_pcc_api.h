@@ -46,9 +46,9 @@ pcep_configuration *create_default_pcep_configuration();
 void destroy_pcep_configuration(pcep_configuration *config);
 
 /* Uses the standard PCEP TCP src and dest port = 4189.
- * To use a specific dest or src port, set them other than 0 in the pcep_configuration. */
+ * To use a specific dest or src port, set them other than 0 in the pcep_configuration.
+ * If src_ip is not set, INADDR_ANY will be used. */
 pcep_session *connect_pce(pcep_configuration *config, struct in_addr *pce_ip);
-pcep_session *connect_pce_with_src_ip(pcep_configuration *config, struct in_addr *pce_ip, struct in_addr *src_ip);
 void disconnect_pce(pcep_session *session);
 void send_message(pcep_session *session, struct pcep_message *msg, bool free_after_send);
 

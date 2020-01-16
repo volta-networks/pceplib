@@ -77,10 +77,9 @@ void test_connect_pce_with_src_ip()
     memcpy(&dest_address, host_info->h_addr, host_info->h_length);
     mock_socket_comm_info *mock_info = get_mock_socket_comm_info();
     mock_info->send_message_save_message = true;
-    struct in_addr src_address;
-    src_address.s_addr = 0x0a0a0102;
+    config->src_ip.s_addr = 0x0a0a0102;
 
-    pcep_session *session = connect_pce_with_src_ip(config, &dest_address, &src_address);
+    pcep_session *session = connect_pce(config, &dest_address);
 
     CU_ASSERT_PTR_NOT_NULL(session);
     CU_ASSERT_EQUAL(mock_info->sent_message_list->num_entries, 1);

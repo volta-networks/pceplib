@@ -94,8 +94,7 @@ typedef struct pcep_configuration_
      * This is according to the RFC5440, Section 5 */
     uint16_t src_pcep_port;
 
-    /* If set to NULL, IN_ADDR_ANY will be used */
-    struct in_addr *src_ip;
+    struct in_addr src_ip;
 
 } pcep_configuration;
 

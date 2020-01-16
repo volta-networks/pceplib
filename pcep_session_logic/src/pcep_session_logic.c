@@ -245,7 +245,7 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
             session_logic_msg_ready_handler,
             session_logic_message_sent_handler,
             session_logic_conn_except_notifier,
-            config->src_ip,
+            &(config->src_ip),
             ((config->src_pcep_port == 0) ? PCEP_TCP_PORT : config->src_pcep_port),
             pce_ip,
             ((config->dst_pcep_port == 0) ? PCEP_TCP_PORT : config->dst_pcep_port),

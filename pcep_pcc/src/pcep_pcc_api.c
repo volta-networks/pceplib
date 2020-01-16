@@ -92,18 +92,13 @@ pcep_configuration *create_default_pcep_configuration()
     config->use_pcep_sr_draft07 = false;
     config->dst_pcep_port = 0;
     config->src_pcep_port = 0;
-    config->src_ip = NULL;
+    config->src_ip.s_addr = INADDR_ANY;
 
     return config;
 }
 
 void destroy_pcep_configuration(pcep_configuration *config)
 {
-    if (config->src_ip != NULL)
-    {
-        free(config->src_ip);
-    }
-
     free(config);
 }
 
@@ -111,16 +106,6 @@ pcep_session *connect_pce(pcep_configuration *config, struct in_addr *pce_ip)
 {
     return create_pcep_session(config, pce_ip);
 }
-
-
-pcep_session *connect_pce_with_src_ip(pcep_configuration *config, struct in_addr *pce_ip, struct in_addr *src_ip)
-{
-    config->src_ip = malloc(sizeof(struct in_addr));
-    config->src_ip->s_addr = src_ip->s_addr;
-
-    return create_pcep_session(config, pce_ip);
-}
-
 
 void disconnect_pce(pcep_session *session)
 {
