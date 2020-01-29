@@ -69,9 +69,9 @@ int session_logic_msg_ready_handler(void *data, int socket_fd)
     }
 
     /* Just logging the first of potentially several messages received */
-    pcep_message *msg = ((pcep_message *) msg_list->head->data);
+    struct pcep_message *msg = ((struct pcep_message *) msg_list->head->data);
     pcep_log(LOG_INFO, "[%ld-%ld] session_logic_msg_ready_handler received message of type [%d] len [%d] on session_id [%d]\n",
-            time(NULL), pthread_self(), msg->header->type, msg->header->length, session->session_id);
+            time(NULL), pthread_self(), msg->msg_header->type, msg->encoded_message_length, session->session_id);
 
     /* This event will ultimately be handled by handle_socket_comm_event()
      * in pcep_session_logic_states.c */
@@ -82,7 +82,7 @@ int session_logic_msg_ready_handler(void *data, int socket_fd)
     pthread_cond_signal(&(session_logic_handle_->session_logic_cond_var));
     pthread_mutex_unlock(&(session_logic_handle_->session_logic_mutex));
 
-    return msg->header->length;
+    return msg->encoded_message_length;
 }
 
 

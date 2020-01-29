@@ -59,14 +59,18 @@ void test_connect_pce()
 
     CU_ASSERT_PTR_NOT_NULL(session);
     CU_ASSERT_EQUAL(mock_info->sent_message_list->num_entries, 1);
-    struct pcep_header* open_msg = (struct pcep_header*)
-        dll_delete_first_node(mock_info->sent_message_list);
+    /* What gets saved in the mock is the msg byte buffer. The msg struct was deleted
+     * when it was sent. Instead of inspecting the msg byte buffer, lets just decode it. */
+    uint8_t *encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
+    CU_ASSERT_PTR_NOT_NULL(encoded_msg);
+    struct pcep_message* open_msg = pcep_decode_message(encoded_msg);
     CU_ASSERT_PTR_NOT_NULL(open_msg);
-    CU_ASSERT_EQUAL(open_msg->type, PCEP_TYPE_OPEN);
+    CU_ASSERT_EQUAL(open_msg->msg_header->type, PCEP_TYPE_OPEN);
 
-    free(open_msg);
+    pcep_msg_free_message(open_msg);
     destroy_pcep_session(session);
     destroy_pcep_configuration(config);
+    free(encoded_msg);
 }
 
 void test_connect_pce_with_src_ip()
@@ -83,14 +87,16 @@ void test_connect_pce_with_src_ip()
 
     CU_ASSERT_PTR_NOT_NULL(session);
     CU_ASSERT_EQUAL(mock_info->sent_message_list->num_entries, 1);
-    struct pcep_header* open_msg = (struct pcep_header*)
-        dll_delete_first_node(mock_info->sent_message_list);
+    uint8_t *encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
+    CU_ASSERT_PTR_NOT_NULL(encoded_msg);
+    struct pcep_message* open_msg = pcep_decode_message(encoded_msg);
     CU_ASSERT_PTR_NOT_NULL(open_msg);
-    CU_ASSERT_EQUAL(open_msg->type, PCEP_TYPE_OPEN);
+    CU_ASSERT_EQUAL(open_msg->msg_header->type, PCEP_TYPE_OPEN);
 
-    free(open_msg);
+    pcep_msg_free_message(open_msg);
     destroy_pcep_session(session);
     destroy_pcep_configuration(config);
+    free(encoded_msg);
 }
 
 void test_disconnect_pce()
@@ -108,20 +114,25 @@ void test_disconnect_pce()
     CU_ASSERT_EQUAL(mock_info->sent_message_list->num_entries, 2);
 
     /* First there should be an open message from connect_pce() */
-    struct pcep_header* msg = (struct pcep_header*)
-        dll_delete_first_node(mock_info->sent_message_list);
+    uint8_t *encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
+    CU_ASSERT_PTR_NOT_NULL(encoded_msg);
+    struct pcep_message* msg = pcep_decode_message(encoded_msg);
     CU_ASSERT_PTR_NOT_NULL(msg);
-    CU_ASSERT_EQUAL(msg->type, PCEP_TYPE_OPEN);
-    free(msg);
+    CU_ASSERT_EQUAL(msg->msg_header->type, PCEP_TYPE_OPEN);
+    pcep_msg_free_message(msg);
+    free(encoded_msg);
 
     /* Then there should be a close message from disconnect_pce() */
-    msg = (struct pcep_header*) dll_delete_first_node(mock_info->sent_message_list);
+    encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
+    CU_ASSERT_PTR_NOT_NULL(encoded_msg);
+    msg = pcep_decode_message(encoded_msg);
     CU_ASSERT_PTR_NOT_NULL(msg);
-    CU_ASSERT_EQUAL(msg->type, PCEP_TYPE_CLOSE);
+    CU_ASSERT_EQUAL(msg->msg_header->type, PCEP_TYPE_CLOSE);
 
-    free(msg);
+    pcep_msg_free_message(msg);
     destroy_pcep_session(session);
     destroy_pcep_configuration(config);
+    free(encoded_msg);
 }
 
 

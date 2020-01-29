@@ -89,16 +89,17 @@ pcep_configuration *create_default_pcep_configuration()
     config->support_sr_te_pst = true;
     config->pcc_can_resolve_nai_to_sid = true;
     config->max_sid_depth = 0;
-    config->use_pcep_sr_draft07 = false;
     config->dst_pcep_port = 0;
     config->src_pcep_port = 0;
     config->src_ip.s_addr = INADDR_ANY;
+    config->pcep_msg_versioning = create_default_pcep_versioning();
 
     return config;
 }
 
 void destroy_pcep_configuration(pcep_configuration *config)
 {
+    destroy_pcep_versioning(config->pcep_msg_versioning);
     free(config);
 }
 
@@ -118,14 +119,16 @@ void disconnect_pce(pcep_session *session)
 
 void send_message(pcep_session *session, struct pcep_message *msg, bool free_after_send)
 {
-    pcep_msg_encode(msg);
+    pcep_encode_message(msg, session->pcc_config.pcep_msg_versioning);
     socket_comm_session_send_message(session->socket_comm_session,
-            (char *) msg->header, ntohs(msg->header->length), free_after_send);
+            (char *) msg->encoded_message, msg->encoded_message_length, free_after_send);
 
     if (free_after_send == true)
     {
-        dll_destroy(msg->obj_list);
-        free(msg);
+        /* The encoded_message will be deleted once sent, so everything else
+         * in the message will be freed */
+        msg->encoded_message = NULL;
+        pcep_msg_free_message(msg);
     }
 }
 

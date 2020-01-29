@@ -64,7 +64,7 @@ void send_pce_report_message(pcep_session *session)
     bool r_flag = false; /* true if LSP has been removed */
     bool s_flag = true;  /* Syncronization */
     bool d_flag = true;  /* Delegate LSP to PCE */
-    struct in_addr sr_subobj_ipv4;
+    struct in_addr *sr_subobj_ipv4 = malloc(sizeof(struct in_addr));
     double_linked_list *report_list = dll_initialize();
 
     /* Create the SRP object */
@@ -88,15 +88,15 @@ void send_pce_report_message(pcep_session *session)
     dll_append(report_list, obj);
 
     /* Create the ERO sub-object */
-    double_linked_list* ero_subobj_list = dll_initialize();
-    inet_pton(AF_INET, "9.9.9.1", &(sr_subobj_ipv4.s_addr));
-    struct pcep_object_ro_subobj *subobj =
-            pcep_obj_create_ro_subobj_sr_ipv4_node(false, false, false, true, 16060, &sr_subobj_ipv4, false/*draft07*/);
+    inet_pton(AF_INET, "9.9.9.1", sr_subobj_ipv4);
+    struct pcep_ro_subobj_sr *subobj =
+            pcep_obj_create_ro_subobj_sr_ipv4_node(false, false, false, true, 16060, sr_subobj_ipv4);
     if (subobj == NULL)
     {
         pcep_log(LOG_WARNING, "send_pce_report_message ERO sub-object was NULL\n");
         return;
     }
+    double_linked_list* ero_subobj_list = dll_initialize();
     dll_append(ero_subobj_list, subobj);
 
     /* Create the ERO object */
@@ -111,9 +111,6 @@ void send_pce_report_message(pcep_session *session)
     /* Create and send the report message */
     struct pcep_message *report_msg = pcep_msg_create_report(report_list);
     send_message(session, report_msg, true);
-
-    dll_destroy_with_data(report_list);
-    dll_destroy_with_data(ero_subobj_list);
 }
 
 void print_queue_event(struct pcep_event *event)
@@ -126,7 +123,7 @@ void print_queue_event(struct pcep_event *event)
 
     if (event->event_type == MESSAGE_RECEIVED)
     {
-        pcep_log(LOG_INFO, "\t Event message type [%s]\n", get_message_type_str(event->message->header->type));
+        pcep_log(LOG_INFO, "\t Event message type [%s]\n", get_message_type_str(event->message->msg_header->type));
     }
 }
 
@@ -156,7 +153,7 @@ int main(int argc, char **argv)
     memcpy(&host_address, host_info->h_addr, host_info->h_length);
 
     pcep_configuration *config = create_default_pcep_configuration();
-    config->use_pcep_sr_draft07 = true;
+    config->pcep_msg_versioning->draft_ietf_pce_segment_routing_07 = true;
     config->src_pcep_port = 4999;
     pcep_session *session = connect_pce(config, &host_address);
     free(config);

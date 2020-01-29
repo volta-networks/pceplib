@@ -10,8 +10,9 @@
 #include <CUnit/TestDB.h>
 
 /* functions to be tested from pcep-messages.c */
+extern void pcep_messages_test_setup(void);
+extern void pcep_messages_test_teardown(void);
 extern void test_pcep_msg_create_open(void);
-extern void test_pcep_obj_create_open_with_tlvs(void);
 extern void test_pcep_msg_create_request(void);
 extern void test_pcep_msg_create_request_svec(void);
 extern void test_pcep_msg_create_reply_nopath(void);
@@ -24,6 +25,8 @@ extern void test_pcep_msg_create_update(void);
 extern void test_pcep_msg_create_initiate(void);
 
 /* functions to be tested from pcep-tlvs.c */
+extern void pcep_tlvs_test_setup(void);
+extern void pcep_tlvs_test_teardown(void);
 extern void test_pcep_tlv_create_stateful_pce_capability(void);
 extern void test_pcep_tlv_create_speaker_entity_id(void);
 extern void test_pcep_tlv_create_lsp_db_version(void);
@@ -38,6 +41,8 @@ extern void test_pcep_tlv_create_rsvp_ipv4_error_spec(void);
 extern void test_pcep_tlv_create_rsvp_ipv6_error_spec(void);
 
 /* functions to be tested from pcep-objects.c */
+extern void pcep_objects_test_setup(void);
+extern void pcep_objects_test_teardown(void);
 extern void test_pcep_obj_create_open(void);
 extern void test_pcep_obj_create_rp(void);
 extern void test_pcep_obj_create_nopath(void);
@@ -58,7 +63,6 @@ extern void test_pcep_obj_create_ro_subobj_ipv4(void);
 extern void test_pcep_obj_create_ro_subobj_ipv6(void);
 extern void test_pcep_obj_create_ro_subobj_unnum(void);
 extern void test_pcep_obj_create_ro_subobj_32label(void);
-extern void test_pcep_obj_create_ro_subobj_border(void);
 extern void test_pcep_obj_create_ro_subobj_asn(void);
 extern void test_pcep_obj_create_ro_subobj_sr_nonai(void);
 extern void test_pcep_obj_create_ro_subobj_sr_ipv4_node(void);
@@ -67,9 +71,6 @@ extern void test_pcep_obj_create_ro_subobj_sr_ipv4_adj(void);
 extern void test_pcep_obj_create_ro_subobj_sr_ipv6_adj(void);
 extern void test_pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(void);
 extern void test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(void);
-extern void test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj_sr_draft07(void);
-extern void test_pcep_decode_obj_ro(void);
-extern void test_pcep_decode_obj_ro_sr(void);
 
 /* functions to be tested from pcep-tools.c */
 extern void test_pcep_msg_read_pcep_initiate(void);
@@ -86,9 +87,11 @@ int main(int argc, char **argv)
 {
     CU_initialize_registry();
 
-    CU_pSuite messages_suite = CU_add_suite("PCEP Messages Test Suite", NULL, NULL);
+    CU_pSuite messages_suite = CU_add_suite_with_setup_and_teardown(
+            "PCEP Messages Test Suite",
+            NULL, NULL, /* suite setup and cleanup function pointers */
+            pcep_messages_test_setup, pcep_messages_test_teardown);
     CU_add_test(messages_suite, "test_pcep_msg_create_open", test_pcep_msg_create_open);
-    CU_add_test(messages_suite, "test_pcep_obj_create_open_with_tlvs", test_pcep_obj_create_open_with_tlvs);
     CU_add_test(messages_suite, "test_pcep_msg_create_request", test_pcep_msg_create_request);
     CU_add_test(messages_suite, "test_pcep_msg_create_request_svec", test_pcep_msg_create_request_svec);
     CU_add_test(messages_suite, "test_pcep_msg_create_reply_nopath", test_pcep_msg_create_reply_nopath);
@@ -100,7 +103,10 @@ int main(int argc, char **argv)
     CU_add_test(messages_suite, "test_pcep_msg_create_update", test_pcep_msg_create_update);
     CU_add_test(messages_suite, "test_pcep_msg_create_initiate", test_pcep_msg_create_initiate);
 
-    CU_pSuite tlvs_suite = CU_add_suite("PCEP TLVs Test Suite", NULL, NULL);
+    CU_pSuite tlvs_suite = CU_add_suite_with_setup_and_teardown(
+            "PCEP TLVs Test Suite",
+            NULL, NULL, /* suite setup and cleanup function pointers */
+            pcep_tlvs_test_setup, pcep_tlvs_test_teardown);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_stateful_pce_capability", test_pcep_tlv_create_stateful_pce_capability);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_speaker_entity_id", test_pcep_tlv_create_speaker_entity_id);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_lsp_db_version", test_pcep_tlv_create_lsp_db_version);
@@ -114,7 +120,10 @@ int main(int argc, char **argv)
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_rsvp_ipv4_error_spec", test_pcep_tlv_create_rsvp_ipv4_error_spec);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_rsvp_ipv6_error_spec", test_pcep_tlv_create_rsvp_ipv6_error_spec);
 
-    CU_pSuite objects_suite = CU_add_suite("PCEP Objects Test Suite", NULL, NULL);
+    CU_pSuite objects_suite = CU_add_suite_with_setup_and_teardown(
+            "PCEP Objects Test Suite",
+            NULL, NULL, /* suite setup and cleanup function pointers */
+            pcep_objects_test_setup, pcep_objects_test_teardown);
     CU_add_test(objects_suite, "test_pcep_obj_create_open", test_pcep_obj_create_open);
     CU_add_test(objects_suite, "test_pcep_obj_create_rp", test_pcep_obj_create_rp);
     CU_add_test(objects_suite, "test_pcep_obj_create_nopath", test_pcep_obj_create_nopath);
@@ -128,8 +137,6 @@ int main(int argc, char **argv)
     CU_add_test(objects_suite, "test_pcep_obj_create_close", test_pcep_obj_create_close);
     CU_add_test(objects_suite, "test_pcep_obj_create_srp", test_pcep_obj_create_srp);
     CU_add_test(objects_suite, "test_pcep_obj_create_lsp", test_pcep_obj_create_lsp);
-    CU_add_test(objects_suite, "test_pcep_decode_obj_ro", test_pcep_decode_obj_ro);
-    CU_add_test(objects_suite, "test_pcep_decode_obj_ro_sr", test_pcep_decode_obj_ro_sr);
 
     CU_add_test(objects_suite, "test_pcep_obj_create_ero", test_pcep_obj_create_ero);
     CU_add_test(objects_suite, "test_pcep_obj_create_rro", test_pcep_obj_create_rro);
@@ -138,7 +145,6 @@ int main(int argc, char **argv)
     CU_add_test(objects_suite, "test_pcep_obj_create_ro_subobj_ipv6", test_pcep_obj_create_ro_subobj_ipv6);
     CU_add_test(objects_suite, "test_pcep_obj_create_ro_subobj_unnum", test_pcep_obj_create_ro_subobj_unnum);
     CU_add_test(objects_suite, "test_pcep_obj_create_ro_subobj_32label", test_pcep_obj_create_ro_subobj_32label);
-    CU_add_test(objects_suite, "test_pcep_obj_create_ro_subobj_border", test_pcep_obj_create_ro_subobj_border);
     CU_add_test(objects_suite, "test_pcep_obj_create_ro_subobj_asn", test_pcep_obj_create_ro_subobj_asn);
 
     CU_add_test(objects_suite, "test_pcep_obj_create_ro_subobj_sr_nonai", test_pcep_obj_create_ro_subobj_sr_nonai);
@@ -150,8 +156,6 @@ int main(int argc, char **argv)
             test_pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj);
     CU_add_test(objects_suite, "test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj",
             test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj);
-    CU_add_test(objects_suite, "test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj_sr_draft07",
-            test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj_sr_draft07);
 
     CU_pSuite tools_suite = CU_add_suite("PCEP Tools Test Suite", NULL, NULL);
     CU_add_test(tools_suite, "test_pcep_msg_read_pcep_initiate", test_pcep_msg_read_pcep_initiate);

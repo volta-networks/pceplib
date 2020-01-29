@@ -14,6 +14,7 @@
 #include <string.h>
 #include <time.h>
 
+#include "pcep-encoding.h"
 #include "pcep_session_logic.h"
 #include "pcep_session_logic_internals.h"
 #include "pcep_timers.h"
@@ -146,12 +147,12 @@ void close_pcep_session(pcep_session *session)
     close_pcep_session_with_reason(session, PCEP_CLOSE_REASON_NO);
 }
 
-void close_pcep_session_with_reason(pcep_session *session, enum pcep_close_reasons reason)
+void close_pcep_session_with_reason(pcep_session *session, enum pcep_close_reason reason)
 {
-    struct pcep_message* close_msg = pcep_msg_create_close(0, reason);
+    struct pcep_message* close_msg = pcep_msg_create_close(reason);
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send pcep_close message len [%d] for session_id [%d]\n",
-           time(NULL), pthread_self(), close_msg->header->length, session->session_id);
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send pcep_close message for session_id [%d]\n",
+           time(NULL), pthread_self(), session->session_id);
 
     session_send_message(session, close_msg);
     socket_comm_session_close_tcp_after_write(session->socket_comm_session);
@@ -279,17 +280,18 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
 
 void session_send_message(pcep_session *session, struct pcep_message *message)
 {
-    pcep_msg_encode(message);
+    pcep_encode_message(message, session->pcc_config.pcep_msg_versioning);
     socket_comm_session_send_message(
             session->socket_comm_session,
-            (char *) message->header,
-            ntohs(message->header->length),
+            (char *) message->encoded_message,
+            message->encoded_message_length,
             true);
 
-    /* The message->header will be freed in
-     * socket_comm_session_send_message() once sent */
-    dll_destroy(message->obj_list);
-    free(message);
+    /* The message->encoded_message will be freed in
+     * socket_comm_session_send_message() once sent.
+     * Setting to NULL here so pcep_msg_free_message() doesnt free it */
+    message->encoded_message = NULL;
+    pcep_msg_free_message(message);
 }
 
 
@@ -299,60 +301,49 @@ void create_and_send_open(pcep_session *session)
      * with PCEP, the PCC sends the config the PCE should use in the open message,
      * and the PCE will send an open with the config the PCC should use. */
     double_linked_list *tlv_list = dll_initialize();
-    uint8_t stateful_tlv_flags = 0;
-    if (session->pcc_config.support_stateful_pce_lsp_update)
+    if (session->pcc_config.support_stateful_pce_lsp_update ||
+        session->pcc_config.support_pce_lsp_instantiation ||
+        session->pcc_config.support_include_db_version ||
+        session->pcc_config.support_lsp_triggered_resync ||
+        session->pcc_config.support_lsp_delta_sync ||
+        session->pcc_config.support_pce_triggered_initial_sync)
     {
-        stateful_tlv_flags |= PCEP_TLV_FLAG_LSP_UPDATE_CAPABILITY;
+        /* Prepend this TLV as the first in the list */
+        dll_append(tlv_list,
+            pcep_tlv_create_stateful_pce_capability(
+                    session->pcc_config.support_stateful_pce_lsp_update,     /* U flag */
+                    session->pcc_config.support_include_db_version,          /* S flag */
+                    session->pcc_config.support_lsp_triggered_resync,        /* T flag */
+                    session->pcc_config.support_lsp_delta_sync,              /* D flag */
+                    session->pcc_config.support_pce_triggered_initial_sync,  /* F flag */
+                    session->pcc_config.support_pce_lsp_instantiation));     /* I flag */
     }
-    if (session->pcc_config.support_pce_lsp_instantiation)
-    {
-        stateful_tlv_flags |= PCEP_TLV_FLAG_LSP_INSTANTIATION;
-    }
+
     if (session->pcc_config.support_include_db_version)
     {
-        stateful_tlv_flags |= PCEP_TLV_FLAG_INCLUDE_DB_VERSION;
         if (session->pcc_config.lsp_db_version != 0)
         {
             dll_append(tlv_list,
                     pcep_tlv_create_lsp_db_version(session->pcc_config.lsp_db_version));
         }
     }
-    if (session->pcc_config.support_lsp_triggered_resync)
-    {
-        stateful_tlv_flags |= PCEP_TLV_FLAG_TRIGGERED_RESYNC;
-    }
-    if (session->pcc_config.support_lsp_delta_sync)
-    {
-        stateful_tlv_flags |= PCEP_TLV_FLAG_DELTA_LSP_SYNC;
-    }
-    if (session->pcc_config.support_pce_triggered_initial_sync)
-    {
-        stateful_tlv_flags |= PCEP_TLV_FLAG_TRIGGERED_INITIAL_SYNC;
-    }
-
-    if (stateful_tlv_flags != 0)
-    {
-        /* Prepend this TLV as the first in the list */
-        dll_prepend(tlv_list,
-            pcep_tlv_create_stateful_pce_capability(stateful_tlv_flags));
-    }
 
     if (session->pcc_config.support_sr_te_pst)
     {
-        uint8_t flags = 0;
-        if (session->pcc_config.use_pcep_sr_draft07 == false)
+        bool flag_n = false;
+        bool flag_x = false;
+        if (session->pcc_config.pcep_msg_versioning->draft_ietf_pce_segment_routing_07 == false)
         {
-            flags = (session->pcc_config.pcc_can_resolve_nai_to_sid == true ?
-                    PCEP_TLV_FLAG_SR_PCE_CAPABILITY_NAI : 0);
-            flags |= (session->pcc_config.max_sid_depth == 0 ?
-                    PCEP_TLV_FLAG_NO_MSD_LIMITS : 0);
+            flag_n = session->pcc_config.pcc_can_resolve_nai_to_sid;
+            flag_x = (session->pcc_config.max_sid_depth == 0);
         }
 
-        struct pcep_object_tlv *sr_pce_cap_tlv =
-                pcep_tlv_create_sr_pce_capability(flags, session->pcc_config.max_sid_depth);
-        double_linked_list *sub_tlv_list = NULL;
+        struct pcep_object_tlv_sr_pce_capability *sr_pce_cap_tlv =
+                pcep_tlv_create_sr_pce_capability(
+                        flag_n, flag_x, session->pcc_config.max_sid_depth);
 
-        if (session->pcc_config.use_pcep_sr_draft07)
+        double_linked_list *sub_tlv_list = NULL;
+        if (session->pcc_config.pcep_msg_versioning->draft_ietf_pce_segment_routing_07 == true)
         {
             /* With draft07, send the sr_pce_cap_tlv as a normal TLV */
             dll_append(tlv_list, sr_pce_cap_tlv);
@@ -365,37 +356,21 @@ void create_and_send_open(pcep_session *session)
             dll_append(sub_tlv_list, sr_pce_cap_tlv);
         }
 
-        uint8_t pst = SR_TE_PST;
+        uint8_t *pst = malloc(sizeof(uint8_t));
+        *pst = SR_TE_PST;
         double_linked_list *pst_list = dll_initialize();
-        dll_append(pst_list, &pst);
+        dll_append(pst_list, pst);
         dll_append(tlv_list, pcep_tlv_create_path_setup_type_capability(pst_list, sub_tlv_list));
-        dll_destroy(pst_list);
-        if (sub_tlv_list != NULL)
-        {
-            dll_destroy_with_data(sub_tlv_list);
-        }
     }
 
-    struct pcep_message *open_msg;
-    if (tlv_list->num_entries > 0)
-    {
-        open_msg = pcep_msg_create_open_with_tlvs(
-                session->pcc_config.keep_alive_seconds,
-                session->pcc_config.dead_timer_seconds,
-                session->session_id,
-                tlv_list);
-    }
-    else
-    {
-        open_msg = pcep_msg_create_open(session->pcc_config.keep_alive_seconds,
-                                        session->pcc_config.dead_timer_seconds,
-                                        session->session_id);
-    }
+    struct pcep_message *open_msg = pcep_msg_create_open_with_tlvs(
+            session->pcc_config.keep_alive_seconds,
+            session->pcc_config.dead_timer_seconds,
+            session->session_id,
+            tlv_list);
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send open message: TLVs [%d] len [%d] for session_id [%d]\n",
-            time(NULL), pthread_self(), tlv_list->num_entries, open_msg->header->length, session->session_id);
-
-    dll_destroy_with_data(tlv_list);
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send open message: TLVs [%d] for session_id [%d]\n",
+            time(NULL), pthread_self(), tlv_list->num_entries, session->session_id);
 
     session_send_message(session, open_msg);
 }

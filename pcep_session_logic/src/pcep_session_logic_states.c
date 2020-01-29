@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "pcep-encoding.h"
 #include "pcep_session_logic.h"
 #include "pcep_session_logic_internals.h"
 #include "pcep_timers.h"
@@ -29,7 +30,7 @@ void send_keep_alive(pcep_session *session)
     struct pcep_message *keep_alive_msg = pcep_msg_create_keepalive();
 
     pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send keep_alive message len [%d] for session_id [%d]\n",
-            time(NULL), pthread_self(), keep_alive_msg->header->length, session->session_id);
+            time(NULL), pthread_self(), keep_alive_msg->encoded_message_length, session->session_id);
 
     session_send_message(session, keep_alive_msg);
 
@@ -42,30 +43,14 @@ void send_keep_alive(pcep_session *session)
 void send_pcep_error_with_object(pcep_session *session, enum pcep_error_type error_type,
         enum pcep_error_value error_value, struct pcep_object_header *object)
 {
-    struct pcep_object_error *error_obj = pcep_obj_create_error(error_type, error_value);
+    double_linked_list *obj_list = dll_initialize();
+    dll_append(obj_list, object);
+    struct pcep_message *error_msg = pcep_msg_create_error_with_objects(error_type, error_value, obj_list);
 
-    uint16_t buffer_len = sizeof(struct pcep_header) +
-            object->object_length +
-            error_obj->header.object_length;
-    uint8_t *buffer = malloc(buffer_len);
-    bzero(buffer, buffer_len);
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send error message with object [%d][%d] len [%d] for session_id [%d]\n",
+            time(NULL), pthread_self(), error_type, error_value, error_msg->encoded_message_length, session->session_id);
 
-    struct pcep_message *message = malloc(sizeof(struct pcep_message));
-    message->header = (struct pcep_header*) buffer;
-    message->header->length = buffer_len;
-    message->header->type = PCEP_TYPE_ERROR;
-    message->header->ver_flags = PCEP_COMMON_HEADER_VER_FLAGS;
-
-    memcpy(buffer + sizeof(struct pcep_header), error_obj, error_obj->header.object_length);
-    dll_append(message->obj_list, buffer + sizeof(struct pcep_header));
-    memcpy(buffer + sizeof(struct pcep_header) + error_obj->header.object_length,
-            object, object->object_length);
-    dll_append(message->obj_list, buffer + sizeof(struct pcep_header) + error_obj->header.object_length);
-
-    session_send_message(session, message);
-
-    /* The open_obj will be freed when the received open message is freed */
-    free(error_obj);
+    session_send_message(session, error_msg);
 }
 
 
@@ -74,7 +59,7 @@ void send_pcep_error(pcep_session *session, enum pcep_error_type error_type, enu
     struct pcep_message *error_msg = pcep_msg_create_error(error_type, error_value);
 
     pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send error message [%d][%d] len [%d] for session_id [%d]\n",
-            time(NULL), pthread_self(), error_type, error_value, error_msg->header->length, session->session_id);
+            time(NULL), pthread_self(), error_type, error_value, error_msg->encoded_message_length, session->session_id);
 
     session_send_message(session, error_msg);
 }
@@ -160,30 +145,32 @@ bool verify_pcep_open_object(pcep_session *session, struct pcep_object_open *ope
     }
 
     /* Check for Open Object TLVs */
-    if (pcep_obj_has_tlv((struct pcep_object_header*) open_object) == false)
+    if (pcep_object_has_tlvs((struct pcep_object_header*) open_object) == false)
     {
         /* There are no TLVs, all done */
         return retval;
     }
 
-    double_linked_list *tlv_list = pcep_obj_get_tlvs((struct pcep_object_header *) open_object);
-    double_linked_list_node *tlv_node = tlv_list->head;
+    double_linked_list_node *tlv_node = open_object->header.tlv_list->head;
     for (; tlv_node != NULL; tlv_node = tlv_node->next_node)
     {
-        struct pcep_object_tlv *tlv = tlv_node->data;
+        struct pcep_object_tlv_header *tlv = tlv_node->data;
 
         /* Check for the STATEFUL-PCE-CAPABILITY TLV */
-        if (tlv->header.type == PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY)
+        if (tlv->type == PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY)
         {
+            struct pcep_object_tlv_stateful_pce_capability *pce_cap_tlv =
+                    (struct pcep_object_tlv_stateful_pce_capability *) tlv;
+
             /* If the U flag is set, then the PCE is
              * capable of updating LSP parameters */
-            if (tlv->value[0] & PCEP_TLV_FLAG_LSP_UPDATE_CAPABILITY)
+            if (pce_cap_tlv->flag_u_lsp_update_capability)
             {
                 if (session->pce_config.support_stateful_pce_lsp_update == false)
                 {
                     /* Turn off the U bit, as it is not supported */
                     pcep_log(LOG_INFO, "Rejecting unsupported Open STATEFUL-PCE-CAPABILITY TLV U flag\n");
-                    tlv->value[0] &= ~PCEP_TLV_FLAG_LSP_UPDATE_CAPABILITY;
+                    pce_cap_tlv->flag_u_lsp_update_capability = false;
                     retval = false;
                 }
                 else
@@ -194,41 +181,40 @@ bool verify_pcep_open_object(pcep_session *session, struct pcep_object_open *ope
                 }
             }
             /* TODO the rest of the flags are not implemented yet */
-            else if (tlv->value[0] & PCEP_TLV_FLAG_INCLUDE_DB_VERSION)
+            else if (pce_cap_tlv->flag_s_include_db_version)
             {
-                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV S flag\n");
+                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV S Include DB Version flag\n");
             }
-            else if (tlv->value[0] & PCEP_TLV_FLAG_LSP_INSTANTIATION)
+            else if (pce_cap_tlv->flag_i_lsp_instantiation_capability)
             {
-                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV I flag\n");
+                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV I LSP Instantiation Capability flag\n");
             }
-            else if (tlv->value[0] & PCEP_TLV_FLAG_TRIGGERED_RESYNC)
+            else if (pce_cap_tlv->flag_t_triggered_resync)
             {
-                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV T flag\n");
+                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV T Triggered Resync flag\n");
             }
-            else if (tlv->value[0] & PCEP_TLV_FLAG_DELTA_LSP_SYNC)
+            else if (pce_cap_tlv->flag_d_delta_lsp_sync)
             {
-                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV D flag\n");
+                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV D Delta LSP Sync flag\n");
             }
-            else if (tlv->value[0] & PCEP_TLV_FLAG_TRIGGERED_INITIAL_SYNC)
+            else if (pce_cap_tlv->flag_f_triggered_initial_sync)
             {
-                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV F flag\n");
+                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV F Triggered Initial Sync flag\n");
             }
         }
         else
         {
-            /* TODO TODO how to handle unrecognized TLV ?? */
+            /* TODO how to handle unrecognized TLV ?? */
             pcep_log(LOG_INFO, "Unhandled OPEN TLV type: %d, length %d\n",
-                    tlv->header.type, tlv->header.length);
+                    tlv->type, tlv->encoded_tlv_length);
         }
     }
-    dll_destroy(tlv_list);
 
     return retval;
 }
 
 
-bool handle_pcep_open(pcep_session *session, pcep_message *open_msg)
+bool handle_pcep_open(pcep_session *session, struct pcep_message *open_msg)
 {
     /* Open Message validation and errors according to:
      * https://tools.ietf.org/html/rfc5440#section-7.15 */
@@ -288,7 +274,7 @@ bool handle_pcep_open(pcep_session *session, pcep_message *open_msg)
 }
 
 
-bool handle_pcep_update(pcep_session *session, pcep_message *upd_msg)
+bool handle_pcep_update(pcep_session *session, struct pcep_message *upd_msg)
 {
     /* Update Message validation and errors according to:
      * https://tools.ietf.org/html/rfc8231#section-6.2 */
@@ -369,7 +355,7 @@ bool handle_pcep_update(pcep_session *session, pcep_message *upd_msg)
     {
         struct pcep_object_header *object = node->data;
         pcep_log(LOG_INFO, "Invalid PcUpd message: Extra PcUpd object: Class [%d] Type [%d] len [%d]\n",
-                object->object_class, object->object_type, object->object_length);
+                object->object_class, object->object_type, object->encoded_object_length);
         /* Send the offending object with the error */
         send_pcep_error_with_object(session, PCEP_ERRT_NOT_SUPPORTED_OBJECT,
                                     PCEP_ERRV_NOT_SUPPORTED_OBJECT_CLASS, object);
@@ -379,7 +365,7 @@ bool handle_pcep_update(pcep_session *session, pcep_message *upd_msg)
     return true;
 }
 
-bool handle_pcep_initiate(pcep_session *session, pcep_message *init_msg)
+bool handle_pcep_initiate(pcep_session *session, struct pcep_message *init_msg)
 {
     /* Instantiate Message validation and errors according to:
      * https://tools.ietf.org/html/rfc8281#section-5 */
@@ -594,10 +580,10 @@ void handle_socket_comm_event(pcep_session_event *event)
          msg_node = msg_node->next_node)
     {
         bool message_enqueued = false;
-        pcep_message *msg = (pcep_message *) msg_node->data;
-        pcep_log(LOG_INFO, "\t %s message\n", get_message_type_str(msg->header->type));
+        struct pcep_message *msg = (struct pcep_message *) msg_node->data;
+        pcep_log(LOG_INFO, "\t %s message\n", get_message_type_str(msg->msg_header->type));
 
-        switch (msg->header->type)
+        switch (msg->msg_header->type)
         {
         case PCEP_TYPE_OPEN:
             /* handle_pcep_open() checks for duplicate erroneous open messages */

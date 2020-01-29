@@ -1,8 +1,7 @@
 /*
- * pcep-tlvs.c
+ * This is the implementation of a High Level PCEP message object TLV API.
  *
- *  Created on: Oct 29, 2019
- *      Author: brady
+ * Author : Brady Johnson <brady@voltanet.io>
  */
 
 #include <malloc.h>
@@ -14,25 +13,54 @@
 
 #include "pcep-tlvs.h"
 
-/*
- * Open Object TLVs
- */
-
-struct pcep_object_tlv*
-pcep_tlv_create_stateful_pce_capability(uint8_t flags)
+static struct pcep_object_tlv_header* pcep_tlv_common_create(enum pcep_object_tlv_types type, uint16_t size)
 {
-    /* Use enum pcep_tlv_pce_capability_flags to populate the flags field */
-    struct pcep_object_tlv *tlv = malloc(sizeof(struct pcep_object_tlv_header) + 4);
-    bzero(tlv, sizeof(struct pcep_object_tlv_header) + 4);
-
-    tlv->header.type = PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY;
-    tlv->header.length = sizeof(uint32_t);
-    tlv->value[0] = (0x000000ff & flags);
+    struct pcep_object_tlv_header *tlv = malloc(size);
+    bzero(tlv, size);
+    tlv->type = type;
 
     return tlv;
 }
 
-struct pcep_object_tlv*
+/*
+ * Open Object TLVs
+ */
+
+struct pcep_object_tlv_stateful_pce_capability*
+pcep_tlv_create_stateful_pce_capability(bool flag_u_lsp_update_capability,
+                                        bool flag_s_include_db_version,
+                                        bool flag_i_lsp_instantiation_capability,
+                                        bool flag_t_triggered_resync,
+                                        bool flag_d_delta_lsp_sync,
+                                        bool flag_f_triggered_initial_sync)
+{
+    struct pcep_object_tlv_stateful_pce_capability *tlv =
+            (struct pcep_object_tlv_stateful_pce_capability *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY,
+                    sizeof(struct pcep_object_tlv_stateful_pce_capability));
+    tlv->flag_u_lsp_update_capability         =  flag_u_lsp_update_capability;
+    tlv->flag_s_include_db_version            =  flag_s_include_db_version;
+    tlv->flag_i_lsp_instantiation_capability  =  flag_i_lsp_instantiation_capability;
+    tlv->flag_t_triggered_resync              =  flag_t_triggered_resync;
+    tlv->flag_d_delta_lsp_sync                =  flag_d_delta_lsp_sync;
+    tlv->flag_f_triggered_initial_sync        =  flag_f_triggered_initial_sync;
+
+    return tlv;
+}
+
+struct pcep_object_tlv_lsp_db_version*
+pcep_tlv_create_lsp_db_version(uint64_t lsp_db_version)
+{
+    struct pcep_object_tlv_lsp_db_version *tlv =
+            (struct pcep_object_tlv_lsp_db_version *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_LSP_DB_VERSION,
+                    sizeof(struct pcep_object_tlv_lsp_db_version));
+    tlv->lsp_db_version = lsp_db_version;
+
+    return tlv;
+}
+
+struct pcep_object_tlv_speaker_entity_identifier*
 pcep_tlv_create_speaker_entity_id(double_linked_list *speaker_entity_id_list)
 {
     if (speaker_entity_id_list == NULL)
@@ -45,54 +73,28 @@ pcep_tlv_create_speaker_entity_id(double_linked_list *speaker_entity_id_list)
         return NULL;
     }
 
-    /* speaker_entity_id_list is a double list of uint32_t* */
-    struct pcep_object_tlv *tlv = malloc(
-            sizeof(struct pcep_object_tlv_header) +
-            (sizeof(uint32_t) * speaker_entity_id_list->num_entries));
-    bzero(tlv, sizeof(struct pcep_object_tlv_header) +
-               (sizeof(uint32_t) * speaker_entity_id_list->num_entries));
-
-    tlv->header.type = PCEP_OBJ_TLV_TYPE_SPEAKER_ENTITY_ID;
-    tlv->header.length = speaker_entity_id_list->num_entries * sizeof(uint32_t);
-
-    int index = 0;
-    double_linked_list_node *entity_id_node = speaker_entity_id_list->head;
-    for(; entity_id_node != NULL; entity_id_node = entity_id_node->next_node)
-    {
-        tlv->value[index++] = *((uint32_t *) entity_id_node->data);
-    }
+    struct pcep_object_tlv_speaker_entity_identifier *tlv =
+            (struct pcep_object_tlv_speaker_entity_identifier *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_SPEAKER_ENTITY_ID,
+                    sizeof(struct pcep_object_tlv_speaker_entity_identifier));
+    tlv->speaker_entity_id_list = speaker_entity_id_list;
 
     return tlv;
 }
 
-struct pcep_object_tlv*
-pcep_tlv_create_lsp_db_version(uint64_t lsp_db_version)
-{
-    struct pcep_object_tlv *tlv = malloc(sizeof(struct pcep_object_tlv_header) + 8);
-    bzero(tlv, sizeof(struct pcep_object_tlv_header) + 8);
-
-    tlv->header.type = PCEP_OBJ_TLV_TYPE_LSP_DB_VERSION;
-    tlv->header.length = 8;
-    *((uint64_t *) tlv->value) = lsp_db_version;
-
-    return tlv;
-}
-
-struct pcep_object_tlv*
+struct pcep_object_tlv_path_setup_type*
 pcep_tlv_create_path_setup_type(uint8_t pst)
 {
-    struct pcep_object_tlv *tlv = malloc(sizeof(struct pcep_object_tlv_header) + sizeof(uint32_t));
-    bzero(tlv, sizeof(struct pcep_object_tlv_header) + sizeof(uint32_t));
-    tlv->header.length = sizeof(uint32_t);
-    tlv->header.type = PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE;
-
-    /* Write the PST */
-    tlv->value[0] = (0x000000ff & pst);
+    struct pcep_object_tlv_path_setup_type *tlv =
+            (struct pcep_object_tlv_path_setup_type *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE,
+                    sizeof(struct pcep_object_tlv_path_setup_type));
+    tlv->path_setup_type = pst;
 
     return tlv;
 }
 
-struct pcep_object_tlv*
+struct pcep_object_tlv_path_setup_type_capability*
 pcep_tlv_create_path_setup_type_capability(double_linked_list *pst_list, double_linked_list *sub_tlv_list)
 {
     if (pst_list == NULL)
@@ -105,89 +107,96 @@ pcep_tlv_create_path_setup_type_capability(double_linked_list *pst_list, double_
         return NULL;
     }
 
-    /*
-     * pst_list is a double list of uint8_t* and sub_tlv_list
-     * is a double list of struct pcep_object_tlv*
-     * The sub TLVs are optional.
-     */
+    struct pcep_object_tlv_path_setup_type_capability *tlv =
+            (struct pcep_object_tlv_path_setup_type_capability *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY,
+                    sizeof(struct pcep_object_tlv_path_setup_type_capability));
 
-    /* Calculate the length of the psts */
-    /* We need to take into account the padding when allocating the buffer */
-    int buffer_length = sizeof(uint32_t) + /* The reserved + Num Pst's is a uint 32_t */
-            pst_list->num_entries +
-            ((pst_list->num_entries % 4 == 0) ? 0 : (4 - (pst_list->num_entries % 4)));
-
-    /* Calculate the length of the sub-tlvs */
-    int sub_tlv_length = 0;
-    double_linked_list_node *node;
-    if (sub_tlv_list != NULL)
-    {
-        node = sub_tlv_list->head;
-        for(; node != NULL; node = node->next_node)
-        {
-            struct pcep_object_tlv_header *sub_tlv = node->data;
-            sub_tlv_length += sub_tlv->length + sizeof(struct pcep_object_tlv_header);
-        }
-        buffer_length += sub_tlv_length;
-    }
-
-    struct pcep_object_tlv *tlv = malloc(sizeof(struct pcep_object_tlv_header) + buffer_length);
-    bzero(tlv, sizeof(struct pcep_object_tlv_header) + buffer_length);
-
-    /* The TLV length should not include padding, but that doesnt parse in Wireshark */
-    /*tlv->header.length = (pst_list->num_entries + sizeof(uint32_t) + sub_tlv_length); */
-    tlv->header.length = buffer_length;
-    tlv->header.type = PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY;
-
-    /* Write the number of PSTs */
-    tlv->value[0] = pst_list->num_entries;
-
-    /* Write each of the PSTs */
-    int index = 4; /* Get past the reserved and NumPSTs bytes */
-    node = pst_list->head;
-    for(; node != NULL; node = node->next_node)
-    {
-        uint8_t *pst = (uint8_t *) node->data;
-        memcpy(((uint8_t *) tlv->value) + index, pst, sizeof(uint8_t));
-        index += sizeof(uint8_t);
-    }
-
-    /* Write each of the sub-tlvs */
-    if (sub_tlv_list != NULL)
-    {
-        index = sizeof(uint32_t) + pst_list->num_entries +
-            ((pst_list->num_entries % 4 == 0) ? 0 : (4 - (pst_list->num_entries % 4)));
-        node = sub_tlv_list->head;
-        for(; node != NULL; node = node->next_node)
-        {
-            struct pcep_object_tlv_header *sub_tlv = node->data;
-            memcpy(((uint8_t *) tlv->value) + index, sub_tlv,
-                    sizeof(struct pcep_object_tlv_header) + sub_tlv->length);
-            index += sizeof(struct pcep_object_tlv_header) + sub_tlv->length;
-        }
-    }
+    tlv->pst_list = pst_list;
+    tlv->sub_tlv_list = sub_tlv_list;
 
     return tlv;
 }
 
-struct pcep_object_tlv*
-pcep_tlv_create_sr_pce_capability(uint8_t flags, uint8_t max_sid_depth)
+struct pcep_object_tlv_sr_pce_capability*
+pcep_tlv_create_sr_pce_capability(bool flag_n, bool flag_x, uint8_t max_sid_depth)
 {
-    struct pcep_object_tlv *tlv = malloc(sizeof(struct pcep_object_tlv_header) + 4);
-    bzero(tlv, sizeof(struct pcep_object_tlv_header) + 4);
-
-    tlv->header.type = PCEP_OBJ_TLV_TYPE_SR_PCE_CAPABILITY;
-    tlv->header.length = sizeof(uint32_t);
-    tlv->value[0] = ((flags << 8) | max_sid_depth);
+    struct pcep_object_tlv_sr_pce_capability *tlv =
+            (struct pcep_object_tlv_sr_pce_capability *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_SR_PCE_CAPABILITY,
+                    sizeof(struct pcep_object_tlv_sr_pce_capability));
+    tlv->flag_n = flag_n;
+    tlv->flag_x = flag_x;
+    tlv->max_sid_depth = max_sid_depth;
 
     return tlv;
 }
+
 
 /*
  * LSP Object TLVs
  */
 
-struct pcep_object_tlv*
+struct pcep_object_tlv_ipv4_lsp_identifier*
+pcep_tlv_create_ipv4_lsp_identifiers(struct in_addr *ipv4_tunnel_sender,
+        struct in_addr *ipv4_tunnel_endpoint, uint16_t lsp_id,
+        uint16_t tunnel_id, struct in_addr *extended_tunnel_id)
+{
+    if (ipv4_tunnel_sender == NULL || ipv4_tunnel_endpoint == NULL)
+    {
+        return NULL;
+    }
+
+    struct pcep_object_tlv_ipv4_lsp_identifier *tlv =
+            (struct pcep_object_tlv_ipv4_lsp_identifier *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_IPV4_LSP_IDENTIFIERS,
+                    sizeof(struct pcep_object_tlv_ipv4_lsp_identifier));
+    tlv->ipv4_tunnel_sender.s_addr = ipv4_tunnel_sender->s_addr;
+    tlv->ipv4_tunnel_endpoint.s_addr = ipv4_tunnel_endpoint->s_addr;
+    tlv->lsp_id = lsp_id;
+    tlv->tunnel_id = tunnel_id;
+    tlv->extended_tunnel_id.s_addr = extended_tunnel_id->s_addr ;
+
+    return tlv;
+}
+
+struct pcep_object_tlv_ipv6_lsp_identifier*
+pcep_tlv_create_ipv6_lsp_identifiers(struct in6_addr *ipv6_tunnel_sender,
+        struct in6_addr *ipv6_tunnel_endpoint, uint16_t lsp_id,
+        uint16_t tunnel_id, struct in6_addr *extended_tunnel_id)
+{
+    if (ipv6_tunnel_sender == NULL || ipv6_tunnel_endpoint == NULL)
+    {
+        return NULL;
+    }
+
+    struct pcep_object_tlv_ipv6_lsp_identifier *tlv =
+            (struct pcep_object_tlv_ipv6_lsp_identifier *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_IPV6_LSP_IDENTIFIERS,
+                    sizeof(struct pcep_object_tlv_ipv6_lsp_identifier));
+
+    tlv->ipv6_tunnel_sender.__in6_u.__u6_addr32[0] = ipv6_tunnel_sender->__in6_u.__u6_addr32[0];
+    tlv->ipv6_tunnel_sender.__in6_u.__u6_addr32[1] = ipv6_tunnel_sender->__in6_u.__u6_addr32[1];
+    tlv->ipv6_tunnel_sender.__in6_u.__u6_addr32[2] = ipv6_tunnel_sender->__in6_u.__u6_addr32[2];
+    tlv->ipv6_tunnel_sender.__in6_u.__u6_addr32[3] = ipv6_tunnel_sender->__in6_u.__u6_addr32[3];
+
+    tlv->tunnel_id = tunnel_id;
+    tlv->lsp_id = lsp_id;
+
+    tlv->extended_tunnel_id.__in6_u.__u6_addr32[0] = extended_tunnel_id->__in6_u.__u6_addr32[0];
+    tlv->extended_tunnel_id.__in6_u.__u6_addr32[1] = extended_tunnel_id->__in6_u.__u6_addr32[1];
+    tlv->extended_tunnel_id.__in6_u.__u6_addr32[2] = extended_tunnel_id->__in6_u.__u6_addr32[2];
+    tlv->extended_tunnel_id.__in6_u.__u6_addr32[3] = extended_tunnel_id->__in6_u.__u6_addr32[3];
+
+    tlv->ipv6_tunnel_endpoint.__in6_u.__u6_addr32[0] = ipv6_tunnel_endpoint->__in6_u.__u6_addr32[0];
+    tlv->ipv6_tunnel_endpoint.__in6_u.__u6_addr32[1] = ipv6_tunnel_endpoint->__in6_u.__u6_addr32[1];
+    tlv->ipv6_tunnel_endpoint.__in6_u.__u6_addr32[2] = ipv6_tunnel_endpoint->__in6_u.__u6_addr32[2];
+    tlv->ipv6_tunnel_endpoint.__in6_u.__u6_addr32[3] = ipv6_tunnel_endpoint->__in6_u.__u6_addr32[3];
+
+    return tlv;
+}
+
+struct pcep_object_tlv_symbolic_path_name*
 pcep_tlv_create_symbolic_path_name(char *symbolic_path_name, uint16_t symbolic_path_name_length)
 {
     /* symbolic_path_name_length should NOT include the null terminator and cannot be zero */
@@ -196,156 +205,87 @@ pcep_tlv_create_symbolic_path_name(char *symbolic_path_name, uint16_t symbolic_p
         return NULL;
     }
 
-    uint8_t pad_bytes = (symbolic_path_name_length % 4 == 0) ? 0 : (4 - (symbolic_path_name_length % 4));
-    struct pcep_object_tlv *tlv = malloc(
-            sizeof(struct pcep_object_tlv_header) + symbolic_path_name_length + pad_bytes);
-    bzero(tlv, sizeof(struct pcep_object_tlv_header) + symbolic_path_name_length + pad_bytes);
+    struct pcep_object_tlv_symbolic_path_name *tlv =
+            (struct pcep_object_tlv_symbolic_path_name *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_SYMBOLIC_PATH_NAME,
+                    sizeof(struct pcep_object_tlv_symbolic_path_name));
 
-    /* The enclosing object must include the pad bytes in its length */
-    tlv->header.length = symbolic_path_name_length;
-    tlv->header.type = PCEP_OBJ_TLV_TYPE_SYMBOLIC_PATH_NAME;
-    /* The padding is at the end of the string, not the beginning */
-    memcpy(tlv->value, symbolic_path_name, symbolic_path_name_length);
+    uint16_t length =(symbolic_path_name_length > MAX_SYMBOLIC_PATH_NAME) ?
+            MAX_SYMBOLIC_PATH_NAME : symbolic_path_name_length;
+    memcpy(tlv->symbolic_path_name, symbolic_path_name, length);
+    tlv->symbolic_path_name_length = length;
 
     return tlv;
 }
 
-struct pcep_object_tlv*
-pcep_tlv_create_ipv4_lsp_identifiers(struct in_addr *ipv4_tunnel_sender,
-        struct in_addr *ipv4_tunnel_endpoint, uint16_t lsp_id,
-        uint16_t tunnel_id, uint32_t extended_tunnel_id)
+struct pcep_object_tlv_lsp_error_code*
+pcep_tlv_create_lsp_error_code(enum pcep_tlv_lsp_error_codes lsp_error_code)
 {
-    if (ipv4_tunnel_sender == NULL || ipv4_tunnel_endpoint == NULL)
-    {
-        return NULL;
-    }
-
-    struct pcep_object_tlv *tlv = malloc(sizeof(struct pcep_object_tlv_header) + 16);
-    bzero(tlv, sizeof(struct pcep_object_tlv_header) + 16);
-
-    tlv->header.type = PCEP_OBJ_TLV_TYPE_IPV4_LSP_IDENTIFIERS;
-    tlv->header.length = sizeof(uint32_t) * 4;
-    tlv->value[0] = ipv4_tunnel_sender->s_addr;
-    tlv->value[1] = 0x0000ffff & tunnel_id;
-    tlv->value[1] |= (lsp_id << 16);
-    tlv->value[2] = extended_tunnel_id;
-    tlv->value[3] = ipv4_tunnel_endpoint->s_addr;
+    struct pcep_object_tlv_lsp_error_code *tlv =
+            (struct pcep_object_tlv_lsp_error_code *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_LSP_ERROR_CODE,
+                    sizeof(struct pcep_object_tlv_lsp_error_code));
+    tlv->lsp_error_code = lsp_error_code;
 
     return tlv;
 }
 
-    /* extended_tunnel_id must be uint32_t[4] */
-struct pcep_object_tlv*
-pcep_tlv_create_ipv6_lsp_identifiers(struct in6_addr *ipv6_tunnel_sender,
-        struct in6_addr *ipv6_tunnel_endpoint, uint16_t lsp_id,
-        uint16_t tunnel_id, uint32_t extended_tunnel_id[])
-{
-    if (ipv6_tunnel_sender == NULL || ipv6_tunnel_endpoint == NULL)
-    {
-        return NULL;
-    }
-
-    struct pcep_object_tlv *tlv = malloc(sizeof(struct pcep_object_tlv_header) + (sizeof(uint32_t) * 13));
-    bzero(tlv, sizeof(struct pcep_object_tlv_header) + 52);
-
-    tlv->header.type = PCEP_OBJ_TLV_TYPE_IPV6_LSP_IDENTIFIERS;
-    tlv->header.length = sizeof(uint32_t) * 13;
-
-    tlv->value[0] = ipv6_tunnel_sender->__in6_u.__u6_addr32[0];
-    tlv->value[1] = ipv6_tunnel_sender->__in6_u.__u6_addr32[1];
-    tlv->value[2] = ipv6_tunnel_sender->__in6_u.__u6_addr32[2];
-    tlv->value[3] = ipv6_tunnel_sender->__in6_u.__u6_addr32[3];
-
-    tlv->value[4] = (0x0000ffff & tunnel_id);
-    tlv->value[4] |= (lsp_id << 16);
-
-    tlv->value[5] = extended_tunnel_id[0];
-    tlv->value[6] = extended_tunnel_id[1];
-    tlv->value[7] = extended_tunnel_id[2];
-    tlv->value[8] = extended_tunnel_id[3];
-
-    tlv->value[9]  = ipv6_tunnel_endpoint->__in6_u.__u6_addr32[0];
-    tlv->value[10] = ipv6_tunnel_endpoint->__in6_u.__u6_addr32[1];
-    tlv->value[11] = ipv6_tunnel_endpoint->__in6_u.__u6_addr32[2];
-    tlv->value[12] = ipv6_tunnel_endpoint->__in6_u.__u6_addr32[3];
-
-    return tlv;
-}
-
-struct pcep_object_tlv*
-pcep_tlv_create_lsp_error_code(enum pcep_tlv_lsp_error_codes rsvp_error_code)
-{
-    struct pcep_object_tlv *tlv = malloc(sizeof(struct pcep_object_tlv_header) + 4);
-    bzero(tlv, sizeof(struct pcep_object_tlv_header) + 4);
-
-    tlv->header.type = PCEP_OBJ_TLV_TYPE_LSP_ERROR_CODE;
-    tlv->header.length = sizeof(uint32_t);
-    tlv->value[0] = rsvp_error_code;
-
-    return tlv;
-}
-
-struct pcep_object_tlv*
-pcep_tlv_create_rsvp_ipv4_error_spec(struct in_addr *error_node_ip, uint8_t flags,
-        uint8_t error_code, uint16_t error_value)
+struct pcep_object_tlv_rsvp_error_spec*
+pcep_tlv_create_rsvp_ipv4_error_spec(struct in_addr *error_node_ip, uint8_t error_code, uint16_t error_value)
 {
     if (error_node_ip == NULL)
     {
         return NULL;
     }
 
-    uint16_t rsvp_length = sizeof(struct rsvp_object_header) +
-                           sizeof(struct rsvp_error_spec_ipv4);
-    struct pcep_object_tlv *tlv = malloc(sizeof(struct pcep_object_tlv_header) + rsvp_length);
-    bzero(tlv, sizeof(struct pcep_object_tlv_header) + rsvp_length);
+    struct pcep_object_tlv_rsvp_error_spec *tlv =
+            (struct pcep_object_tlv_rsvp_error_spec *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_RSVP_ERROR_SPEC,
+                    sizeof(struct pcep_object_tlv_rsvp_error_spec));
 
-    tlv->header.type = PCEP_OBJ_TLV_TYPE_RSVP_ERROR_SPEC;
-    tlv->header.length = rsvp_length;
-
-    struct rsvp_object_header *rsvp_header = (struct rsvp_object_header *) tlv->value;
-    rsvp_header->c_type = 1;
-    rsvp_header->class_num = 6;
-    rsvp_header->length = rsvp_length;
-
-    struct rsvp_error_spec_ipv4 *error_spec = (struct rsvp_error_spec_ipv4 *) &(tlv->value[1]);
-    error_spec->error_node_ip.s_addr = error_node_ip->s_addr;
-    error_spec->flags = flags;
-    error_spec->error_code = error_code;
-    error_spec->error_value = error_value;
+    tlv->c_type = RSVP_ERROR_SPEC_IPV4_CTYPE;
+    tlv->class_num = RSVP_ERROR_SPEC_CLASS_NUM;
+    tlv->error_code = error_code;
+    tlv->error_value = error_value;
+    tlv->error_spec_ip.ipv4_error_node_address.s_addr = error_node_ip->s_addr;
 
     return tlv;
 }
 
-struct pcep_object_tlv*
-pcep_tlv_create_rsvp_ipv6_error_spec(struct in6_addr *error_node_ip, uint8_t flags,
-        uint8_t error_code, uint16_t error_value)
+struct pcep_object_tlv_rsvp_error_spec*
+pcep_tlv_create_rsvp_ipv6_error_spec(struct in6_addr *error_node_ip, uint8_t error_code, uint16_t error_value)
 {
     if (error_node_ip == NULL)
     {
         return NULL;
     }
 
-    uint16_t rsvp_length = sizeof(struct rsvp_object_header) +
-                           sizeof(struct rsvp_error_spec_ipv6);
-    struct pcep_object_tlv *tlv = malloc(sizeof(struct pcep_object_tlv_header) + rsvp_length);
-    bzero(tlv, sizeof(struct pcep_object_tlv_header) + rsvp_length);
+    struct pcep_object_tlv_rsvp_error_spec *tlv =
+            (struct pcep_object_tlv_rsvp_error_spec *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_RSVP_ERROR_SPEC,
+                    sizeof(struct pcep_object_tlv_rsvp_error_spec));
 
-    tlv->header.type = PCEP_OBJ_TLV_TYPE_RSVP_ERROR_SPEC;
-    tlv->header.length = rsvp_length;
+    tlv->c_type = RSVP_ERROR_SPEC_IPV6_CTYPE;
+    tlv->class_num = RSVP_ERROR_SPEC_CLASS_NUM;
+    tlv->error_code = error_code;
+    tlv->error_value = error_value;
+    tlv->error_spec_ip.ipv6_error_node_address.__in6_u.__u6_addr32[0] = error_node_ip->__in6_u.__u6_addr32[0];
+    tlv->error_spec_ip.ipv6_error_node_address.__in6_u.__u6_addr32[1] = error_node_ip->__in6_u.__u6_addr32[1];
+    tlv->error_spec_ip.ipv6_error_node_address.__in6_u.__u6_addr32[2] = error_node_ip->__in6_u.__u6_addr32[2];
+    tlv->error_spec_ip.ipv6_error_node_address.__in6_u.__u6_addr32[3] = error_node_ip->__in6_u.__u6_addr32[3];
 
-    struct rsvp_object_header *rsvp_header = (struct rsvp_object_header *) tlv->value;
-    rsvp_header->c_type = 2;
-    rsvp_header->class_num = 6;
-    rsvp_header->length = rsvp_length;
+    return tlv;
+}
 
-    struct rsvp_error_spec_ipv6 * error_spec = (struct rsvp_error_spec_ipv6 *) &(tlv->value[1]);
-    error_spec->error_node_ip.__in6_u.__u6_addr32[0] = error_node_ip->__in6_u.__u6_addr32[0];
-    error_spec->error_node_ip.__in6_u.__u6_addr32[1] = error_node_ip->__in6_u.__u6_addr32[1];
-    error_spec->error_node_ip.__in6_u.__u6_addr32[2] = error_node_ip->__in6_u.__u6_addr32[2];
-    error_spec->error_node_ip.__in6_u.__u6_addr32[3] = error_node_ip->__in6_u.__u6_addr32[3];
-    error_spec->flags = flags;
-    error_spec->error_code = error_code;
-    error_spec->error_value = error_value;
+struct pcep_object_tlv_nopath_vector*
+pcep_tlv_create_nopath_vector(uint32_t error_code)
+{
+    struct pcep_object_tlv_nopath_vector *tlv =
+            (struct pcep_object_tlv_nopath_vector *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_NO_PATH_VECTOR,
+                    sizeof(struct pcep_object_tlv_nopath_vector));
+
+    tlv->error_code = error_code;
 
     return tlv;
 }

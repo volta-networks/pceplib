@@ -1,24 +1,7 @@
 /*
- * This file is part of the libpcep, a PCEP library.
+ * This is the implementation of a High Level PCEP message object API.
  *
- * Copyright (C) 2011 Acreo AB http://www.acreo.se
- *
- * This library is free software; you can redistribute it and/or
- * modify it under the terms of the GNU Lesser General Public
- * License as published by the Free Software Foundation; either
- * version 2 of the License, or (at your option) any later version.
- *
- * This library is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
- * Lesser General Public License for more details.
- *
- * You should have received a copy of the GNU Lesser General Public
- * License along with this library; if not, write to the
- * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
- * Boston, MA 02111-1307, USA.
- *
- * Author : Viktor Nordell <viktor.nordell@acreo.se>
+ * Author : Brady Johnson <brady@voltanet.io>
  */
 
 #include <strings.h>
@@ -33,135 +16,90 @@
 #include "pcep_utils_double_linked_list.h"
 #include "pcep_utils_logging.h"
 
-static uint8_t pcep_object_class_lengths[] = {
-        0, sizeof(struct pcep_object_open), sizeof(struct pcep_object_rp), 8,
-        /* Setting PCEP_OBJ_CLASS_ENDPOINTS length to 0, since it could be ipv4 or ipv6 */
-        0, sizeof(struct pcep_object_bandwidth), sizeof(struct pcep_object_metric), sizeof(struct pcep_object_ro),
-        sizeof(struct pcep_object_ro), sizeof(struct pcep_object_lspa), sizeof(struct pcep_object_ro), sizeof(struct pcep_object_svec),
-        sizeof(struct pcep_object_notify), sizeof(struct pcep_object_error), 0, sizeof(struct pcep_object_close),
-        0, 0, 0, 0, 0, 0, 0, 0, /* Object classes 16 - 23 are not used */
-        0, 0, 0, 0, 0, 0, 0, 0, /* Object classes 24 - 31 are not used */
-        sizeof(struct pcep_object_lsp), sizeof(struct pcep_object_srp) };
-
 /* Internal common function used to create a pcep_object and populate the header */
 static struct pcep_object_header*
-pcep_obj_create_common(uint16_t buffer_len, uint8_t object_class, uint8_t object_type)
+pcep_obj_create_common_with_tlvs(uint8_t obj_length, enum pcep_object_classes object_class, enum pcep_object_types object_type, double_linked_list *tlv_list)
 {
-    uint8_t *buffer = malloc(buffer_len);
-    bzero(buffer, buffer_len);
+    uint8_t *buffer = malloc(obj_length);
+    bzero(buffer, obj_length);
 
+    /* The flag_p and flag_i flags will be set externally */
     struct pcep_object_header *hdr = (struct pcep_object_header *) buffer;
     hdr->object_class = object_class;
     hdr->object_type = object_type;
-    hdr->object_length = buffer_len;
+    hdr->tlv_list = tlv_list;
 
     return hdr;
 }
 
-static uint16_t get_tlvs_length(double_linked_list *tlv_list)
+static struct pcep_object_header*
+pcep_obj_create_common(uint8_t obj_length, enum pcep_object_classes object_class, enum pcep_object_types object_type)
 {
-    if (tlv_list == NULL)
-    {
-        return 0;
-    }
-
-    uint16_t tlvs_length = 0;
-    double_linked_list_node *node = tlv_list->head;
-    for( ; node != NULL; node = node->next_node)
-    {
-        struct pcep_object_tlv_header *tlv = (struct pcep_object_tlv_header *) node->data;
-        /* The TLV length does not include the length of the header, but
-         * that needs to be included for the object length calculations. */
-        tlvs_length += tlv->length + sizeof(struct pcep_object_tlv_header);
-    }
-
-    /* The TLV length does not include padding, but
-     * must be included in the enclosing object */
-    if (tlvs_length % 4 != 0)
-    {
-        tlvs_length += (4 - (tlvs_length % 4));
-    }
-
-    return tlvs_length;
-}
-
-static void append_tlvs(struct pcep_object_header *obj, uint16_t index, double_linked_list *tlv_list)
-{
-    if (tlv_list == NULL)
-    {
-        return;
-    }
-
-    uint16_t buffer_index = index;
-    double_linked_list_node *node = tlv_list->head;
-    for( ; node != NULL; node = node->next_node)
-    {
-        struct pcep_object_tlv_header *tlv = (struct pcep_object_tlv_header *) node->data;
-        /* Any pad bytes are not specified in the TLV length, but mus be copied */
-        int length = tlv->length + sizeof(struct pcep_object_tlv_header);
-        if (length % 4 != 0)
-        {
-            length += (4 - (length % 4));
-        }
-        memcpy(((uint8_t *) obj) + buffer_index, tlv, length);
-        buffer_index += length;
-    }
+    return pcep_obj_create_common_with_tlvs(obj_length, object_class, object_type, NULL);
 }
 
 struct pcep_object_open*
 pcep_obj_create_open(uint8_t keepalive, uint8_t deadtimer, uint8_t sid, double_linked_list *tlv_list)
 {
-    uint16_t tlv_length = get_tlvs_length(tlv_list);
-
     struct pcep_object_open *open =
-            (struct pcep_object_open *) pcep_obj_create_common(
-                    sizeof(struct pcep_object_open) + tlv_length,
-                    PCEP_OBJ_CLASS_OPEN, PCEP_OBJ_TYPE_OPEN);
+            (struct pcep_object_open *) pcep_obj_create_common_with_tlvs(
+                    sizeof(struct pcep_object_open), PCEP_OBJ_CLASS_OPEN, PCEP_OBJ_TYPE_OPEN, tlv_list);
 
-    open->open_ver_flags = 1<<5;        // PCEP version. Current version is 1 /No flags are currently defined.
-    open->open_keepalive = keepalive;   // Maximum period of time between two consecutive PCEP messages sent by the sender.
-    open->open_deadtimer = deadtimer;   // Specifies the amount of time before closing the session down.
-    open->open_sid = sid;               // PCEP session number that identifies the current session.
-
-    append_tlvs((struct pcep_object_header *) open, sizeof(struct pcep_object_open), tlv_list);
+    open->open_version = PCEP_OBJECT_OPEN_VERSION; /* PCEP version. Current version is 1 /No flags are currently defined. */
+    open->open_keepalive = keepalive;              /* Maximum period of time between two consecutive PCEP messages sent by the sender. */
+    open->open_deadtimer = deadtimer;              /* Specifies the amount of time before closing the session down. */
+    open->open_sid = sid;                          /* PCEP session number that identifies the current session. */
 
     return open;
 }
 
 struct pcep_object_rp*
-pcep_obj_create_rp(uint8_t obj_hdr_flags, uint32_t obj_flags, uint32_t reqid, double_linked_list *tlv_list)
+pcep_obj_create_rp(uint8_t priority, bool flag_r, bool flag_b, bool flag_s, uint32_t reqid, double_linked_list *tlv_list)
 {
-    uint16_t tlv_length = get_tlvs_length(tlv_list);
-
     struct pcep_object_rp *obj =
-            (struct pcep_object_rp *) pcep_obj_create_common(
-                    sizeof(struct pcep_object_rp) + tlv_length,
-                    PCEP_OBJ_CLASS_RP, PCEP_OBJ_TYPE_RP);
+            (struct pcep_object_rp *) pcep_obj_create_common_with_tlvs(
+                    sizeof(struct pcep_object_rp),
+                    PCEP_OBJ_CLASS_RP, PCEP_OBJ_TYPE_RP, tlv_list);
 
-    obj->header.object_flags = obj_hdr_flags;
-    obj->rp_flags = obj_flags;  //|O|B|R|Pri|
-    obj->rp_reqidnumb = reqid; //Set the request id
+    obj->priority = priority;
+    obj->flag_reoptimization = flag_r;
+    obj->flag_bidirectional = flag_b;
+    obj->flag_strict = flag_s;
+    obj->request_id = reqid;
 
-    append_tlvs((struct pcep_object_header *) obj, sizeof(struct pcep_object_rp), tlv_list);
+    return obj;
+}
+
+struct pcep_object_notify*
+pcep_obj_create_notify(enum pcep_notification_types notification_type, enum pcep_notification_values notification_value)
+{
+    struct pcep_object_notify *obj =
+            (struct pcep_object_notify *) pcep_obj_create_common(
+                    sizeof(struct pcep_object_notify),
+                    PCEP_OBJ_CLASS_NOTF, PCEP_OBJ_TYPE_NOTF);
+
+    obj->notification_type = notification_type;
+    obj->notification_value = notification_value;
 
     return obj;
 }
 
 struct pcep_object_nopath*
-pcep_obj_create_nopath(uint8_t obj_hdr_flags, uint8_t ni, uint16_t unsat_constr_flag, uint32_t errorcode)
+pcep_obj_create_nopath(uint8_t ni, bool flag_c, enum pcep_nopath_tlv_err_codes error_code)
 {
-    struct pcep_object_nopath *obj =
-            (struct pcep_object_nopath *) pcep_obj_create_common(
-                    sizeof(struct pcep_object_nopath) + 4, /* Adding 4 bytes for the TLV value */
-                    PCEP_OBJ_CLASS_NOPATH, PCEP_OBJ_TYPE_NOPATH);
+    struct pcep_object_tlv_nopath_vector *tlv = pcep_tlv_create_nopath_vector(error_code);
+    double_linked_list *tlv_list = dll_initialize();
+    dll_append(tlv_list, tlv);
 
-    obj->header.object_flags = obj_hdr_flags;
+    struct pcep_object_nopath *obj =
+            (struct pcep_object_nopath *) pcep_obj_create_common_with_tlvs(
+                    sizeof(struct pcep_object_nopath),
+                    PCEP_OBJ_CLASS_NOPATH, PCEP_OBJ_TYPE_NOPATH,
+                    tlv_list);
+
     obj->ni = ni;
-    obj->flags = (unsat_constr_flag << 15);
-    obj->reserved = 0;
-    obj->err_code.header.type = PCEP_OBJ_TLV_TYPE_NO_PATH_VECTOR;
-    obj->err_code.header.length = sizeof(uint32_t);
-    obj->err_code.value[0] = errorcode;
+    obj->flag_c = flag_c;
+    obj->err_code = error_code;
 
     return obj;
 }
@@ -225,14 +163,15 @@ pcep_obj_create_bandwidth(float bandwidth)
 }
 
 struct pcep_object_metric*
-pcep_obj_create_metric(uint8_t flags, uint8_t type, float value)
+pcep_obj_create_metric(enum pcep_metric_types type, bool flag_b, bool flag_c, float value)
 {
     struct pcep_object_metric *obj =
             (struct pcep_object_metric*) pcep_obj_create_common(
                     sizeof(struct pcep_object_metric),
                     PCEP_OBJ_CLASS_METRIC, PCEP_OBJ_TYPE_METRIC);
 
-    obj->flags = flags;
+    obj->flag_b = flag_b;
+    obj->flag_c = flag_c;
     obj->type  = type;
     obj->value = value;
 
@@ -240,73 +179,47 @@ pcep_obj_create_metric(uint8_t flags, uint8_t type, float value)
 }
 
 struct pcep_object_lspa*
-pcep_obj_create_lspa(uint8_t prio, uint8_t hold_prio)
+pcep_obj_create_lspa(uint32_t exclude_any, uint32_t include_any, uint32_t include_all,
+                     uint8_t setup_priority, uint8_t holding_priority, bool flag_local_protection)
 {
     struct pcep_object_lspa *obj =
             (struct pcep_object_lspa*) pcep_obj_create_common(
                     sizeof(struct pcep_object_lspa),
                     PCEP_OBJ_CLASS_LSPA, PCEP_OBJ_TYPE_LSPA);
 
-    obj->lspa_prio = prio;
-    obj->lspa_holdprio = hold_prio;
+    obj->lspa_exclude_any = exclude_any;
+    obj->lspa_include_any = include_any;
+    obj->lspa_include_all = include_all;
+    obj->setup_priority = setup_priority;
+    obj->holding_priority = holding_priority;
+    obj->flag_local_protection = flag_local_protection;
 
     return obj;
 }
 
-uint32_t*
-pcep_obj_svec_get(struct pcep_object_svec* obj, uint16_t *length, bool host_byte_order)
-{
-    uint8_t *buff = (uint8_t*) obj;
-
-    *length = ((host_byte_order == true) ?
-            ((obj->header.object_length - sizeof(struct pcep_object_svec)) / sizeof(uint32_t)) :
-            ((ntohs(obj->header.object_length) - sizeof(struct pcep_object_svec)) / sizeof(uint32_t)));
-
-    return (uint32_t*)(buff + sizeof(struct pcep_object_svec));
-}
-
-void
-pcep_obj_svec_print(struct pcep_object_svec* obj, bool host_byte_order)
-{
-    uint16_t len;
-    uint32_t i = 0;
-    uint32_t *array = pcep_obj_svec_get(obj, &len, host_byte_order);
-
-    pcep_log(LOG_INFO, "PCEP_OBJ_CLASS_SVEC request IDs:\n");
-
-    for(i = 0; i < len; i++) {
-        pcep_log(LOG_INFO, "\tID: 0x%x\n", array[i]);
-    }
-}
-
 struct pcep_object_svec*
-pcep_obj_create_svec(bool srlg, bool node, bool link, uint16_t ids_count, uint32_t *ids)
+pcep_obj_create_svec(bool srlg, bool node, bool link, double_linked_list *request_id_list)
 {
-    if (ids == NULL)
+    if (request_id_list == NULL)
     {
         return NULL;
     }
 
     struct pcep_object_svec *obj =
             (struct pcep_object_svec*) pcep_obj_create_common(
-                    sizeof(struct pcep_object_svec) + (ids_count*sizeof(uint32_t)),
+                    sizeof(struct pcep_object_svec),
                     PCEP_OBJ_CLASS_SVEC, PCEP_OBJ_TYPE_SVEC);
 
-    obj->flag_srlg = (srlg == true ? 1 : 0);
-    obj->flag_node = (node == true ? 1 : 0);
-    obj->flag_link = (link == true ? 1 : 0);
-
-    uint32_t i;
-    uint32_t *svec_ids = (uint32_t *) (((uint8_t *) obj) + sizeof(struct pcep_object_svec));
-    for(i = 0; i < ids_count; i++) {
-        svec_ids[i] = ids[i];
-    }
+    obj->flag_srlg_diverse = srlg;
+    obj->flag_node_diverse = node;
+    obj->flag_link_diverse = link;
+    obj->request_id_list = request_id_list;
 
     return obj;
 }
 
 struct pcep_object_error*
-pcep_obj_create_error(uint8_t error_type, uint8_t error_value)
+pcep_obj_create_error(enum pcep_error_type error_type, enum pcep_error_value error_value)
 {
     struct pcep_object_error *obj =
             (struct pcep_object_error*) pcep_obj_create_common(
@@ -320,14 +233,13 @@ pcep_obj_create_error(uint8_t error_type, uint8_t error_value)
 }
 
 struct pcep_object_close*
-pcep_obj_create_close(uint8_t flags, uint8_t reason)
+pcep_obj_create_close(enum pcep_close_reason reason)
 {
     struct pcep_object_close *obj =
             (struct pcep_object_close*) pcep_obj_create_common(
                     sizeof(struct pcep_object_close),
                     PCEP_OBJ_CLASS_CLOSE, PCEP_OBJ_TYPE_CLOSE);
 
-    obj->flags = flags;
     obj->reason = reason;
 
     return obj;
@@ -336,17 +248,13 @@ pcep_obj_create_close(uint8_t flags, uint8_t reason)
 struct pcep_object_srp*
 pcep_obj_create_srp(bool lsp_remove, uint32_t srp_id_number, double_linked_list *tlv_list)
 {
-    uint16_t tlv_length = get_tlvs_length(tlv_list);
-
     struct pcep_object_srp *obj =
-            (struct pcep_object_srp*) pcep_obj_create_common(
-                    sizeof(struct pcep_object_srp) + tlv_length,
-                    PCEP_OBJ_CLASS_SRP, PCEP_OBJ_TYPE_SRP);
+            (struct pcep_object_srp*) pcep_obj_create_common_with_tlvs(
+                    sizeof(struct pcep_object_srp),
+                    PCEP_OBJ_CLASS_SRP, PCEP_OBJ_TYPE_SRP, tlv_list);
 
-    obj->lsp_remove = (lsp_remove == true ? 1 : 0);
+    obj->flag_lsp_remove = lsp_remove;
     obj->srp_id_number = srp_id_number;
-
-    append_tlvs((struct pcep_object_header *) obj, sizeof(struct pcep_object_srp), tlv_list);
 
     return obj;
 }
@@ -372,76 +280,31 @@ pcep_obj_create_lsp(uint32_t plsp_id, enum pcep_lsp_operational_status status,
         return NULL;
     }
 
-    uint16_t tlv_length = get_tlvs_length(tlv_list);
-
     struct pcep_object_lsp *obj =
-            (struct pcep_object_lsp*) pcep_obj_create_common(
-                    sizeof(struct pcep_object_lsp) + tlv_length,
-                    PCEP_OBJ_CLASS_LSP, PCEP_OBJ_TYPE_LSP);
+            (struct pcep_object_lsp*) pcep_obj_create_common_with_tlvs(
+                    sizeof(struct pcep_object_lsp),
+                    PCEP_OBJ_CLASS_LSP, PCEP_OBJ_TYPE_LSP, tlv_list);
 
-    obj->plsp_id_flags = (0xfffff000 & (plsp_id << 12));
-    obj->plsp_id_flags |= status;
-    obj->plsp_id_flags |= (c_flag == true ? PCEP_LSP_C_FLAG : 0);
-    obj->plsp_id_flags |= (a_flag == true ? PCEP_LSP_A_FLAG : 0);
-    obj->plsp_id_flags |= (r_flag == true ? PCEP_LSP_R_FLAG : 0);
-    obj->plsp_id_flags |= (s_flag == true ? PCEP_LSP_S_FLAG : 0);
-    obj->plsp_id_flags |= (d_flag == true ? PCEP_LSP_D_FLAG : 0);
-
-    append_tlvs((struct pcep_object_header *) obj, sizeof(struct pcep_object_lsp), tlv_list);
+    obj->plsp_id = plsp_id;
+    obj->operational_status = status;
+    obj->flag_c = c_flag;
+    obj->flag_a = a_flag;
+    obj->flag_r = r_flag;
+    obj->flag_s = s_flag;
+    obj->flag_d = d_flag;
 
     return obj;
-}
-
-/* Internal common function used to create a pcep_object_route_object,
- * used internally by:
- *     pcep_obj_create_ero()
- *     pcep_obj_create_iro()
- *     pcep_obj_create_rro() */
-static struct pcep_object_ro*
-pcep_obj_create_common_route_object(double_linked_list* ro_list)
-{
-    uint16_t buffer_len = sizeof(struct pcep_object_ro);
-
-    if (ro_list != NULL)
-    {
-        double_linked_list_node *node;
-        for (node = ro_list->head; node != NULL; node = node->next_node)
-        {
-            struct pcep_ro_subobj_hdr *subobj = (struct pcep_ro_subobj_hdr*) node->data;
-            buffer_len += subobj->length;
-        }
-    }
-
-    uint8_t *buffer = malloc(buffer_len);
-    bzero(buffer, buffer_len);
-
-    /* object_class and object_type MUST be set by calling functions */
-    struct pcep_object_ro *route_object = (struct pcep_object_ro *) buffer;
-    route_object->header.object_flags = 0;
-    route_object->header.object_length = buffer_len;
-
-    if (ro_list != NULL)
-    {
-        uint8_t index = sizeof(struct pcep_object_ro);
-        double_linked_list_node *node;
-        for (node = ro_list->head; node != NULL; node = node->next_node)
-        {
-            struct pcep_ro_subobj_hdr *subobj = (struct pcep_ro_subobj_hdr*) node->data;
-            memcpy(buffer + index, subobj, subobj->length);
-            index += subobj->length;
-        }
-    }
-
-    return route_object;
 }
 
 /* Wrap a list of ro subobjects in a structure with an object header */
 struct pcep_object_ro*
 pcep_obj_create_ero(double_linked_list* ero_list)
 {
-    struct pcep_object_ro *ero = pcep_obj_create_common_route_object(ero_list);
-    ero->header.object_class = PCEP_OBJ_CLASS_ERO;
-    ero->header.object_type = PCEP_OBJ_TYPE_ERO;
+    struct pcep_object_ro *ero =
+            (struct pcep_object_ro*) pcep_obj_create_common(
+                    sizeof(struct pcep_object_ro),
+                    PCEP_OBJ_CLASS_ERO, PCEP_OBJ_TYPE_ERO);
+    ero->sub_objects = ero_list;
 
     return ero;
 }
@@ -450,9 +313,11 @@ pcep_obj_create_ero(double_linked_list* ero_list)
 struct pcep_object_ro*
 pcep_obj_create_iro(double_linked_list* iro_list)
 {
-    struct pcep_object_ro *iro = pcep_obj_create_common_route_object(iro_list);
-    iro->header.object_class = PCEP_OBJ_CLASS_IRO;
-    iro->header.object_type = PCEP_OBJ_TYPE_IRO;
+    struct pcep_object_ro *iro =
+            (struct pcep_object_ro*) pcep_obj_create_common(
+                    sizeof(struct pcep_object_ro),
+                    PCEP_OBJ_CLASS_IRO, PCEP_OBJ_TYPE_IRO);
+    iro->sub_objects = iro_list;
 
     return iro;
 }
@@ -461,9 +326,11 @@ pcep_obj_create_iro(double_linked_list* iro_list)
 struct pcep_object_ro*
 pcep_obj_create_rro(double_linked_list* rro_list)
 {
-    struct pcep_object_ro *rro = pcep_obj_create_common_route_object(rro_list);
-    rro->header.object_class = PCEP_OBJ_CLASS_RRO;
-    rro->header.object_type = PCEP_OBJ_TYPE_RRO;
+    struct pcep_object_ro *rro =
+            (struct pcep_object_ro*) pcep_obj_create_common(
+                    sizeof(struct pcep_object_ro),
+                    PCEP_OBJ_CLASS_RRO, PCEP_OBJ_TYPE_RRO);
+    rro->sub_objects = rro_list;
 
     return rro;
 }
@@ -473,129 +340,106 @@ pcep_obj_create_rro(double_linked_list* rro_list)
  */
 
 static struct pcep_object_ro_subobj*
-pcep_obj_create_ro_subobj_common()
+pcep_obj_create_ro_subobj_common(uint8_t subobj_size, enum pcep_ro_subobj_types ro_subobj_type, bool flag_subobj_loose_hop)
 {
-    uint8_t *buffer = malloc(sizeof(struct pcep_object_ro_subobj));
-    bzero(buffer, sizeof(struct pcep_object_ro_subobj));
+    struct pcep_object_ro_subobj *ro_subobj = malloc(subobj_size);
+    bzero(ro_subobj, subobj_size);
+    ro_subobj->flag_subobj_loose_hop = flag_subobj_loose_hop;
+    ro_subobj->ro_subobj_type = ro_subobj_type;
 
-    return (struct pcep_object_ro_subobj*) buffer;
+    return ro_subobj;
 }
 
-struct pcep_object_ro_subobj*
-pcep_obj_create_ro_subobj_unnum(struct in_addr* router_id, uint32_t ifId, uint16_t resv)
-{
-    if (router_id == NULL)
-    {
-        return NULL;
-    }
-
-    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_common();
-
-    obj->subobj.unnum.header.length = sizeof(struct pcep_ro_subobj_unnum);
-    obj->subobj.unnum.header.type = RO_SUBOBJ_TYPE_UNNUM;
-    obj->subobj.unnum.ifId = ifId;
-    obj->subobj.unnum.routerId.s_addr = router_id->s_addr;
-    obj->subobj.unnum.resv = resv;
-
-    return obj;
-}
-
-struct pcep_object_ro_subobj*
-pcep_obj_create_ro_subobj_32label(uint8_t dir, uint32_t label)
-{
-    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_common();
-
-    obj->subobj.label.header.length = sizeof(struct pcep_ro_subobj_32label);
-    obj->subobj.label.header.type = RO_SUBOBJ_TYPE_LABEL;
-    obj->subobj.label.class_type = 2;
-    obj->subobj.label.upstream = dir;
-    obj->subobj.label.label = label;
-
-    return obj;
-}
-
-struct pcep_object_ro_subobj*
-pcep_obj_create_ro_subobj_border(uint8_t direction, uint8_t swcap_from, uint8_t swcap_to)
-{
-    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_common();
-
-    obj->subobj.border.header.length = sizeof(struct pcep_ro_subobj_border);
-    obj->subobj.border.header.type = RO_SUBOBJ_TYPE_BORDER;
-    obj->subobj.border.direction = direction;
-    obj->subobj.border.swcap_from = swcap_from;
-    obj->subobj.border.swcap_to = swcap_to;
-
-    return obj;
-}
-
-struct pcep_object_ro_subobj*
-pcep_obj_create_ro_subobj_ipv4(bool loose_hop, const struct in_addr* rro_ipv4, uint8_t prefix_length)
+struct pcep_ro_subobj_ipv4*
+pcep_obj_create_ro_subobj_ipv4(bool loose_hop, const struct in_addr* rro_ipv4, uint8_t prefix_length, bool flag_local_prot)
 {
     if (rro_ipv4 == NULL)
     {
         return NULL;
     }
 
-    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_common();
-
-    obj->subobj.ipv4.header.length = sizeof(struct pcep_ro_subobj_ipv4);
-    obj->subobj.ipv4.header.type = RO_SUBOBJ_TYPE_IPV4;
-    obj->subobj.ipv4.prefix_length = prefix_length;
-    obj->subobj.ipv4.ip_addr.s_addr = rro_ipv4->s_addr;
-    if (loose_hop == true)
-    {
-        // The first bit of the type field is used to specify Loose Hop
-        obj->subobj.ipv4.header.type |= LOOSE_HOP_BIT;
-    }
+    struct pcep_ro_subobj_ipv4 *obj =
+            (struct pcep_ro_subobj_ipv4 *) pcep_obj_create_ro_subobj_common(
+                    sizeof(struct pcep_ro_subobj_ipv4), RO_SUBOBJ_TYPE_IPV4, loose_hop);
+    obj->ip_addr.s_addr = rro_ipv4->s_addr;
+    obj->prefix_length = prefix_length;
+    obj->flag_local_protection = flag_local_prot;
 
     return obj;
 }
 
-struct pcep_object_ro_subobj*
-pcep_obj_create_ro_subobj_ipv6(bool loose_hop, const struct in6_addr* rro_ipv6, uint8_t prefix_length)
+struct pcep_ro_subobj_ipv6*
+pcep_obj_create_ro_subobj_ipv6(bool loose_hop, const struct in6_addr* rro_ipv6, uint8_t prefix_length, bool flag_local_prot)
 {
     if (rro_ipv6 == NULL)
     {
         return NULL;
     }
 
-    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_common();
+    struct pcep_ro_subobj_ipv6 *obj =
+            (struct pcep_ro_subobj_ipv6 *) pcep_obj_create_ro_subobj_common(
+                    sizeof(struct pcep_ro_subobj_ipv6), RO_SUBOBJ_TYPE_IPV6, loose_hop);
+    obj->prefix_length = prefix_length;
+    obj->flag_local_protection = flag_local_prot;
+    obj->ip_addr.__in6_u.__u6_addr32[0] = rro_ipv6->__in6_u.__u6_addr32[0];
+    obj->ip_addr.__in6_u.__u6_addr32[1] = rro_ipv6->__in6_u.__u6_addr32[1];
+    obj->ip_addr.__in6_u.__u6_addr32[2] = rro_ipv6->__in6_u.__u6_addr32[2];
+    obj->ip_addr.__in6_u.__u6_addr32[3] = rro_ipv6->__in6_u.__u6_addr32[3];
 
-    obj->subobj.ipv6.header.length = sizeof(struct pcep_ro_subobj_ipv6);
-    obj->subobj.ipv6.header.type = RO_SUBOBJ_TYPE_IPV6;
-    obj->subobj.ipv6.prefix_length = prefix_length;
-    obj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[0] = rro_ipv6->__in6_u.__u6_addr32[0];
-    obj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[1] = rro_ipv6->__in6_u.__u6_addr32[1];
-    obj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[2] = rro_ipv6->__in6_u.__u6_addr32[2];
-    obj->subobj.ipv6.ip_addr.__in6_u.__u6_addr32[3] = rro_ipv6->__in6_u.__u6_addr32[3];
-    if (loose_hop == true)
+    return obj;
+}
+
+struct pcep_ro_subobj_unnum*
+pcep_obj_create_ro_subobj_unnum(struct in_addr* router_id, uint32_t if_id)
+{
+    if (router_id == NULL)
     {
-        // The first bit of the type field is used to specify Loose Hop
-        obj->subobj.ipv6.header.type |= LOOSE_HOP_BIT;
+        return NULL;
     }
 
+    struct pcep_ro_subobj_unnum *obj =
+            (struct pcep_ro_subobj_unnum *) pcep_obj_create_ro_subobj_common(
+                    sizeof(struct pcep_ro_subobj_unnum), RO_SUBOBJ_TYPE_UNNUM, false);
+    obj->interface_id = if_id;
+    obj->router_id.s_addr = router_id->s_addr;
+
     return obj;
 }
 
-struct pcep_object_ro_subobj*
+struct pcep_ro_subobj_32label*
+pcep_obj_create_ro_subobj_32label(bool flag_global_label, uint8_t class_type, uint32_t label)
+{
+    struct pcep_ro_subobj_32label *obj =
+            (struct pcep_ro_subobj_32label *) pcep_obj_create_ro_subobj_common(
+                    sizeof(struct pcep_ro_subobj_32label), RO_SUBOBJ_TYPE_LABEL, false);
+    obj->class_type = class_type;
+    obj->flag_global_label = flag_global_label;
+    obj->label = label;
+
+    return obj;
+}
+
+struct pcep_ro_subobj_asn*
 pcep_obj_create_ro_subobj_asn(uint16_t asn)
 {
-    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_common();
-
-    obj->subobj.asn.header.length = sizeof(struct pcep_ro_subobj_asn);
-    obj->subobj.asn.header.type = RO_SUBOBJ_TYPE_ASN;
-    obj->subobj.asn.aut_sys_number = asn;
+    struct pcep_ro_subobj_asn *obj =
+            (struct pcep_ro_subobj_asn *) pcep_obj_create_ro_subobj_common(
+                    sizeof(struct pcep_ro_subobj_asn), RO_SUBOBJ_TYPE_ASN, false);
+    obj->asn = asn;
 
     return obj;
 }
 
-/* Internal util function to create pcep_object_ro_subobj sub-objects */
-static struct pcep_object_ro_subobj*
-pcep_obj_create_ro_subobj_sr_common(uint8_t extra_length, enum pcep_sr_subobj_nai nai,
-        bool loose_hop, bool f_flag, bool s_flag, bool c_flag_in, bool m_flag_in, bool draft07)
+/* Internal util function to create pcep_ro_subobj_sr sub-objects */
+static struct pcep_ro_subobj_sr*
+pcep_obj_create_ro_subobj_sr_common(enum pcep_sr_subobj_nai nai_type, bool loose_hop, bool f_flag,
+        bool s_flag, bool c_flag_in, bool m_flag_in)
 {
-    uint8_t *buffer = malloc(sizeof(struct pcep_object_ro_subobj) + extra_length);
-    bzero(buffer, sizeof(struct pcep_object_ro_subobj));
+    /* The difference between RO_SUBOBJ_TYPE_SR and RO_SUBOBJ_TYPE_SR_DRAFT07
+     * will be used/set when the object is encoded */
+    struct pcep_ro_subobj_sr *obj =
+            (struct pcep_ro_subobj_sr *) pcep_obj_create_ro_subobj_common(
+                    sizeof(struct pcep_ro_subobj_sr), RO_SUBOBJ_TYPE_SR, loose_hop);
 
     /* Flag logic according to draft-ietf-pce-segment-routing-16 */
     bool c_flag = c_flag_in;
@@ -611,375 +455,201 @@ pcep_obj_create_ro_subobj_sr_common(uint8_t extra_length, enum pcep_sr_subobj_na
         c_flag = false;
     }
 
-    struct pcep_object_ro_subobj *obj = (struct pcep_object_ro_subobj*) buffer;
-
-    obj->subobj.sr.header.length = sizeof(struct pcep_ro_subobj_sr) + extra_length;
-    if(draft07)
-    {
-        obj->subobj.sr.header.type = RO_SUBOBJ_TYPE_SR_DRAFT07;
-    }else{
-        obj->subobj.sr.header.type = RO_SUBOBJ_TYPE_SR;
-    }
-    obj->subobj.sr.nt_flags = nai;
-
-    obj->subobj.sr.nt_flags |= (f_flag == true) ? PCEP_SR_SUBOBJ_F_FLAG : 0;
-    obj->subobj.sr.nt_flags |= (s_flag == true) ? PCEP_SR_SUBOBJ_S_FLAG : 0;
-    obj->subobj.sr.nt_flags |= (c_flag == true) ? PCEP_SR_SUBOBJ_C_FLAG : 0;
-    obj->subobj.sr.nt_flags |= (m_flag == true) ? PCEP_SR_SUBOBJ_M_FLAG : 0;
-
-    if (loose_hop == true)
-    {
-        // The first bit of the type field is used to specify Loose Hop
-        obj->subobj.sr.header.type |= LOOSE_HOP_BIT;
-    }
+    obj->nai_type = nai_type;
+    obj->flag_f = f_flag;
+    obj->flag_s = s_flag;
+    obj->flag_c = c_flag;
+    obj->flag_m = m_flag;
 
     return obj;
 }
 
-struct pcep_object_ro_subobj*
-pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, uint32_t sid, bool draft07)
+struct pcep_ro_subobj_sr*
+pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, uint32_t sid)
 {
     /* According to draft-ietf-pce-segment-routing-16#section-5.2.1
      * If NT=0, the F bit MUST be 1, the S bit MUST be zero and the
      * Length MUST be 8. */
-    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
-            sizeof(uint32_t), PCEP_SR_SUBOBJ_NAI_ABSENT,
-            loose_hop, true, false, false, false, draft07);
-    obj->subobj.sr.sid_nai[0] = sid;
+    struct pcep_ro_subobj_sr *obj = pcep_obj_create_ro_subobj_sr_common(
+            PCEP_SR_SUBOBJ_NAI_ABSENT, loose_hop, true, false, false, false);
+    obj->sid = sid;
 
     return obj;
 }
 
-struct pcep_object_ro_subobj*
-pcep_obj_create_ro_subobj_sr_ipv4_node(
-        bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
-        uint32_t sid, struct in_addr *ipv4_node_id, bool draft07)
+struct pcep_ro_subobj_sr*
+pcep_obj_create_ro_subobj_sr_ipv4_node(bool loose_hop, bool sid_absent, bool c_flag,
+        bool m_flag, uint32_t sid, struct in_addr *ipv4_node_id)
 {
     if (ipv4_node_id == NULL)
     {
         return NULL;
     }
 
-    uint8_t extra_buf_len = (sid_absent ? sizeof(uint32_t) : sizeof(uint32_t) * 2);
-
     /* According to draft-ietf-pce-segment-routing-16#section-5.2.1
      * If NT=1, the F bit MUST be zero.  If the S bit is 1, the Length
      * MUST be 8, otherwise the Length MUST be 12 */
-    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
-            extra_buf_len, PCEP_SR_SUBOBJ_NAI_IPV4_NODE,
-            loose_hop, false, sid_absent, c_flag, m_flag, draft07);
+    struct pcep_ro_subobj_sr *obj = pcep_obj_create_ro_subobj_sr_common(
+            PCEP_SR_SUBOBJ_NAI_IPV4_NODE, loose_hop, false, sid_absent, c_flag, m_flag);
 
-    int index = 0;
     if (! sid_absent)
     {
-        obj->subobj.sr.sid_nai[index++] = sid;
+        obj->sid= sid;
     }
-    obj->subobj.sr.sid_nai[index] = ipv4_node_id->s_addr;
+    obj->nai_list = dll_initialize();
+    dll_append(obj->nai_list, ipv4_node_id);
 
     return obj;
 }
 
-struct pcep_object_ro_subobj*
-pcep_obj_create_ro_subobj_sr_ipv6_node(
-        bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
-        uint32_t sid, struct in6_addr *ipv6_node_id, bool draft07)
+struct pcep_ro_subobj_sr*
+pcep_obj_create_ro_subobj_sr_ipv6_node(bool loose_hop, bool sid_absent, bool c_flag,
+        bool m_flag, uint32_t sid, struct in6_addr *ipv6_node_id)
 {
     if (ipv6_node_id == NULL)
     {
         return NULL;
     }
 
-    uint8_t extra_buf_len = sizeof(struct in6_addr);
-    if (!sid_absent)
-    {
-        extra_buf_len += sizeof(uint32_t);
-    }
-
     /* According to draft-ietf-pce-segment-routing-16#section-5.2.1
      * If NT=2, the F bit MUST be zero.  If the S bit is 1, the Length
      * MUST be 20, otherwise the Length MUST be 24. */
-    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
-            extra_buf_len, PCEP_SR_SUBOBJ_NAI_IPV6_NODE,
-            loose_hop, false, sid_absent, c_flag, m_flag, draft07);
+    struct pcep_ro_subobj_sr *obj = pcep_obj_create_ro_subobj_sr_common(
+            PCEP_SR_SUBOBJ_NAI_IPV6_NODE, loose_hop, false, sid_absent, c_flag, m_flag);
 
-    int index = 0;
     if (! sid_absent)
     {
-        obj->subobj.sr.sid_nai[index++] = sid;
+        obj->sid = sid;
     }
-    obj->subobj.sr.sid_nai[index++] = ipv6_node_id->__in6_u.__u6_addr32[0];
-    obj->subobj.sr.sid_nai[index++] = ipv6_node_id->__in6_u.__u6_addr32[1];
-    obj->subobj.sr.sid_nai[index++] = ipv6_node_id->__in6_u.__u6_addr32[2];
-    obj->subobj.sr.sid_nai[index]   = ipv6_node_id->__in6_u.__u6_addr32[3];
+    obj->nai_list = dll_initialize();
+    dll_append(obj->nai_list, ipv6_node_id);
 
     return obj;
 }
 
-struct pcep_object_ro_subobj*
-pcep_obj_create_ro_subobj_sr_ipv4_adj(
-        bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
-        uint32_t sid, struct in_addr *local_ipv4, struct in_addr *remote_ipv4, bool draft07)
+struct pcep_ro_subobj_sr*
+pcep_obj_create_ro_subobj_sr_ipv4_adj(bool loose_hop, bool sid_absent, bool c_flag,
+        bool m_flag, uint32_t sid, struct in_addr *local_ipv4, struct in_addr *remote_ipv4)
 {
     if (local_ipv4 == NULL || remote_ipv4 == NULL)
     {
         return NULL;
     }
 
-    uint8_t extra_buf_len = sizeof(struct in_addr) * 2;
-    if (!sid_absent)
-    {
-        extra_buf_len += sizeof(uint32_t);
-    }
-
     /* According to draft-ietf-pce-segment-routing-16#section-5.2.1
      * If NT=3, the F bit MUST be zero.  If the S bit is 1, the Length
      * MUST be 12, otherwise the Length MUST be 16 */
-    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
-            extra_buf_len, PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY,
-            loose_hop, false, sid_absent, c_flag, m_flag, draft07);
+    struct pcep_ro_subobj_sr *obj = pcep_obj_create_ro_subobj_sr_common(
+            PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY, loose_hop, false, sid_absent, c_flag, m_flag);
 
-    int index = 0;
     if (! sid_absent)
     {
-        obj->subobj.sr.sid_nai[index++] = sid;
+        obj->sid = sid;
     }
-    obj->subobj.sr.sid_nai[index++] = local_ipv4->s_addr;
-    obj->subobj.sr.sid_nai[index]   = remote_ipv4->s_addr;
+    obj->nai_list = dll_initialize();
+    dll_append(obj->nai_list, local_ipv4);
+    dll_append(obj->nai_list, remote_ipv4);
 
     return obj;
 }
 
-struct pcep_object_ro_subobj*
-pcep_obj_create_ro_subobj_sr_ipv6_adj(
-        bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
-        uint32_t sid, struct in6_addr *local_ipv6, struct in6_addr *remote_ipv6, bool draft07)
+struct pcep_ro_subobj_sr*
+pcep_obj_create_ro_subobj_sr_ipv6_adj(bool loose_hop, bool sid_absent, bool c_flag,
+        bool m_flag, uint32_t sid, struct in6_addr *local_ipv6, struct in6_addr *remote_ipv6)
 {
     if (local_ipv6 == NULL || remote_ipv6 == NULL)
     {
         return NULL;
-    }
-
-    uint8_t extra_buf_len = sizeof(struct in6_addr) * 2;
-    if (!sid_absent)
-    {
-        extra_buf_len += sizeof(uint32_t);
     }
 
     /* According to draft-ietf-pce-segment-routing-16#section-5.2.1
      * If NT=4, the F bit MUST be zero.  If the S bit is 1, the Length
      * MUST be 36, otherwise the Length MUST be 40 */
-    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
-            extra_buf_len, PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY,
-            loose_hop, false, sid_absent, c_flag, m_flag, draft07);
+    struct pcep_ro_subobj_sr *obj = pcep_obj_create_ro_subobj_sr_common(
+            PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY, loose_hop, false, sid_absent, c_flag, m_flag);
 
-    int index = 0;
     if (! sid_absent)
     {
-        obj->subobj.sr.sid_nai[index++] = sid;
+        obj->sid = sid;
     }
-    obj->subobj.sr.sid_nai[index++] = local_ipv6->__in6_u.__u6_addr32[0];
-    obj->subobj.sr.sid_nai[index++] = local_ipv6->__in6_u.__u6_addr32[1];
-    obj->subobj.sr.sid_nai[index++] = local_ipv6->__in6_u.__u6_addr32[2];
-    obj->subobj.sr.sid_nai[index++] = local_ipv6->__in6_u.__u6_addr32[3];
-
-    obj->subobj.sr.sid_nai[index++] = remote_ipv6->__in6_u.__u6_addr32[0];
-    obj->subobj.sr.sid_nai[index++] = remote_ipv6->__in6_u.__u6_addr32[1];
-    obj->subobj.sr.sid_nai[index++] = remote_ipv6->__in6_u.__u6_addr32[2];
-    obj->subobj.sr.sid_nai[index]   = remote_ipv6->__in6_u.__u6_addr32[3];
+    obj->nai_list = dll_initialize();
+    dll_append(obj->nai_list, local_ipv6);
+    dll_append(obj->nai_list, remote_ipv6);
 
     return obj;
 }
 
-struct pcep_object_ro_subobj*
+struct pcep_ro_subobj_sr*
 pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(
         bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
         uint32_t sid, uint32_t local_node_id, uint32_t local_if_id,
-        uint32_t remote_node_id, uint32_t remote_if_id, bool draft07)
+        uint32_t remote_node_id, uint32_t remote_if_id)
 {
-    uint8_t extra_buf_len = (sid_absent ? sizeof(uint32_t) * 4 : sizeof(uint32_t) * 5);
-
     /* According to draft-ietf-pce-segment-routing-16#section-5.2.1
      * If NT=5, the F bit MUST be zero.  If the S bit is 1, the Length
      * MUST be 20, otherwise the Length MUST be 24. */
-    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
-            extra_buf_len, PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY,
-            loose_hop, false, sid_absent, c_flag, m_flag, draft07);
+    struct pcep_ro_subobj_sr *obj = pcep_obj_create_ro_subobj_sr_common(
+            PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY, loose_hop, false, sid_absent, c_flag, m_flag);
 
-    int index = 0;
     if (! sid_absent)
     {
-        obj->subobj.sr.sid_nai[index++] = sid;
+        obj->sid = sid;
     }
-    obj->subobj.sr.sid_nai[index++] = local_node_id;
-    obj->subobj.sr.sid_nai[index++] = local_if_id;
-    obj->subobj.sr.sid_nai[index++] = remote_node_id;
-    obj->subobj.sr.sid_nai[index]   = remote_if_id;
+
+    obj->nai_list = dll_initialize();
+    uint32_t *local_node_id_copy = malloc(sizeof(uint32_t));
+    *local_node_id_copy = local_node_id;
+    dll_append(obj->nai_list, local_node_id_copy);
+
+    uint32_t *local_if_id_copy = malloc(sizeof(uint32_t));
+    *local_if_id_copy = local_if_id;
+    dll_append(obj->nai_list, local_if_id_copy);
+
+    uint32_t *remote_node_id_copy = malloc(sizeof(uint32_t));
+    *remote_node_id_copy = remote_node_id;
+    dll_append(obj->nai_list, remote_node_id_copy);
+
+    uint32_t *remote_if_id_copy = malloc(sizeof(uint32_t));
+    *remote_if_id_copy = remote_if_id;
+    dll_append(obj->nai_list, remote_if_id_copy);
 
     return obj;
 }
 
-struct pcep_object_ro_subobj*
+struct pcep_ro_subobj_sr*
 pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
         bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
         uint32_t sid, struct in6_addr *local_ipv6, uint32_t local_if_id,
-        struct in6_addr *remote_ipv6, uint32_t remote_if_id,
-        bool draft07)
+        struct in6_addr *remote_ipv6, uint32_t remote_if_id)
 {
-    if(draft07)
-    {
-        /*
-         * This NAI type 6 is only supported in draft16 and RFC8664
-         */
-        return NULL;
-    }
     if (local_ipv6 == NULL || remote_ipv6 == NULL)
     {
         return NULL;
     }
 
-    uint8_t extra_buf_len = (sizeof(struct in6_addr) * 2) + (sizeof(uint32_t) * 2);
-    if (!sid_absent)
-    {
-        extra_buf_len += sizeof(uint32_t);
-    }
-
     /* According to draft-ietf-pce-segment-routing-16#section-5.2.1
      * If NT=6, the F bit MUST be zero.  If the S bit is 1, the Length
      * MUST be 44, otherwise the Length MUST be 48 */
-    struct pcep_object_ro_subobj *obj = pcep_obj_create_ro_subobj_sr_common(
-            extra_buf_len, PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY,
-            loose_hop, false, sid_absent, c_flag, m_flag, draft07);
+    struct pcep_ro_subobj_sr *obj = pcep_obj_create_ro_subobj_sr_common(
+            PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY,
+            loose_hop, false, sid_absent, c_flag, m_flag);
 
-    int index = 0;
     if (! sid_absent)
     {
-        obj->subobj.sr.sid_nai[index++] = sid;
+        obj->sid = sid;
     }
-    obj->subobj.sr.sid_nai[index++] = local_ipv6->__in6_u.__u6_addr32[0];
-    obj->subobj.sr.sid_nai[index++] = local_ipv6->__in6_u.__u6_addr32[1];
-    obj->subobj.sr.sid_nai[index++] = local_ipv6->__in6_u.__u6_addr32[2];
-    obj->subobj.sr.sid_nai[index++] = local_ipv6->__in6_u.__u6_addr32[3];
-    obj->subobj.sr.sid_nai[index++] = local_if_id;
+    obj->nai_list = dll_initialize();
+    dll_append(obj->nai_list, local_ipv6);
 
-    obj->subobj.sr.sid_nai[index++] = remote_ipv6->__in6_u.__u6_addr32[0];
-    obj->subobj.sr.sid_nai[index++] = remote_ipv6->__in6_u.__u6_addr32[1];
-    obj->subobj.sr.sid_nai[index++] = remote_ipv6->__in6_u.__u6_addr32[2];
-    obj->subobj.sr.sid_nai[index++] = remote_ipv6->__in6_u.__u6_addr32[3];
-    obj->subobj.sr.sid_nai[index]   = remote_if_id;
+    uint32_t *local_if_id_copy = malloc(sizeof(uint32_t));
+    *local_if_id_copy = local_if_id;
+    dll_append(obj->nai_list, local_if_id_copy);
+
+    dll_append(obj->nai_list, remote_ipv6);
+
+    uint32_t *remote_if_id_copy = malloc(sizeof(uint32_t));
+    *remote_if_id_copy = remote_if_id;
+    dll_append(obj->nai_list, remote_if_id_copy);
 
     return obj;
 }
-
-struct pcep_ro_subobj_hdr*
-pcep_obj_get_next_ro_subobject(struct pcep_object_header *base, uint8_t current_index)
-{
-    uint8_t *next_subobj = ((uint8_t *) base) + current_index;
-    return (next_subobj >= (((uint8_t *)base) + base->object_length)) ?
-            NULL : (struct pcep_ro_subobj_hdr*) next_subobj;
-}
-
-/* Used to get Sub-objects for PCEP_OBJ_CLASS_ERO, PCEP_OBJ_CLASS_IRO,
- * and PCEP_OBJ_CLASS_RRO objects */
-double_linked_list*
-pcep_obj_get_ro_subobjects(struct pcep_object_header *ro_obj)
-{
-    if (ro_obj->object_class != PCEP_OBJ_CLASS_ERO &&
-        ro_obj->object_class != PCEP_OBJ_CLASS_RRO &&
-        ro_obj->object_class != PCEP_OBJ_CLASS_IRO)
-    {
-        return NULL;
-    }
-
-    double_linked_list *subobj_list = dll_initialize();
-    uint8_t base_length = sizeof(struct pcep_object_ro);
-    struct pcep_ro_subobj_hdr *next_subobj = pcep_obj_get_next_ro_subobject(ro_obj, base_length);
-    int num_sub_objects = 1;
-
-    while (next_subobj != NULL && num_sub_objects < MAX_ITERATIONS)
-    {
-        dll_append(subobj_list, next_subobj);
-        /* assuming ntohs() has already been called on the next_subobj->length */
-        base_length += next_subobj->length;
-        next_subobj = pcep_obj_get_next_ro_subobject(ro_obj, base_length);
-        num_sub_objects++;
-    }
-
-    return subobj_list;
-}
-
-bool
-pcep_obj_has_tlv(struct pcep_object_header* hdr)
-{
-    uint8_t object_length = pcep_object_class_lengths[hdr->object_class];
-    if (object_length == 0)
-    {
-        return false;
-    }
-
-    return (hdr->object_length - object_length) > 0;
-}
-
-struct pcep_object_tlv*
-pcep_obj_get_next_tlv(struct pcep_object_header *hdr, uint8_t current_index)
-{
-    uint8_t *next_tlv = ((uint8_t *) hdr) + current_index;
-    return (next_tlv >= (((uint8_t *)hdr) + hdr->object_length)) ?
-            NULL : (struct pcep_object_tlv*) next_tlv;
-}
-
-/* Internal util function used by pcep_obj_get_tlvs() and pcep_obj_get_encoded_tlvs() */
-static double_linked_list*
-pcep_obj_get_tlvs_(struct pcep_object_header *obj, bool is_encoded)
-{
-    /* Get the size of the object, not including TLVs */
-    uint8_t length = pcep_object_class_lengths[obj->object_class];
-    if (length == 0)
-    {
-        if (obj->object_class == PCEP_OBJ_CLASS_ENDPOINTS)
-        {
-            if (obj->object_type == PCEP_OBJ_TYPE_ENDPOINT_IPV4)
-            {
-                length = sizeof(struct pcep_object_endpoints_ipv4);
-            }
-            else
-            {
-                length = sizeof(struct pcep_object_endpoints_ipv6);
-            }
-        }
-        else
-        {
-            return NULL;
-        }
-    }
-
-    double_linked_list *tlv_list = dll_initialize();
-    struct pcep_object_tlv *next_tlv = pcep_obj_get_next_tlv(obj, length);
-    int num_tlvs = 1;
-
-    while (next_tlv != NULL && num_tlvs < MAX_ITERATIONS)
-    {
-        dll_append(tlv_list, next_tlv);
-        /* The TLV length is the length of the value, need to also get past the TLV header */
-        uint16_t tlv_length = ((is_encoded == true) ? ntohs(next_tlv->header.length) : next_tlv->header.length) + 4;
-        /* the padding is not included in the TLV length */
-        tlv_length += (((tlv_length % 4) == 0) ? 0 : (4 - (tlv_length % 4)));
-        length += tlv_length;
-        next_tlv = pcep_obj_get_next_tlv(obj, length);
-        num_tlvs++;
-    }
-
-    return tlv_list;
-}
-
-double_linked_list*
-pcep_obj_get_tlvs(struct pcep_object_header *obj)
-{
-    return pcep_obj_get_tlvs_(obj, false);
-}
-
-double_linked_list*
-pcep_obj_get_encoded_tlvs(struct pcep_object_header *obj)
-{
-    return pcep_obj_get_tlvs_(obj, true);
-}
-

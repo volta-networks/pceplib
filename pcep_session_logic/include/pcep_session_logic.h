@@ -10,6 +10,7 @@
 
 #include <stdbool.h>
 
+#include "pcep-encoding.h"
 #include "pcep_socket_comm.h"
 #include "pcep-objects.h"
 #include "pcep-tools.h"
@@ -83,10 +84,6 @@ typedef struct pcep_configuration_
     /* Used in the SR TE Capability sub-TLV, 0 means there are no max sid limits */
     uint8_t max_sid_depth;
 
-    /* Use draft-ietf-pce-segment-routing-07 if true, otherwise use
-     * draft-ietf-pce-segment-routing-16 */
-    bool use_pcep_sr_draft07;
-
     /* If set to 0, then the default 4189 PCEP port will be used */
     uint16_t dst_pcep_port;
 
@@ -95,6 +92,8 @@ typedef struct pcep_configuration_
     uint16_t src_pcep_port;
 
     struct in_addr src_ip;
+
+    struct pcep_versioning *pcep_msg_versioning;
 
 } pcep_configuration;
 
@@ -181,7 +180,7 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
 
 /* Send a PCEP close for this pcep_session */
 void close_pcep_session(pcep_session *session);
-void close_pcep_session_with_reason(pcep_session *session, enum pcep_close_reasons);
+void close_pcep_session_with_reason(pcep_session *session, enum pcep_close_reason);
 
 /* Destroy the PCEP session, a PCEP close should have
  * already been sent with close_pcep_session() */

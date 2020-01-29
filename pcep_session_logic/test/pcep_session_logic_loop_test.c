@@ -13,6 +13,7 @@
 
 #include <CUnit/CUnit.h>
 
+#include "pcep-encoding.h"
 #include "pcep_session_logic.h"
 #include "pcep_session_logic_internals.h"
 #include "pcep_timers.h"
@@ -21,7 +22,6 @@
 
 extern pcep_session_logic_handle *session_logic_handle_;
 extern int session_id_compare_function(void *list_entry, void *new_entry);
-
 
 /*
  * Test case setup and teardown called before AND after each test.
@@ -85,11 +85,12 @@ void test_session_logic_msg_ready_handler()
     CU_ASSERT_EQUAL(session_logic_handle_->session_event_queue->num_entries, 0);
 
     /* A pcep_session_event should be created */
+    struct pcep_versioning *versioning = create_default_pcep_versioning();
     struct pcep_message *keep_alive_msg = pcep_msg_create_keepalive();
-    pcep_msg_encode(keep_alive_msg);
-    write(fd, (char *) keep_alive_msg->header, ntohs(keep_alive_msg->header->length));
+    pcep_encode_message(keep_alive_msg, versioning);
+    write(fd, (char *) keep_alive_msg->encoded_message, keep_alive_msg->encoded_message_length);
     lseek(fd, 0, SEEK_SET);
-    CU_ASSERT_EQUAL(session_logic_msg_ready_handler(&session, fd), ntohs(keep_alive_msg->header->length));
+    CU_ASSERT_EQUAL(session_logic_msg_ready_handler(&session, fd), keep_alive_msg->encoded_message_length);
     CU_ASSERT_EQUAL(session_logic_handle_->session_event_queue->num_entries, 1);
     pcep_session_event *socket_event =
             (pcep_session_event *) queue_dequeue(session_logic_handle_->session_event_queue);
@@ -100,6 +101,7 @@ void test_session_logic_msg_ready_handler()
     CU_ASSERT_PTR_NOT_NULL(socket_event->received_msg_list);
     pcep_msg_free_message_list(socket_event->received_msg_list);
     pcep_msg_free_message(keep_alive_msg);
+    destroy_pcep_versioning(versioning);
     free(socket_event);
     close(fd);
 }

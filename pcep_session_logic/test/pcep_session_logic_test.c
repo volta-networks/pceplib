@@ -86,14 +86,18 @@ void test_create_destroy_pcep_session()
     mock_info->send_message_save_message = true;
     session = create_pcep_session(&config, &pce_ip);
     CU_ASSERT_PTR_NOT_NULL(session);
-    struct pcep_header* open_msg = (struct pcep_header*)
-        dll_delete_first_node(mock_info->sent_message_list);
+    /* What gets saved in the mock is the msg byte buffer. The msg struct was deleted
+     * when it was sent. Instead of inspecting the msg byte buffer, lets just decode it. */
+    uint8_t *encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
+    CU_ASSERT_PTR_NOT_NULL(encoded_msg);
+    struct pcep_message* open_msg = pcep_decode_message(encoded_msg);
     CU_ASSERT_PTR_NOT_NULL(open_msg);
     /* Should be an Open, with no TLVs: length = 12 */
-    CU_ASSERT_EQUAL(open_msg->type, PCEP_TYPE_OPEN);
-    CU_ASSERT_EQUAL(open_msg->length, ntohs(12));
+    CU_ASSERT_EQUAL(open_msg->msg_header->type, PCEP_TYPE_OPEN);
+    CU_ASSERT_EQUAL(open_msg->encoded_message_length, 12);
     destroy_pcep_session(session);
-    free(open_msg);
+    pcep_msg_free_message(open_msg);
+    free(encoded_msg);
 }
 
 
@@ -101,12 +105,11 @@ void test_create_pcep_session_open_tlvs()
 {
     pcep_session *session;
     struct in_addr pce_ip;
-    struct pcep_header* open_msg;
+    struct pcep_message* open_msg;
     struct pcep_object_header *open_obj;
-    double_linked_list *obj_list;
-    double_linked_list *tlv_list;
     pcep_configuration config;
     bzero(&config, sizeof(pcep_configuration));
+    config.pcep_msg_versioning = create_default_pcep_versioning();
     inet_pton(AF_INET, "127.0.0.1", &(pce_ip));
 
     /* Verify the created Open message only has 1 TLV:
@@ -114,34 +117,31 @@ void test_create_pcep_session_open_tlvs()
     mock_socket_comm_info *mock_info = get_mock_socket_comm_info();
     mock_info->send_message_save_message = true;
     config.support_stateful_pce_lsp_update = true;
-    config.use_pcep_sr_draft07 = false;
+    config.pcep_msg_versioning->draft_ietf_pce_segment_routing_07 = false;
     config.support_sr_te_pst = false;
 
     session = create_pcep_session(&config, &pce_ip);
     CU_ASSERT_PTR_NOT_NULL(session);
     /* Get and verify the Open Message */
-    open_msg = (struct pcep_header*)
-        dll_delete_first_node(mock_info->sent_message_list);
+    uint8_t *encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
+    CU_ASSERT_PTR_NOT_NULL(encoded_msg);
+    open_msg = pcep_decode_message(encoded_msg);
     CU_ASSERT_PTR_NOT_NULL(open_msg);
     /* Get and verify the Open Message objects */
-    obj_list = pcep_msg_get_objects(open_msg, false);
-    CU_ASSERT_PTR_NOT_NULL(obj_list);
-    CU_ASSERT_TRUE(obj_list->num_entries > 0);
+    CU_ASSERT_PTR_NOT_NULL(open_msg->obj_list);
+    CU_ASSERT_TRUE(open_msg->obj_list->num_entries > 0);
     /* Get and verify the Open object */
-    open_obj = pcep_obj_get(obj_list, PCEP_OBJ_CLASS_OPEN);
+    open_obj = pcep_obj_get(open_msg->obj_list, PCEP_OBJ_CLASS_OPEN);
     CU_ASSERT_PTR_NOT_NULL(open_obj);
-    CU_ASSERT_TRUE(pcep_obj_parse_decode(open_obj));
     /* Get and verify the Open object TLVs */
-    tlv_list = pcep_obj_get_tlvs(open_obj);
-    CU_ASSERT_PTR_NOT_NULL(tlv_list);
-    CU_ASSERT_EQUAL(tlv_list->num_entries, 1);
-    CU_ASSERT_EQUAL(((struct pcep_object_tlv_header *) tlv_list->head->data)->type,
+    CU_ASSERT_PTR_NOT_NULL(open_obj->tlv_list);
+    CU_ASSERT_EQUAL(open_obj->tlv_list->num_entries, 1);
+    CU_ASSERT_EQUAL(((struct pcep_object_tlv_header *) open_obj->tlv_list->head->data)->type,
             PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY);
 
-    dll_destroy(obj_list);
-    dll_destroy(tlv_list);
     destroy_pcep_session(session);
-    free(open_msg);
+    pcep_msg_free_message(open_msg);
+    free(encoded_msg);
 
     /* Verify the created Open message only has 2 TLVs:
      *   pcep_tlv_create_stateful_pce_capability()
@@ -154,30 +154,27 @@ void test_create_pcep_session_open_tlvs()
     session = create_pcep_session(&config, &pce_ip);
     CU_ASSERT_PTR_NOT_NULL(session);
     /* Get and verify the Open Message */
-    open_msg = (struct pcep_header*)
-        dll_delete_first_node(mock_info->sent_message_list);
+    encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
+    CU_ASSERT_PTR_NOT_NULL(encoded_msg);
+    open_msg = pcep_decode_message(encoded_msg);
     CU_ASSERT_PTR_NOT_NULL(open_msg);
     /* Get and verify the Open Message objects */
-    obj_list = pcep_msg_get_objects(open_msg, false);
-    CU_ASSERT_PTR_NOT_NULL(obj_list);
-    CU_ASSERT_TRUE(obj_list->num_entries > 0);
+    CU_ASSERT_PTR_NOT_NULL(open_msg->obj_list);
+    CU_ASSERT_TRUE(open_msg->obj_list->num_entries > 0);
     /* Get and verify the Open object */
-    open_obj = pcep_obj_get(obj_list, PCEP_OBJ_CLASS_OPEN);
+    open_obj = pcep_obj_get(open_msg->obj_list, PCEP_OBJ_CLASS_OPEN);
     CU_ASSERT_PTR_NOT_NULL(open_obj);
-    CU_ASSERT_TRUE(pcep_obj_parse_decode(open_obj));
     /* Get and verify the Open object TLVs */
-    tlv_list = pcep_obj_get_tlvs(open_obj);
-    CU_ASSERT_PTR_NOT_NULL(tlv_list);
-    CU_ASSERT_EQUAL(tlv_list->num_entries, 2);
-    CU_ASSERT_EQUAL(((struct pcep_object_tlv_header *) tlv_list->head->data)->type,
+    CU_ASSERT_PTR_NOT_NULL(open_obj->tlv_list);
+    CU_ASSERT_EQUAL(open_obj->tlv_list->num_entries, 2);
+    CU_ASSERT_EQUAL(((struct pcep_object_tlv_header *) open_obj->tlv_list->head->data)->type,
             PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY);
-    CU_ASSERT_EQUAL(((struct pcep_object_tlv_header *) tlv_list->head->next_node->data)->type,
+    CU_ASSERT_EQUAL(((struct pcep_object_tlv_header *) open_obj->tlv_list->head->next_node->data)->type,
             PCEP_OBJ_TLV_TYPE_LSP_DB_VERSION);
 
-    dll_destroy(obj_list);
-    dll_destroy(tlv_list);
     destroy_pcep_session(session);
-    free(open_msg);
+    pcep_msg_free_message(open_msg);
+    free(encoded_msg);
 
 
     /* Verify the created Open message only has 4 TLVs:
@@ -192,22 +189,20 @@ void test_create_pcep_session_open_tlvs()
     session = create_pcep_session(&config, &pce_ip);
     CU_ASSERT_PTR_NOT_NULL(session);
     /* Get and verify the Open Message */
-    open_msg = (struct pcep_header*)
-        dll_delete_first_node(mock_info->sent_message_list);
+    encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
+    CU_ASSERT_PTR_NOT_NULL(encoded_msg);
+    open_msg = pcep_decode_message(encoded_msg);
     CU_ASSERT_PTR_NOT_NULL(open_msg);
     /* Get and verify the Open Message objects */
-    obj_list = pcep_msg_get_objects(open_msg, false);
-    CU_ASSERT_PTR_NOT_NULL(obj_list);
-    CU_ASSERT_TRUE(obj_list->num_entries > 0);
+    CU_ASSERT_PTR_NOT_NULL(open_msg->obj_list);
+    CU_ASSERT_TRUE(open_msg->obj_list->num_entries > 0);
     /* Get and verify the Open object */
-    open_obj = pcep_obj_get(obj_list, PCEP_OBJ_CLASS_OPEN);
+    open_obj = pcep_obj_get(open_msg->obj_list, PCEP_OBJ_CLASS_OPEN);
     CU_ASSERT_PTR_NOT_NULL(open_obj);
-    CU_ASSERT_TRUE(pcep_obj_parse_decode(open_obj));
     /* Get and verify the Open object TLVs */
-    tlv_list = pcep_obj_get_tlvs(open_obj);
-    CU_ASSERT_PTR_NOT_NULL(tlv_list);
-    CU_ASSERT_EQUAL(tlv_list->num_entries, 3);
-    double_linked_list_node *tlv_node = tlv_list->head;
+    CU_ASSERT_PTR_NOT_NULL(open_obj->tlv_list);
+    CU_ASSERT_EQUAL(open_obj->tlv_list->num_entries, 3);
+    double_linked_list_node *tlv_node = open_obj->tlv_list->head;
     CU_ASSERT_EQUAL(((struct pcep_object_tlv_header *) tlv_node->data)->type,
             PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY);
     tlv_node = tlv_node->next_node;
@@ -217,10 +212,9 @@ void test_create_pcep_session_open_tlvs()
     CU_ASSERT_EQUAL(((struct pcep_object_tlv_header *) tlv_node->data)->type,
             PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY);
 
-    dll_destroy(obj_list);
-    dll_destroy(tlv_list);
     destroy_pcep_session(session);
-    free(open_msg);
+    pcep_msg_free_message(open_msg);
+    free(encoded_msg);
 
     /* Verify the created Open message only has 4 TLVs:
      *   pcep_tlv_create_stateful_pce_capability()
@@ -229,27 +223,25 @@ void test_create_pcep_session_open_tlvs()
      *   pcep_tlv_create_path_setup_type_capability() */
     reset_mock_socket_comm_info();
     mock_info->send_message_save_message = true;
-    config.use_pcep_sr_draft07 = true;
+    config.pcep_msg_versioning->draft_ietf_pce_segment_routing_07 = true;
 
     session = create_pcep_session(&config, &pce_ip);
     CU_ASSERT_PTR_NOT_NULL(session);
     /* Get and verify the Open Message */
-    open_msg = (struct pcep_header*)
-        dll_delete_first_node(mock_info->sent_message_list);
+    encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
+    CU_ASSERT_PTR_NOT_NULL(encoded_msg);
+    open_msg = pcep_decode_message(encoded_msg);
     CU_ASSERT_PTR_NOT_NULL(open_msg);
     /* Get and verify the Open Message objects */
-    obj_list = pcep_msg_get_objects(open_msg, false);
-    CU_ASSERT_PTR_NOT_NULL(obj_list);
-    CU_ASSERT_TRUE(obj_list->num_entries > 0);
+    CU_ASSERT_PTR_NOT_NULL(open_msg->obj_list);
+    CU_ASSERT_TRUE(open_msg->obj_list->num_entries > 0);
     /* Get and verify the Open object */
-    open_obj = pcep_obj_get(obj_list, PCEP_OBJ_CLASS_OPEN);
+    open_obj = pcep_obj_get(open_msg->obj_list, PCEP_OBJ_CLASS_OPEN);
     CU_ASSERT_PTR_NOT_NULL(open_obj);
-    CU_ASSERT_TRUE(pcep_obj_parse_decode(open_obj));
     /* Get and verify the Open object TLVs */
-    tlv_list = pcep_obj_get_tlvs(open_obj);
-    CU_ASSERT_PTR_NOT_NULL(tlv_list);
-    CU_ASSERT_EQUAL(tlv_list->num_entries, 4);
-    tlv_node = tlv_list->head;
+    CU_ASSERT_PTR_NOT_NULL(open_obj->tlv_list);
+    CU_ASSERT_EQUAL(open_obj->tlv_list->num_entries, 4);
+    tlv_node = open_obj->tlv_list->head;
     CU_ASSERT_EQUAL(((struct pcep_object_tlv_header *) tlv_node->data)->type,
             PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY);
     tlv_node = tlv_node->next_node;
@@ -262,10 +254,10 @@ void test_create_pcep_session_open_tlvs()
     CU_ASSERT_EQUAL(((struct pcep_object_tlv_header *) tlv_node->data)->type,
             PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY);
 
-    dll_destroy(obj_list);
-    dll_destroy(tlv_list);
+    destroy_pcep_versioning(config.pcep_msg_versioning);
     destroy_pcep_session(session);
-    free(open_msg);
+    pcep_msg_free_message(open_msg);
+    free(encoded_msg);
 }
 
 

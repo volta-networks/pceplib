@@ -9,6 +9,7 @@
 #define PCEP_UTILS_INCLUDE_PCEP_UTILS_LOGGING_H_
 
 #include <syslog.h> /* Logging levels */
+#include <stdarg.h> /* va_list */
 
 /*
  * The logging defined here i intended to provide the infrastructure to

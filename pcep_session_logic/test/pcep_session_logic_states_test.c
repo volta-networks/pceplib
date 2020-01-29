@@ -28,7 +28,7 @@ static pcep_session_event event;
 static pcep_session session;
 /* A message list is a dll of struct pcep_messages_list_node items */
 static double_linked_list *msg_list;
-pcep_message *message;
+struct pcep_message *message;
 static bool free_msg_list;
 static bool msg_enqueued;
 /* Forward declaration */
@@ -82,17 +82,17 @@ void pcep_session_logic_states_test_teardown()
 
 void create_message_for_test(uint8_t msg_type, bool free_msg_list_at_teardown, bool was_msg_enqueued)
 {
-    /* See the comments in pcep_session_logic_states_test_teardown() about these 2 variables */
+    /* See the comments in destroy_message_for_test() about these 2 variables */
     free_msg_list = free_msg_list_at_teardown;
     msg_enqueued = was_msg_enqueued;
 
-    message = malloc(sizeof(pcep_message));
+    message = malloc(sizeof(struct pcep_message));
     bzero(message, sizeof(struct pcep_message));
 
-    message->header = malloc(sizeof(struct pcep_header));
-    bzero(message->header, sizeof(struct pcep_header));
+    message->msg_header = malloc(sizeof(struct pcep_message_header));
+    bzero(message->msg_header, sizeof(struct pcep_message_header));
     message->obj_list = dll_initialize();
-    message->header->type = msg_type;
+    message->msg_header->type = msg_type;
 
     msg_list = dll_initialize();
     dll_append(msg_list, message);
@@ -252,7 +252,6 @@ void test_handle_socket_comm_event_open()
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
     free(e);
-    free(open_object);
     destroy_message_for_test();
 
     /* Send a 2nd Open, an error should be sent */
@@ -265,19 +264,22 @@ void test_handle_socket_comm_event_open()
 
     CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 0);
     verify_socket_comm_times_called(0, 0, 0, 1, 0, 0, 0);
-    struct pcep_header* msg = (struct pcep_header*) dll_delete_first_node(mock_info->sent_message_list);
+    /* What gets saved in the mock is the msg byte buffer. The msg struct was deleted
+     * when it was sent. Instead of inspecting the msg byte buffer, lets just decode it. */
+    uint8_t *encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
+    CU_ASSERT_PTR_NOT_NULL(encoded_msg);
+    struct pcep_message* msg = pcep_decode_message(encoded_msg);
     CU_ASSERT_PTR_NOT_NULL(msg);
-    CU_ASSERT_EQUAL(PCEP_TYPE_ERROR, msg->type);
+    CU_ASSERT_EQUAL(PCEP_TYPE_ERROR, msg->msg_header->type);
     /* Verify the error object */
-    double_linked_list *obj_list = pcep_msg_get_objects(msg, false);
-    CU_ASSERT_EQUAL(1, obj_list->num_entries);
-    struct pcep_object_error *error_obj = obj_list->head->data;
+    CU_ASSERT_EQUAL(1, msg->obj_list->num_entries);
+    struct pcep_object_error *error_obj = msg->obj_list->head->data;
     CU_ASSERT_EQUAL(PCEP_OBJ_CLASS_ERROR, error_obj->header.object_class);
     CU_ASSERT_EQUAL(PCEP_OBJ_TYPE_ERROR, error_obj->header.object_type);
     CU_ASSERT_EQUAL(PCEP_ERRT_ATTEMPT_TO_ESTABLISH_2ND_PCEP_SESSION, error_obj->error_type);
     CU_ASSERT_EQUAL(PCEP_ERRV_RECVD_INVALID_OPEN_MSG, error_obj->error_value);
-    dll_destroy(obj_list);
-    free(msg);
+    pcep_msg_free_message(msg);
+    free(encoded_msg);
 }
 
 
@@ -304,7 +306,7 @@ void test_handle_socket_comm_event_keep_alive()
 void test_handle_socket_comm_event_pcrep()
 {
     create_message_for_test(PCEP_TYPE_PCREP, false, true);
-    struct pcep_object_rp *rp = pcep_obj_create_rp(1, 1, 1, NULL);
+    struct pcep_object_rp *rp = pcep_obj_create_rp(1, true, true, true, 1, NULL);
     dll_append(message->obj_list, rp);
     session.session_state = SESSION_STATE_WAIT_PCREQ;
 
@@ -317,7 +319,6 @@ void test_handle_socket_comm_event_pcrep()
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
     free(e);
-    free(rp);
 }
 
 
@@ -332,19 +333,20 @@ void test_handle_socket_comm_event_pcreq()
     /* The PCC does not support receiving PcReq messages, so an error should be sent */
     CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 0);
     verify_socket_comm_times_called(0, 0, 0, 1, 0, 0, 0);
-    struct pcep_header* error_msg = (struct pcep_header*) dll_delete_first_node(mock_info->sent_message_list);
+    uint8_t *encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
+    CU_ASSERT_PTR_NOT_NULL(encoded_msg);
+    struct pcep_message* error_msg = pcep_decode_message(encoded_msg);
     CU_ASSERT_PTR_NOT_NULL(error_msg);
-    CU_ASSERT_EQUAL(PCEP_TYPE_ERROR, error_msg->type);
+    CU_ASSERT_EQUAL(PCEP_TYPE_ERROR, error_msg->msg_header->type);
     /* Verify the error object */
-    double_linked_list *obj_list = pcep_msg_get_objects(error_msg, false);
-    CU_ASSERT_EQUAL(1, obj_list->num_entries);
-    struct pcep_object_error *obj = obj_list->head->data;
+    CU_ASSERT_EQUAL(1, error_msg->obj_list->num_entries);
+    struct pcep_object_error *obj = error_msg->obj_list->head->data;
     CU_ASSERT_EQUAL(PCEP_OBJ_CLASS_ERROR, obj->header.object_class);
     CU_ASSERT_EQUAL(PCEP_OBJ_TYPE_ERROR, obj->header.object_type);
     CU_ASSERT_EQUAL(PCEP_ERRT_CAPABILITY_NOT_SUPPORTED, obj->error_type);
     CU_ASSERT_EQUAL(PCEP_ERRV_UNASSIGNED, obj->error_value);
-    dll_destroy(obj_list);
-    free(error_msg);
+    pcep_msg_free_message(error_msg);
+    free(encoded_msg);
 }
 
 
@@ -359,19 +361,20 @@ void test_handle_socket_comm_event_report()
     /* The PCC does not support receiving Report messages, so an error should be sent */
     CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 0);
     verify_socket_comm_times_called(0, 0, 0, 1, 0, 0, 0);
-    struct pcep_header* error_msg = (struct pcep_header*) dll_delete_first_node(mock_info->sent_message_list);
+    uint8_t *encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
+    CU_ASSERT_PTR_NOT_NULL(encoded_msg);
+    struct pcep_message* error_msg = pcep_decode_message(encoded_msg);
     CU_ASSERT_PTR_NOT_NULL(error_msg);
-    CU_ASSERT_EQUAL(PCEP_TYPE_ERROR, error_msg->type);
+    CU_ASSERT_EQUAL(PCEP_TYPE_ERROR, error_msg->msg_header->type);
     /* Verify the error object */
-    double_linked_list *obj_list = pcep_msg_get_objects(error_msg, false);
-    CU_ASSERT_EQUAL(1, obj_list->num_entries);
-    struct pcep_object_error *obj = obj_list->head->data;
+    CU_ASSERT_EQUAL(1, error_msg->obj_list->num_entries);
+    struct pcep_object_error *obj = error_msg->obj_list->head->data;
     CU_ASSERT_EQUAL(PCEP_OBJ_CLASS_ERROR, obj->header.object_class);
     CU_ASSERT_EQUAL(PCEP_OBJ_TYPE_ERROR, obj->header.object_type);
     CU_ASSERT_EQUAL(PCEP_ERRT_CAPABILITY_NOT_SUPPORTED, obj->error_type);
     CU_ASSERT_EQUAL(PCEP_ERRV_UNASSIGNED, obj->error_value);
-    dll_destroy(obj_list);
-    free(error_msg);
+    pcep_msg_free_message(error_msg);
+    free(encoded_msg);
 }
 
 
@@ -396,12 +399,8 @@ void test_handle_socket_comm_event_update()
     verify_socket_comm_times_called(0, 0, 0, 0, 0, 0, 0);
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
-    CU_ASSERT_EQUAL(PCEP_TYPE_UPDATE, e->message->header->type);
+    CU_ASSERT_EQUAL(PCEP_TYPE_UPDATE, e->message->msg_header->type);
     free(e);
-    free(srp);
-    free(lsp);
-    free(ero);
-    dll_destroy_with_data(ero_subobj_list);
 }
 
 
@@ -422,10 +421,8 @@ void test_handle_socket_comm_event_initiate()
     verify_socket_comm_times_called(0, 0, 0, 0, 0, 0, 0);
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
-    CU_ASSERT_EQUAL(PCEP_TYPE_INITIATE, e->message->header->type);
+    CU_ASSERT_EQUAL(PCEP_TYPE_INITIATE, e->message->msg_header->type);
     free(e);
-    free(srp);
-    free(lsp);
 }
 
 
@@ -438,7 +435,7 @@ void test_handle_socket_comm_event_notify()
     verify_socket_comm_times_called(0, 0, 0, 0, 0, 0, 0);
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
-    CU_ASSERT_EQUAL(PCEP_TYPE_PCNOTF, e->message->header->type);
+    CU_ASSERT_EQUAL(PCEP_TYPE_PCNOTF, e->message->msg_header->type);
     free(e);
 }
 
@@ -452,7 +449,7 @@ void test_handle_socket_comm_event_error()
     verify_socket_comm_times_called(0, 0, 0, 0, 0, 0, 0);
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
-    CU_ASSERT_EQUAL(PCEP_TYPE_ERROR, e->message->header->type);
+    CU_ASSERT_EQUAL(PCEP_TYPE_ERROR, e->message->msg_header->type);
     free(e);
 }
 
@@ -469,19 +466,20 @@ void test_handle_socket_comm_event_unknown_msg()
      * but the connection should remain open, since max_unknown_messages = 2 */
     CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 0);
     verify_socket_comm_times_called(0, 0, 0, 1, 0, 0, 0);
-    struct pcep_header* msg = (struct pcep_header*) dll_delete_first_node(mock_info->sent_message_list);
+    uint8_t *encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
+    CU_ASSERT_PTR_NOT_NULL(encoded_msg);
+    struct pcep_message* msg = pcep_decode_message(encoded_msg);
     CU_ASSERT_PTR_NOT_NULL(msg);
-    CU_ASSERT_EQUAL(PCEP_TYPE_ERROR, msg->type);
+    CU_ASSERT_EQUAL(PCEP_TYPE_ERROR, msg->msg_header->type);
     /* Verify the error object */
-    double_linked_list *obj_list = pcep_msg_get_objects(msg, false);
-    CU_ASSERT_EQUAL(1, obj_list->num_entries);
-    struct pcep_object_error *error_obj = obj_list->head->data;
+    CU_ASSERT_EQUAL(1, msg->obj_list->num_entries);
+    struct pcep_object_error *error_obj = msg->obj_list->head->data;
     CU_ASSERT_EQUAL(PCEP_OBJ_CLASS_ERROR, error_obj->header.object_class);
     CU_ASSERT_EQUAL(PCEP_OBJ_TYPE_ERROR, error_obj->header.object_type);
     CU_ASSERT_EQUAL(PCEP_ERRT_CAPABILITY_NOT_SUPPORTED, error_obj->error_type);
     CU_ASSERT_EQUAL(PCEP_ERRV_UNASSIGNED, error_obj->error_value);
-    dll_destroy(obj_list);
-    free(msg);
+    pcep_msg_free_message(msg);
+    free(encoded_msg);
     destroy_message_for_test();
 
     /* Send another unsupported message type, an error should be sent and
@@ -497,31 +495,33 @@ void test_handle_socket_comm_event_unknown_msg()
     verify_socket_comm_times_called(0, 0, 0, 2, 1, 0, 0);
 
     /* Verify the error message */
-    msg = (struct pcep_header*) dll_delete_first_node(mock_info->sent_message_list);
+    encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
+    CU_ASSERT_PTR_NOT_NULL(encoded_msg);
+    msg = pcep_decode_message(encoded_msg);
     CU_ASSERT_PTR_NOT_NULL(msg);
-    CU_ASSERT_EQUAL(PCEP_TYPE_ERROR, msg->type);
+    CU_ASSERT_EQUAL(PCEP_TYPE_ERROR, msg->msg_header->type);
     /* Verify the error object */
-    obj_list = pcep_msg_get_objects(msg, false);
-    CU_ASSERT_EQUAL(1, obj_list->num_entries);
-    error_obj = obj_list->head->data;
+    CU_ASSERT_EQUAL(1, msg->obj_list->num_entries);
+    error_obj = msg->obj_list->head->data;
     CU_ASSERT_EQUAL(PCEP_OBJ_CLASS_ERROR, error_obj->header.object_class);
     CU_ASSERT_EQUAL(PCEP_OBJ_TYPE_ERROR, error_obj->header.object_type);
     CU_ASSERT_EQUAL(PCEP_ERRT_CAPABILITY_NOT_SUPPORTED, error_obj->error_type);
     CU_ASSERT_EQUAL(PCEP_ERRV_UNASSIGNED, error_obj->error_value);
-    dll_destroy(obj_list);
-    free(msg);
+    pcep_msg_free_message(msg);
+    free(encoded_msg);
 
     /* Verify the Close message */
-    msg = (struct pcep_header*) dll_delete_first_node(mock_info->sent_message_list);
+    encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
+    CU_ASSERT_PTR_NOT_NULL(encoded_msg);
+    msg = pcep_decode_message(encoded_msg);
     CU_ASSERT_PTR_NOT_NULL(msg);
-    CU_ASSERT_EQUAL(PCEP_TYPE_CLOSE, msg->type);
+    CU_ASSERT_EQUAL(PCEP_TYPE_CLOSE, msg->msg_header->type);
     /* Verify the error object */
-    obj_list = pcep_msg_get_objects(msg, false);
-    CU_ASSERT_EQUAL(1, obj_list->num_entries);
-    struct pcep_object_close *close_obj = obj_list->head->data;
+    CU_ASSERT_EQUAL(1, msg->obj_list->num_entries);
+    struct pcep_object_close *close_obj = msg->obj_list->head->data;
     CU_ASSERT_EQUAL(PCEP_OBJ_CLASS_CLOSE, close_obj->header.object_class);
     CU_ASSERT_EQUAL(PCEP_OBJ_TYPE_CLOSE, close_obj->header.object_type);
     CU_ASSERT_EQUAL(PCEP_CLOSE_REASON_UNREC_MSG, close_obj->reason);
-    dll_destroy(obj_list);
-    free(msg);
+    pcep_msg_free_message(msg);
+    free(encoded_msg);
 }
