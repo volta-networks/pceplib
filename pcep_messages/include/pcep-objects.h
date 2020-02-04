@@ -46,6 +46,8 @@ enum pcep_object_classes
     PCEP_OBJ_CLASS_CLOSE = 15,
     PCEP_OBJ_CLASS_LSP = 32,
     PCEP_OBJ_CLASS_SRP = 33,
+    PCEP_OBJ_CLASS_ASSOCIATION = 40,/*draft-ietf-pce-association-group-10*/
+    PCEP_OBJ_CLASS_MAX,
 };
 
 enum pcep_object_types
@@ -67,7 +69,10 @@ enum pcep_object_types
     PCEP_OBJ_TYPE_SVEC = 1,
     PCEP_OBJ_TYPE_NOTF = 1,
     PCEP_OBJ_TYPE_ERROR = 1,
-    PCEP_OBJ_TYPE_CLOSE = 1
+    PCEP_OBJ_TYPE_CLOSE = 1,
+    PCEP_OBJ_TYPE_ASSOCIATION_IPV4 = 1,/*draft-ietf-pce-association-group-10*/
+    PCEP_OBJ_TYPE_ASSOCIATION_IPV6 = 2,/*draft-ietf-pce-association-group-10*/
+    PCEP_OBJ_TYPE_MAX = 2,
 };
 
 #define OBJECT_HEADER_FLAG_I 0x01
@@ -130,6 +135,29 @@ struct pcep_object_notify
     enum pcep_notification_types notification_type;
     enum pcep_notification_values notification_value;
 };
+
+enum pcep_association_type{
+    PCEP_ASSOCIATION_TYPE_PATH_PROTECTION_ASSOCIATION = 1,//iana unique value define as 2020-01-08!
+    PCEP_ASSOCIATION_TYPE_SR_POLICY_ASSOCIATION_TYPE = 65535//TBD1  draft-barth-pce-segment-routing-policy-cp-04
+};
+#define OBJECT_ASSOCIATION_FLAG_R 0x01
+struct pcep_object_association_ipv4{ //draft-ietf-pce-association-group-10
+    struct pcep_object_header header;
+    bool R_flag;
+    uint16_t association_type;
+    uint16_t association_id;
+    struct in_addr src;
+};
+
+struct pcep_object_association_ipv6{ //draft-ietf-pce-association-group-10
+    struct pcep_object_header header;
+    bool R_flag;
+    uint16_t association_type;
+    uint16_t association_id;
+    struct in6_addr src;
+};
+
+
 
 enum pcep_nopath_nature_of_issue {
     PCEP_NOPATH_NI_NO_PATH_FOUND = 0,
@@ -509,6 +537,8 @@ struct pcep_object_open*                pcep_obj_create_open        (uint8_t kee
 struct pcep_object_rp*                  pcep_obj_create_rp          (uint8_t priority, bool flag_r, bool flag_b, bool flag_s, uint32_t reqid, double_linked_list *tlv_list);
 struct pcep_object_notify*              pcep_obj_create_notify      (enum pcep_notification_types notification_type, enum pcep_notification_values notification_value);
 struct pcep_object_nopath*              pcep_obj_create_nopath      (uint8_t ni, bool flag_c, enum pcep_nopath_tlv_err_codes error_code);
+struct pcep_object_association_ipv4*    pcep_obj_create_association_ipv4(bool r_flag, uint16_t association_type, uint16_t association_id, struct in_addr src);
+struct pcep_object_association_ipv6*    pcep_obj_create_association_ipv6(bool r_flag, uint16_t association_type, uint16_t association_id, struct in6_addr src);
 struct pcep_object_endpoints_ipv4*      pcep_obj_create_enpoint_ipv4(const struct in_addr* src_ipv4, const struct in_addr* dst_ipv4);
 struct pcep_object_endpoints_ipv6*      pcep_obj_create_enpoint_ipv6(const struct in6_addr* src_ipv6, const struct in6_addr* dst_ipv6);
 struct pcep_object_bandwidth*           pcep_obj_create_bandwidth   (float bandwidth);

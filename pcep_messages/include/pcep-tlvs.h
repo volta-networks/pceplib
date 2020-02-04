@@ -44,6 +44,11 @@ enum pcep_object_tlv_types
     PCEP_OBJ_TLV_TYPE_SR_PCE_CAPABILITY = 26,           /* draft-ietf-pce-segment-routing-16 */
     PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE = 28,             /* RFC 8408 */
     PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY = 34,  /* RFC 8408, draft-ietf-pce-segment-routing-16 */
+    PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_ID = 60,  /*TDB2 draft-barth-pce-segment-routing-policy-cp-04 */
+    PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_NAME = 61,  /*TDB3 draft-barth-pce-segment-routing-policy-cp-04 */
+    PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_ID = 62,  /*TDB4 draft-barth-pce-segment-routing-policy-cp-04 */
+    PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_PREFERENCE = 63,  /*TDB5 draft-barth-pce-segment-routing-policy-cp-04 */
+
 };
 
 struct pcep_object_tlv_header
@@ -193,6 +198,45 @@ struct pcep_object_tlv_rsvp_error_spec
     } error_spec_ip;
 };
 
+/* SR Policy Identifier TLV Used in Association Object. draft-barth-pce-segment-routing-policy-cp-04*/
+struct pcep_object_tlv_srpag_pol_id_ipv4
+{
+    struct pcep_object_tlv_header header;
+    uint32_t color;
+    struct in_addr end_point;
+};
+/* SR Policy Identifier IPV6 TLV Used in Association Object. draft-barth-pce-segment-routing-policy-cp-04*/
+struct pcep_object_tlv_srpag_pol_id_ipv6
+{
+    struct pcep_object_tlv_header header;
+    uint32_t color;
+    struct in6_addr end_point;
+};
+/*draft-ietf-spring-segment-routing-policy-06*/
+#define MAX_POLICY_NAME 256
+/* SR Policy Name TLV Used in Association Object. draft-barth-pce-segment-routing-policy-cp-04*/
+struct pcep_object_tlv_srpag_pol_name
+{
+    struct pcep_object_tlv_header header;
+    char name[MAX_POLICY_NAME];
+};
+/* SR Candidate Path Id  TLV Used in Association Object. draft-barth-pce-segment-routing-policy-cp-04*/
+struct pcep_object_tlv_srpag_cp_id
+{
+    struct pcep_object_tlv_header header;
+    uint8_t proto;
+    uint32_t orig_asn;
+    struct in6_addr orig_addres;/*With ipv4 embedded*/
+    uint32_t discriminator;
+};
+/* SR Candidate Preference TLV Used in Association Object. draft-barth-pce-segment-routing-policy-cp-04*/
+struct pcep_object_tlv_srpag_cp_pref
+{
+    struct pcep_object_tlv_header header;
+    uint32_t preference;
+};
+
+
 /*
  * TLV creation functions
  */
@@ -232,6 +276,23 @@ struct pcep_object_tlv_rsvp_error_spec*            pcep_tlv_create_rsvp_ipv6_err
                                                                                         uint8_t error_code, uint16_t error_value);
 
 struct pcep_object_tlv_nopath_vector*              pcep_tlv_create_nopath_vector(uint32_t error_code);
+
+/*
+ * SRPAG (SR Association Group) TLVs
+ */
+
+struct pcep_object_tlv_srpag_pol_id_ipv4 *pcep_tlv_create_srpag_pol_id_ipv4(uint32_t color, struct in_addr end_point);
+struct pcep_object_tlv_srpag_pol_id_ipv6 *pcep_tlv_create_srpag_pol_id_ipv6(uint32_t color, struct in6_addr end_point);
+struct pcep_object_tlv_srpag_pol_name *pcep_tlv_create_srpag_pol_name(char* pol_name, uint16_t pol_name_length);
+struct pcep_object_tlv_srpag_cp_id *pcep_tlv_create_srpag_cp_id(uint8_t proto_origin, uint32_t asn, struct in6_addr *in6_addr_with_mapped_ipv4, uint32_t discriminator);
+struct pcep_object_tlv_srpag_cp_pref *pcep_tlv_create_srpag_cp_pref(uint32_t pref);
+
+
+/*
+ * utils
+ */
+uint8_t get_pad4_bytes(uint32_t length);
+
 
 #ifdef __cplusplus
 }

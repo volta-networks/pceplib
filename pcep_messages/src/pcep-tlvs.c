@@ -289,3 +289,83 @@ pcep_tlv_create_nopath_vector(uint32_t error_code)
 
     return tlv;
 }
+
+/*
+ * SRPAG (SR Association Group) TLVs
+ */
+
+struct pcep_object_tlv_srpag_pol_id_ipv4*
+pcep_tlv_create_srpag_pol_id_ipv4(uint32_t color, struct in_addr end_point)
+{
+    struct pcep_object_tlv_srpag_pol_id_ipv4 *tlv =
+            (struct pcep_object_tlv_srpag_pol_id_ipv4 *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_ID,
+                    sizeof(struct pcep_object_tlv_srpag_pol_id_ipv4));
+    tlv->color = color;
+    tlv->end_point.s_addr = end_point.s_addr;
+
+    return tlv;
+}
+struct pcep_object_tlv_srpag_pol_id_ipv6*
+pcep_tlv_create_srpag_pol_id_ipv6(uint32_t color, struct in6_addr end_point)
+{
+    struct pcep_object_tlv_srpag_pol_id_ipv6 *tlv =
+            (struct pcep_object_tlv_srpag_pol_id_ipv6 *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_ID,
+                    sizeof(struct pcep_object_tlv_srpag_pol_id_ipv6));
+    tlv->color = color;
+    memcpy(&tlv->end_point, &end_point, sizeof(end_point));
+
+    return tlv;
+}
+
+struct pcep_object_tlv_srpag_pol_name*
+pcep_tlv_create_srpag_pol_name(char* pol_name, uint16_t pol_name_length)
+{
+    if (pol_name == NULL){
+        return NULL;
+    }
+    struct pcep_object_tlv_srpag_pol_name *tlv =
+            (struct pcep_object_tlv_srpag_pol_name *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_NAME,
+                    sizeof(struct pcep_object_tlv_srpag_pol_name));
+    memcpy(tlv->name, pol_name, pol_name_length);
+
+    return tlv;
+}
+struct pcep_object_tlv_srpag_cp_id*
+pcep_tlv_create_srpag_cp_id(uint8_t proto_origin, uint32_t asn, struct in6_addr *in6_addr_with_mapped_ipv4, uint32_t discriminator)
+{
+    if(!in6_addr_with_mapped_ipv4){
+        return NULL;
+    }
+
+    struct pcep_object_tlv_srpag_cp_id *tlv =
+            (struct pcep_object_tlv_srpag_cp_id *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_ID,
+                    sizeof(struct pcep_object_tlv_srpag_cp_id));
+    tlv->proto=proto_origin;
+    tlv->orig_asn=asn;
+    memcpy(&(tlv->orig_addres), in6_addr_with_mapped_ipv4, sizeof(*in6_addr_with_mapped_ipv4));
+    tlv->discriminator=discriminator;
+
+    return tlv;
+}
+struct pcep_object_tlv_srpag_cp_pref*
+pcep_tlv_create_srpag_cp_pref(uint32_t pref)
+{
+
+    struct pcep_object_tlv_srpag_cp_pref *tlv =
+            (struct pcep_object_tlv_srpag_cp_pref *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_PREFERENCE,
+                    sizeof(struct pcep_object_tlv_srpag_cp_pref));
+    tlv->preference=pref;
+
+    return tlv;
+}
+
+uint8_t get_pad4_bytes(uint32_t length)
+{
+    return (length % 4 == 0) ? 0 : (4 - (length % 4));
+
+}

@@ -20,6 +20,7 @@ uint16_t pcep_encode_obj_open(struct pcep_object_header *open, struct pcep_versi
 uint16_t pcep_encode_obj_rp(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_nopath(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_endpoints(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
+uint16_t pcep_encode_obj_association(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_bandwidth(struct pcep_object_header *bandwidth, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_metric(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_ro(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
@@ -42,6 +43,7 @@ struct pcep_object_header *pcep_decode_obj_open(struct pcep_object_header *hdr, 
 struct pcep_object_header *pcep_decode_obj_rp(struct pcep_object_header *hdr, uint8_t *buf);
 struct pcep_object_header *pcep_decode_obj_nopath(struct pcep_object_header *hdr, uint8_t *buf);
 struct pcep_object_header *pcep_decode_obj_endpoints(struct pcep_object_header *hdr, uint8_t *buf);
+struct pcep_object_header *pcep_decode_obj_association(struct pcep_object_header *hdr, uint8_t *buf);
 struct pcep_object_header *pcep_decode_obj_bandwidth(struct pcep_object_header *hdr, uint8_t *buf);
 struct pcep_object_header *pcep_decode_obj_metric(struct pcep_object_header *hdr, uint8_t *buf);
 struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, uint8_t *buf);
@@ -110,6 +112,7 @@ static void initialize_object_coders()
     object_encoders[PCEP_OBJ_CLASS_CLOSE]      =  pcep_encode_obj_close;
     object_encoders[PCEP_OBJ_CLASS_LSP]        =  pcep_encode_obj_lsp;
     object_encoders[PCEP_OBJ_CLASS_SRP]        =  pcep_encode_obj_srp;
+    object_encoders[PCEP_OBJ_CLASS_ASSOCIATION]=  pcep_encode_obj_association;
 
     /* Decoders */
     memset(object_decoders, 0, sizeof(object_decoder_funcptr) * MAX_OBJECT_ENCODER_INDEX);
@@ -129,6 +132,7 @@ static void initialize_object_coders()
     object_decoders[PCEP_OBJ_CLASS_CLOSE]      =  pcep_decode_obj_close;
     object_decoders[PCEP_OBJ_CLASS_LSP]        =  pcep_decode_obj_lsp;
     object_decoders[PCEP_OBJ_CLASS_SRP]        =  pcep_decode_obj_srp;
+    object_decoders[PCEP_OBJ_CLASS_ASSOCIATION]=  pcep_decode_obj_association;
 }
 
 /*
@@ -254,6 +258,34 @@ uint16_t pcep_encode_obj_nopath(struct pcep_object_header *hdr, struct pcep_vers
     return LENGTH_1WORD;
 }
 
+uint16_t pcep_encode_obj_association(struct pcep_object_header *hdr, struct pcep_versioning *versioning, uint8_t *obj_body_buf)
+{
+    uint16_t *uint16_ptr = (uint16_t *) obj_body_buf;
+    uint32_t *uint32_ptr = (uint32_t *) obj_body_buf;
+    if (hdr->object_type == PCEP_OBJ_TYPE_ASSOCIATION_IPV4)
+    {
+        struct pcep_object_association_ipv4 *ipv4 = (struct pcep_object_association_ipv4 *) hdr;
+        obj_body_buf[3] = (ipv4->R_flag == true ? OBJECT_ASSOCIATION_FLAG_R : 0x00);
+        uint16_ptr[2] = htons(ipv4->association_type);
+        uint16_ptr[3] = htons(ipv4->association_id);
+        uint32_ptr[2] = htonl(ipv4->src.s_addr);
+
+        return LENGTH_3WORDS;
+    }
+    else
+    {
+        struct pcep_object_association_ipv6 *ipv6 = (struct pcep_object_association_ipv6 *) hdr;
+        obj_body_buf[3] = (ipv6->R_flag == true ? OBJECT_ASSOCIATION_FLAG_R : 0x00);
+        uint16_ptr[2] = htons(ipv6->association_type);
+        uint16_ptr[3] = htons(ipv6->association_id);
+        uint32_ptr[2] = htonl(ipv6->src.__in6_u.__u6_addr32[0]);
+        uint32_ptr[3] = htonl(ipv6->src.__in6_u.__u6_addr32[1]);
+        uint32_ptr[4] = htonl(ipv6->src.__in6_u.__u6_addr32[2]);
+        uint32_ptr[5] = htonl(ipv6->src.__in6_u.__u6_addr32[3]);
+
+        return LENGTH_6WORDS;
+    }
+}
 uint16_t pcep_encode_obj_endpoints(struct pcep_object_header *hdr, struct pcep_versioning *versioning, uint8_t *obj_body_buf)
 {
     uint32_t *uint32_ptr = (uint32_t *) obj_body_buf;
@@ -762,6 +794,41 @@ struct pcep_object_header *pcep_decode_obj_nopath(struct pcep_object_header *hdr
     return (struct pcep_object_header *) obj;
 }
 
+struct pcep_object_header *pcep_decode_obj_association(struct pcep_object_header *hdr, uint8_t *obj_buf)
+{
+    uint16_t *uint16_ptr = (uint16_t *) obj_buf;
+    uint32_t *uint32_ptr = (uint32_t *) obj_buf;
+
+    if (hdr->object_type == PCEP_OBJ_TYPE_ASSOCIATION_IPV4)
+    {
+        struct pcep_object_association_ipv4 *obj = (struct pcep_object_association_ipv4 *)
+                common_object_create(hdr, sizeof(struct pcep_object_association_ipv4));
+        obj->R_flag = (obj_buf[4] & OBJECT_ASSOCIATION_FLAG_R);
+        obj->association_type = ntohs(uint16_ptr[2]);
+        obj->association_id = ntohs(uint16_ptr[3]);
+        obj->src.s_addr = ntohl(uint32_ptr[2]);
+
+        return (struct pcep_object_header *) obj;
+    }
+    else if (hdr->object_type == PCEP_OBJ_TYPE_ENDPOINT_IPV6)
+    {
+        struct pcep_object_association_ipv6 *obj = (struct pcep_object_association_ipv6 *)
+                common_object_create(hdr, sizeof(struct pcep_object_association_ipv6));
+
+        obj->R_flag = (obj_buf[4] & OBJECT_ASSOCIATION_FLAG_R);
+        obj->association_type = ntohs(uint16_ptr[2]);
+        obj->association_id = ntohs(uint16_ptr[3]);
+        obj->src.__in6_u.__u6_addr32[0] = ntohl(uint32_ptr[2]);
+        obj->src.__in6_u.__u6_addr32[1] = ntohl(uint32_ptr[3]);
+        obj->src.__in6_u.__u6_addr32[2] = ntohl(uint32_ptr[4]);
+        obj->src.__in6_u.__u6_addr32[3] = ntohl(uint32_ptr[5]);
+
+
+        return (struct pcep_object_header *) obj;
+    }
+
+    return NULL;
+}
 struct pcep_object_header *pcep_decode_obj_endpoints(struct pcep_object_header *hdr, uint8_t *obj_buf)
 {
     uint32_t *uint32_ptr = (uint32_t *) obj_buf;

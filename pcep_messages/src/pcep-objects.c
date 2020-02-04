@@ -104,6 +104,36 @@ pcep_obj_create_nopath(uint8_t ni, bool flag_c, enum pcep_nopath_tlv_err_codes e
     return obj;
 }
 
+struct pcep_object_association_ipv4*
+pcep_obj_create_association_ipv4(bool r_flag, uint16_t association_type, uint16_t association_id, struct in_addr src)
+{
+    struct pcep_object_association_ipv4 *obj =
+            (struct pcep_object_association_ipv4 *) pcep_obj_create_common(
+                    sizeof(struct pcep_object_association_ipv4),
+                    PCEP_OBJ_CLASS_ASSOCIATION, PCEP_OBJ_TYPE_ASSOCIATION_IPV4);
+
+    obj->R_flag= r_flag;
+    obj->association_type = association_type;
+    obj->association_id = association_id;
+    obj->src = src;
+
+    return obj;
+}
+struct pcep_object_association_ipv6*
+pcep_obj_create_association_ipv6(bool r_flag, uint16_t association_type, uint16_t association_id, struct in6_addr src)
+{
+    struct pcep_object_association_ipv6 *obj =
+            (struct pcep_object_association_ipv6 *) pcep_obj_create_common(
+                    sizeof(struct pcep_object_association_ipv6),
+                    PCEP_OBJ_CLASS_ASSOCIATION, PCEP_OBJ_TYPE_ASSOCIATION_IPV6);
+
+    obj->R_flag= r_flag;
+    obj->association_type = association_type;
+    obj->association_id = association_id;
+    obj->src = src;
+
+    return obj;
+}
 struct pcep_object_endpoints_ipv4*
 pcep_obj_create_enpoint_ipv4(const struct in_addr* src_ipv4, const struct in_addr* dst_ipv4)
 {
