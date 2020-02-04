@@ -139,6 +139,43 @@ void test_pcep_obj_create_nopath()
 
     pcep_obj_free_object((struct pcep_object_header *) nopath);
 }
+void test_pcep_obj_create_association_ipv4()
+{
+
+    uint16_t all_assoc_groups = 0xffff;
+    struct in_addr src;
+    inet_pton(AF_INET, "192.168.1.2", &src);
+
+    struct pcep_object_association_ipv4 *assoc = pcep_obj_create_association_ipv4(false, PCEP_ASSOCIATION_TYPE_SR_POLICY_ASSOCIATION_TYPE, all_assoc_groups, src);
+    CU_ASSERT_PTR_NOT_NULL(assoc);
+    CU_ASSERT_EQUAL(assoc->association_type, PCEP_ASSOCIATION_TYPE_SR_POLICY_ASSOCIATION_TYPE);
+    CU_ASSERT_EQUAL(assoc->association_id, all_assoc_groups);
+    CU_ASSERT_EQUAL(assoc->header.object_class, PCEP_OBJ_CLASS_ASSOCIATION);
+    CU_ASSERT_EQUAL(assoc->header.object_type, PCEP_OBJ_TYPE_ASSOCIATION_IPV4);
+    CU_ASSERT_EQUAL(assoc->src.s_addr, src.s_addr);
+
+    pcep_obj_free_object((struct pcep_object_header *) assoc);
+}
+
+void test_pcep_obj_create_association_ipv6()
+{
+    uint32_t all_assoc_groups = 0xffff;
+    struct in6_addr src;
+    inet_pton(AF_INET6, "2001:db8::8a2e:370:7334", &src);
+
+    struct pcep_object_association_ipv6 *assoc = pcep_obj_create_association_ipv6(false, PCEP_ASSOCIATION_TYPE_SR_POLICY_ASSOCIATION_TYPE, all_assoc_groups, src);
+    CU_ASSERT_PTR_NOT_NULL(assoc);
+    CU_ASSERT_EQUAL(assoc->association_type, PCEP_ASSOCIATION_TYPE_SR_POLICY_ASSOCIATION_TYPE);
+    CU_ASSERT_EQUAL(assoc->association_id, all_assoc_groups);
+    CU_ASSERT_EQUAL(assoc->header.object_class, PCEP_OBJ_CLASS_ASSOCIATION);
+    CU_ASSERT_EQUAL(assoc->header.object_type, PCEP_OBJ_TYPE_ASSOCIATION_IPV6);
+    CU_ASSERT_EQUAL(assoc->src.__in6_u.__u6_addr32[0], (src.__in6_u.__u6_addr32[0]));
+    CU_ASSERT_EQUAL(assoc->src.__in6_u.__u6_addr32[1], (src.__in6_u.__u6_addr32[1]));
+    CU_ASSERT_EQUAL(assoc->src.__in6_u.__u6_addr32[2], (src.__in6_u.__u6_addr32[2]));
+    CU_ASSERT_EQUAL(assoc->src.__in6_u.__u6_addr32[3], (src.__in6_u.__u6_addr32[3]));
+
+    pcep_obj_free_object((struct pcep_object_header *) assoc);
+}
 
 void test_pcep_obj_create_enpoint_ipv4()
 {

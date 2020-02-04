@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include "pcep-tlvs.h"
+#include "pcep-encoding.h"
 
 static struct pcep_object_tlv_header* pcep_tlv_common_create(enum pcep_object_tlv_types type, uint16_t size)
 {
@@ -294,30 +295,34 @@ pcep_tlv_create_nopath_vector(uint32_t error_code)
  * SRPAG (SR Association Group) TLVs
  */
 
-struct pcep_object_tlv_srpag_pol_id_ipv4*
-pcep_tlv_create_srpag_pol_id_ipv4(uint32_t color, struct in_addr end_point)
+struct pcep_object_tlv_srpag_pol_id*
+pcep_tlv_create_srpag_pol_id_ipv4(uint32_t color, struct in_addr* ipv4)
 {
-    struct pcep_object_tlv_srpag_pol_id_ipv4 *tlv =
-            (struct pcep_object_tlv_srpag_pol_id_ipv4 *)
-            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_ID,
-                    sizeof(struct pcep_object_tlv_srpag_pol_id_ipv4));
+    struct pcep_object_tlv_srpag_pol_id *tlv =
+        (struct pcep_object_tlv_srpag_pol_id *)
+        pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_ID,
+                sizeof(struct pcep_object_tlv_srpag_pol_id));
     tlv->color = color;
-    tlv->end_point.s_addr = end_point.s_addr;
+    tlv->is_ipv4=true;
+    memcpy(&tlv->end_point.ipv4.s_addr, ipv4, sizeof(struct in_addr));
 
     return tlv;
 }
-struct pcep_object_tlv_srpag_pol_id_ipv6*
-pcep_tlv_create_srpag_pol_id_ipv6(uint32_t color, struct in6_addr end_point)
+
+struct pcep_object_tlv_srpag_pol_id*
+pcep_tlv_create_srpag_pol_id_ipv6(uint32_t color, struct in6_addr* ipv6)
 {
-    struct pcep_object_tlv_srpag_pol_id_ipv6 *tlv =
-            (struct pcep_object_tlv_srpag_pol_id_ipv6 *)
-            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_ID,
-                    sizeof(struct pcep_object_tlv_srpag_pol_id_ipv6));
+    struct pcep_object_tlv_srpag_pol_id *tlv =
+        (struct pcep_object_tlv_srpag_pol_id *)
+        pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_ID,
+                sizeof(struct pcep_object_tlv_srpag_pol_id));
     tlv->color = color;
-    memcpy(&tlv->end_point, &end_point, sizeof(end_point));
+    tlv->is_ipv4=false;
+    memcpy(&tlv->end_point.ipv6, ipv6, sizeof(struct in6_addr));
 
     return tlv;
 }
+
 
 struct pcep_object_tlv_srpag_pol_name*
 pcep_tlv_create_srpag_pol_name(char* pol_name, uint16_t pol_name_length)
@@ -329,7 +334,10 @@ pcep_tlv_create_srpag_pol_name(char* pol_name, uint16_t pol_name_length)
             (struct pcep_object_tlv_srpag_pol_name *)
             pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_NAME,
                     sizeof(struct pcep_object_tlv_srpag_pol_name));
+    uint16_t length =(normalize_length(pol_name_length) > MAX_POLICY_NAME) ?
+            MAX_POLICY_NAME : pol_name_length;
     memcpy(tlv->name, pol_name, pol_name_length);
+    tlv->name_length=length;
 
     return tlv;
 }

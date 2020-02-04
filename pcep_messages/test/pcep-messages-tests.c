@@ -39,6 +39,11 @@ extern void test_pcep_tlv_create_ipv6_lsp_identifiers(void);
 extern void test_pcep_tlv_create_lsp_error_code(void);
 extern void test_pcep_tlv_create_rsvp_ipv4_error_spec(void);
 extern void test_pcep_tlv_create_rsvp_ipv6_error_spec(void);
+extern void test_pcep_tlv_create_srpag_pol_id_ipv4(void);
+extern void test_pcep_tlv_create_srpag_pol_id_ipv6(void);
+extern void test_pcep_tlv_create_srpag_pol_name(void);
+extern void test_pcep_tlv_create_srpag_cp_id(void);
+extern void test_pcep_tlv_create_srpag_cp_pref(void);
 
 /* functions to be tested from pcep-objects.c */
 extern void pcep_objects_test_setup(void);
@@ -48,6 +53,8 @@ extern void test_pcep_obj_create_rp(void);
 extern void test_pcep_obj_create_nopath(void);
 extern void test_pcep_obj_create_enpoint_ipv4(void);
 extern void test_pcep_obj_create_enpoint_ipv6(void);
+extern void test_pcep_obj_create_association_ipv4(void);
+extern void test_pcep_obj_create_association_ipv6(void);
 extern void test_pcep_obj_create_bandwidth(void);
 extern void test_pcep_obj_create_metric(void);
 extern void test_pcep_obj_create_lspa(void);
@@ -116,6 +123,11 @@ int main(int argc, char **argv)
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_symbolic_path_name", test_pcep_tlv_create_symbolic_path_name);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_ipv4_lsp_identifiers", test_pcep_tlv_create_ipv4_lsp_identifiers);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_ipv6_lsp_identifiers", test_pcep_tlv_create_ipv6_lsp_identifiers);
+    CU_add_test(tlvs_suite, "test_pcep_tlv_create_srpag_pol_id_ipv4", test_pcep_tlv_create_srpag_pol_id_ipv4);
+    CU_add_test(tlvs_suite, "test_pcep_tlv_create_srpag_pol_id_ipv6", test_pcep_tlv_create_srpag_pol_id_ipv6);
+    CU_add_test(tlvs_suite, "test_pcep_tlv_create_srpag_pol_name", test_pcep_tlv_create_srpag_pol_name);
+    CU_add_test(tlvs_suite, "test_pcep_tlv_create_srpag_cp_id", test_pcep_tlv_create_srpag_cp_id);
+    CU_add_test(tlvs_suite, "test_pcep_tlv_create_srpag_cp_pref", test_pcep_tlv_create_srpag_cp_pref);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_lsp_error_code", test_pcep_tlv_create_lsp_error_code);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_rsvp_ipv4_error_spec", test_pcep_tlv_create_rsvp_ipv4_error_spec);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_rsvp_ipv6_error_spec", test_pcep_tlv_create_rsvp_ipv6_error_spec);
@@ -129,6 +141,8 @@ int main(int argc, char **argv)
     CU_add_test(objects_suite, "test_pcep_obj_create_nopath", test_pcep_obj_create_nopath);
     CU_add_test(objects_suite, "test_pcep_obj_create_enpoint_ipv4", test_pcep_obj_create_enpoint_ipv4);
     CU_add_test(objects_suite, "test_pcep_obj_create_enpoint_ipv6", test_pcep_obj_create_enpoint_ipv6);
+    CU_add_test(objects_suite, "test_pcep_obj_create_association_ipv4", test_pcep_obj_create_association_ipv4);
+    CU_add_test(objects_suite, "test_pcep_obj_create_association_ipv6", test_pcep_obj_create_association_ipv6);
     CU_add_test(objects_suite, "test_pcep_obj_create_bandwidth", test_pcep_obj_create_bandwidth);
     CU_add_test(objects_suite, "test_pcep_obj_create_metric", test_pcep_obj_create_metric);
     CU_add_test(objects_suite, "test_pcep_obj_create_lspa", test_pcep_obj_create_lspa);

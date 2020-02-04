@@ -199,18 +199,15 @@ struct pcep_object_tlv_rsvp_error_spec
 };
 
 /* SR Policy Identifier TLV Used in Association Object. draft-barth-pce-segment-routing-policy-cp-04*/
-struct pcep_object_tlv_srpag_pol_id_ipv4
+struct pcep_object_tlv_srpag_pol_id
 {
     struct pcep_object_tlv_header header;
     uint32_t color;
-    struct in_addr end_point;
-};
-/* SR Policy Identifier IPV6 TLV Used in Association Object. draft-barth-pce-segment-routing-policy-cp-04*/
-struct pcep_object_tlv_srpag_pol_id_ipv6
-{
-    struct pcep_object_tlv_header header;
-    uint32_t color;
-    struct in6_addr end_point;
+    bool is_ipv4;
+    union end_point_ {
+        struct in_addr  ipv4;
+        struct in6_addr ipv6;
+    } end_point;
 };
 /*draft-ietf-spring-segment-routing-policy-06*/
 #define MAX_POLICY_NAME 256
@@ -218,6 +215,7 @@ struct pcep_object_tlv_srpag_pol_id_ipv6
 struct pcep_object_tlv_srpag_pol_name
 {
     struct pcep_object_tlv_header header;
+    uint16_t name_length;
     char name[MAX_POLICY_NAME];
 };
 /* SR Candidate Path Id  TLV Used in Association Object. draft-barth-pce-segment-routing-policy-cp-04*/
@@ -281,17 +279,13 @@ struct pcep_object_tlv_nopath_vector*              pcep_tlv_create_nopath_vector
  * SRPAG (SR Association Group) TLVs
  */
 
-struct pcep_object_tlv_srpag_pol_id_ipv4 *pcep_tlv_create_srpag_pol_id_ipv4(uint32_t color, struct in_addr end_point);
-struct pcep_object_tlv_srpag_pol_id_ipv6 *pcep_tlv_create_srpag_pol_id_ipv6(uint32_t color, struct in6_addr end_point);
+struct pcep_object_tlv_srpag_pol_id *pcep_tlv_create_srpag_pol_id_ipv4(uint32_t color, struct in_addr* ipv4);
+struct pcep_object_tlv_srpag_pol_id *pcep_tlv_create_srpag_pol_id_ipv6(uint32_t color, struct in6_addr* ipv6);
 struct pcep_object_tlv_srpag_pol_name *pcep_tlv_create_srpag_pol_name(char* pol_name, uint16_t pol_name_length);
 struct pcep_object_tlv_srpag_cp_id *pcep_tlv_create_srpag_cp_id(uint8_t proto_origin, uint32_t asn, struct in6_addr *in6_addr_with_mapped_ipv4, uint32_t discriminator);
 struct pcep_object_tlv_srpag_cp_pref *pcep_tlv_create_srpag_cp_pref(uint32_t pref);
 
 
-/*
- * utils
- */
-uint8_t get_pad4_bytes(uint32_t length);
 
 
 #ifdef __cplusplus

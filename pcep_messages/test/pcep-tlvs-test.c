@@ -323,7 +323,126 @@ void test_pcep_tlv_create_ipv6_lsp_identifiers()
 
     pcep_obj_free_tlv(&tlv->header);
 }
+void test_pcep_tlv_create_srpag_pol_id_ipv4()
+{
+    uint32_t color = 1;
+    struct in_addr src;
+    inet_pton(AF_INET, "192.168.1.2", &src);
 
+    struct pcep_object_tlv_srpag_pol_id *tlv = pcep_tlv_create_srpag_pol_id_ipv4(color, (void*)&src);
+    CU_ASSERT_PTR_NOT_NULL(tlv);
+
+    pcep_encode_tlv(&tlv->header, versioning, tlv_buf);
+    CU_ASSERT_EQUAL(tlv->header.type, (PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_ID));
+    CU_ASSERT_EQUAL(tlv->header.encoded_tlv_length, (8/*draft-barth-pce-segment-routing-policy-cp-04#5.1*/));
+    CU_ASSERT_EQUAL(tlv->color, (color));
+    uint32_t aux_color=htonl(color); // Is color right encoded
+    CU_ASSERT_EQUAL(0, memcmp(&tlv_buf[0]+TLV_HEADER_LENGTH, &aux_color, sizeof(color)));
+    CU_ASSERT_EQUAL(tlv->end_point.ipv4.s_addr, (src.s_addr));
+    // Are simetrical?
+    struct pcep_object_tlv_header *dec_hdr = pcep_decode_tlv(tlv_buf);
+    struct pcep_object_tlv_srpag_pol_id *dec_tlv = (struct pcep_object_tlv_srpag_pol_id*)dec_hdr;
+    CU_ASSERT_EQUAL(tlv->color, dec_tlv->color);
+
+    free(dec_hdr);
+
+
+    pcep_obj_free_tlv(&tlv->header);
+}
+void test_pcep_tlv_create_srpag_pol_id_ipv6()
+{
+
+    uint32_t color = 1;
+    struct in6_addr src;
+    inet_pton(AF_INET6, "2001:db8::8a2e:370:7334", &src);
+
+    struct pcep_object_tlv_srpag_pol_id *tlv = pcep_tlv_create_srpag_pol_id_ipv6(color, &src);
+
+    pcep_encode_tlv(&tlv->header, versioning, tlv_buf);
+    CU_ASSERT_EQUAL(tlv->header.type, (PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_ID));
+    CU_ASSERT_EQUAL(tlv->header.encoded_tlv_length, (20/*draft-barth-pce-segment-routing-policy-cp-04#5.1*/));
+    CU_ASSERT_EQUAL(tlv->color, (color));
+    CU_ASSERT_EQUAL(0, memcmp(&tlv->end_point.ipv6, &src, sizeof(src)));
+
+    uint32_t aux_color= htonl(color);
+    CU_ASSERT_EQUAL(0, memcmp(&aux_color, tlv_buf+TLV_HEADER_LENGTH, sizeof(tlv->color)));
+    // Are simetrical?
+    struct pcep_object_tlv_header *dec_hdr = pcep_decode_tlv(tlv_buf);
+    struct pcep_object_tlv_srpag_pol_id *dec_tlv = (struct pcep_object_tlv_srpag_pol_id*)dec_hdr;
+    CU_ASSERT_EQUAL(tlv->color, dec_tlv->color);
+
+    free(dec_hdr);
+    pcep_obj_free_tlv(&tlv->header);
+}
+void test_pcep_tlv_create_srpag_pol_name()
+{
+   char *pol_name = "Some Pol  Name";
+
+    struct pcep_object_tlv_srpag_pol_name *tlv = pcep_tlv_create_srpag_pol_name(pol_name, strlen(pol_name));
+    CU_ASSERT_PTR_NOT_NULL(tlv);
+
+    pcep_encode_tlv(&tlv->header, versioning, tlv_buf);
+    CU_ASSERT_EQUAL(tlv->header.type, (PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_NAME));
+    CU_ASSERT_EQUAL(tlv->header.encoded_tlv_length, (normalize_length(strlen(pol_name))));
+    CU_ASSERT_EQUAL(0, strcmp(pol_name, (char*)tlv->name));
+
+
+    pcep_obj_free_tlv(&tlv->header);
+}
+
+void test_pcep_tlv_create_srpag_cp_id()
+{
+   //draft-ietf-spring-segment-routing-policy-06.pdf#2.3
+    //10 PCEP, 20 BGP SR Policy, 30 Via Configuration
+    uint8_t proto_origin=10;
+    uint32_t ASN=0;
+    struct in6_addr with_mapped_ipv4;
+    inet_pton(AF_INET6, "::ffff:192.0.2.128", &with_mapped_ipv4);
+    uint32_t discriminator=0;
+
+    struct pcep_object_tlv_srpag_cp_id *tlv = pcep_tlv_create_srpag_cp_id(proto_origin, ASN, &with_mapped_ipv4, discriminator);
+
+    pcep_encode_tlv(&tlv->header, versioning, tlv_buf);
+    CU_ASSERT_EQUAL(tlv->header.type, (PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_ID));
+    CU_ASSERT_EQUAL(tlv->header.encoded_tlv_length, (sizeof(proto_origin)+sizeof(ASN)+sizeof(with_mapped_ipv4)+sizeof(discriminator)));
+    CU_ASSERT_EQUAL(tlv->proto, (proto_origin));
+    CU_ASSERT_EQUAL(tlv->orig_asn, (ASN));
+    CU_ASSERT_EQUAL(0, memcmp(&tlv->orig_addres, &with_mapped_ipv4, sizeof(with_mapped_ipv4)));
+    CU_ASSERT_EQUAL(tlv->discriminator, (discriminator));
+    // Are simetrical?
+    struct pcep_object_tlv_header *dec_hdr = pcep_decode_tlv(tlv_buf);
+    struct pcep_object_tlv_srpag_cp_id *dec_tlv = (struct pcep_object_tlv_srpag_cp_id*)dec_hdr;
+    CU_ASSERT_EQUAL(tlv->proto, dec_tlv->proto);
+
+    free(dec_hdr);
+
+    pcep_obj_free_tlv(&tlv->header);
+}
+
+void test_pcep_tlv_create_srpag_cp_pref()
+{
+		uint32_t preference_default = 100;
+
+    struct pcep_object_tlv_srpag_cp_pref	 *tlv = pcep_tlv_create_srpag_cp_pref(preference_default);
+    CU_ASSERT_PTR_NOT_NULL(tlv);
+
+    pcep_encode_tlv(&tlv->header, versioning, tlv_buf);
+    CU_ASSERT_EQUAL(tlv->header.type, (PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_PREFERENCE));
+    printf(" encoded lenftg vs sizeof pref (%d) vs (%ld)\n",tlv->header.encoded_tlv_length, sizeof(preference_default) );
+    CU_ASSERT_EQUAL(tlv->header.encoded_tlv_length, sizeof(preference_default));
+    CU_ASSERT_EQUAL(tlv->preference, (preference_default));
+    uint32_t aux_pref=htonl(preference_default); // Is pref right encoded
+    CU_ASSERT_EQUAL(0, memcmp(tlv_buf+TLV_HEADER_LENGTH, &aux_pref, sizeof(preference_default)));
+    // Are simetrical?
+    struct pcep_object_tlv_header *dec_hdr = pcep_decode_tlv(tlv_buf);
+    struct pcep_object_tlv_srpag_cp_pref *dec_tlv = (struct pcep_object_tlv_srpag_cp_pref*)dec_hdr;
+    CU_ASSERT_EQUAL(tlv->preference, dec_tlv->preference);
+
+    free(dec_hdr);
+
+
+    pcep_obj_free_tlv(&tlv->header);
+}
 void test_pcep_tlv_create_lsp_error_code()
 {
     struct pcep_object_tlv_lsp_error_code *tlv =

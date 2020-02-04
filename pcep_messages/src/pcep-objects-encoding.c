@@ -803,7 +803,7 @@ struct pcep_object_header *pcep_decode_obj_association(struct pcep_object_header
     {
         struct pcep_object_association_ipv4 *obj = (struct pcep_object_association_ipv4 *)
                 common_object_create(hdr, sizeof(struct pcep_object_association_ipv4));
-        obj->R_flag = (obj_buf[4] & OBJECT_ASSOCIATION_FLAG_R);
+        obj->R_flag = (obj_buf[3] & OBJECT_ASSOCIATION_FLAG_R);
         obj->association_type = ntohs(uint16_ptr[2]);
         obj->association_id = ntohs(uint16_ptr[3]);
         obj->src.s_addr = ntohl(uint32_ptr[2]);
@@ -815,7 +815,7 @@ struct pcep_object_header *pcep_decode_obj_association(struct pcep_object_header
         struct pcep_object_association_ipv6 *obj = (struct pcep_object_association_ipv6 *)
                 common_object_create(hdr, sizeof(struct pcep_object_association_ipv6));
 
-        obj->R_flag = (obj_buf[4] & OBJECT_ASSOCIATION_FLAG_R);
+        obj->R_flag = (obj_buf[3] & OBJECT_ASSOCIATION_FLAG_R);
         obj->association_type = ntohs(uint16_ptr[2]);
         obj->association_id = ntohs(uint16_ptr[3]);
         obj->src.__in6_u.__u6_addr32[0] = ntohl(uint32_ptr[2]);
