@@ -49,10 +49,11 @@ extern void test_pcep_tlv_create_srpag_cp_pref(void);
 extern void pcep_objects_test_setup(void);
 extern void pcep_objects_test_teardown(void);
 extern void test_pcep_obj_create_open(void);
+extern void test_pcep_obj_create_open_with_tlvs(void);
 extern void test_pcep_obj_create_rp(void);
 extern void test_pcep_obj_create_nopath(void);
-extern void test_pcep_obj_create_enpoint_ipv4(void);
-extern void test_pcep_obj_create_enpoint_ipv6(void);
+extern void test_pcep_obj_create_endpoint_ipv4(void);
+extern void test_pcep_obj_create_endpoint_ipv6(void);
 extern void test_pcep_obj_create_association_ipv4(void);
 extern void test_pcep_obj_create_association_ipv6(void);
 extern void test_pcep_obj_create_bandwidth(void);
@@ -137,10 +138,11 @@ int main(int argc, char **argv)
             NULL, NULL, /* suite setup and cleanup function pointers */
             pcep_objects_test_setup, pcep_objects_test_teardown);
     CU_add_test(objects_suite, "test_pcep_obj_create_open", test_pcep_obj_create_open);
+    CU_add_test(objects_suite, "test_pcep_obj_create_open", test_pcep_obj_create_open_with_tlvs);
     CU_add_test(objects_suite, "test_pcep_obj_create_rp", test_pcep_obj_create_rp);
     CU_add_test(objects_suite, "test_pcep_obj_create_nopath", test_pcep_obj_create_nopath);
-    CU_add_test(objects_suite, "test_pcep_obj_create_enpoint_ipv4", test_pcep_obj_create_enpoint_ipv4);
-    CU_add_test(objects_suite, "test_pcep_obj_create_enpoint_ipv6", test_pcep_obj_create_enpoint_ipv6);
+    CU_add_test(objects_suite, "test_pcep_obj_create_enpoint_ipv4", test_pcep_obj_create_endpoint_ipv4);
+    CU_add_test(objects_suite, "test_pcep_obj_create_enpoint_ipv6", test_pcep_obj_create_endpoint_ipv6);
     CU_add_test(objects_suite, "test_pcep_obj_create_association_ipv4", test_pcep_obj_create_association_ipv4);
     CU_add_test(objects_suite, "test_pcep_obj_create_association_ipv6", test_pcep_obj_create_association_ipv6);
     CU_add_test(objects_suite, "test_pcep_obj_create_bandwidth", test_pcep_obj_create_bandwidth);

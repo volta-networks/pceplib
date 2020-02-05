@@ -56,6 +56,13 @@ pcep_obj_create_open(uint8_t keepalive, uint8_t deadtimer, uint8_t sid, double_l
 struct pcep_object_rp*
 pcep_obj_create_rp(uint8_t priority, bool flag_r, bool flag_b, bool flag_s, uint32_t reqid, double_linked_list *tlv_list)
 {
+    if (priority > OBJECT_RP_MAX_PRIORITY)
+    {
+        pcep_log(LOG_INFO, "Error creating RP object, invalid priority [%d], max priority [%d].\n",
+                priority, OBJECT_RP_MAX_PRIORITY);
+        return NULL;
+    }
+
     struct pcep_object_rp *obj =
             (struct pcep_object_rp *) pcep_obj_create_common_with_tlvs(
                     sizeof(struct pcep_object_rp),
@@ -135,7 +142,7 @@ pcep_obj_create_association_ipv6(bool r_flag, uint16_t association_type, uint16_
     return obj;
 }
 struct pcep_object_endpoints_ipv4*
-pcep_obj_create_enpoint_ipv4(const struct in_addr* src_ipv4, const struct in_addr* dst_ipv4)
+pcep_obj_create_endpoint_ipv4(const struct in_addr* src_ipv4, const struct in_addr* dst_ipv4)
 {
     if (src_ipv4 == NULL || dst_ipv4 == NULL)
     {
@@ -154,7 +161,7 @@ pcep_obj_create_enpoint_ipv4(const struct in_addr* src_ipv4, const struct in_add
 }
 
 struct pcep_object_endpoints_ipv6*
-pcep_obj_create_enpoint_ipv6(const struct in6_addr* src_ipv6, const struct in6_addr* dst_ipv6)
+pcep_obj_create_endpoint_ipv6(const struct in6_addr* src_ipv6, const struct in6_addr* dst_ipv6)
 {
     if (src_ipv6 == NULL || dst_ipv6 == NULL)
     {
@@ -495,13 +502,13 @@ pcep_obj_create_ro_subobj_sr_common(enum pcep_sr_subobj_nai nai_type, bool loose
 }
 
 struct pcep_ro_subobj_sr*
-pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, uint32_t sid)
+pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, uint32_t sid, bool c_flag, bool m_flag)
 {
     /* According to draft-ietf-pce-segment-routing-16#section-5.2.1
      * If NT=0, the F bit MUST be 1, the S bit MUST be zero and the
      * Length MUST be 8. */
     struct pcep_ro_subobj_sr *obj = pcep_obj_create_ro_subobj_sr_common(
-            PCEP_SR_SUBOBJ_NAI_ABSENT, loose_hop, true, false, false, false);
+            PCEP_SR_SUBOBJ_NAI_ABSENT, loose_hop, true, false, c_flag, m_flag);
     obj->sid = sid;
 
     return obj;
@@ -527,7 +534,12 @@ pcep_obj_create_ro_subobj_sr_ipv4_node(bool loose_hop, bool sid_absent, bool c_f
         obj->sid= sid;
     }
     obj->nai_list = dll_initialize();
-    dll_append(obj->nai_list, ipv4_node_id);
+    /* Since the IP has to be stored in the list, copy it so the caller doesnt
+     * have any restrictions about the type of memory used externally for the IP.
+     * This memory will be freed with the object is freed. */
+    struct in_addr *ipv4_node_id_copy = malloc(sizeof(struct in_addr));
+    ipv4_node_id_copy->s_addr = ipv4_node_id->s_addr;
+    dll_append(obj->nai_list, ipv4_node_id_copy);
 
     return obj;
 }
@@ -552,7 +564,9 @@ pcep_obj_create_ro_subobj_sr_ipv6_node(bool loose_hop, bool sid_absent, bool c_f
         obj->sid = sid;
     }
     obj->nai_list = dll_initialize();
-    dll_append(obj->nai_list, ipv6_node_id);
+    struct in_addr *ipv6_node_id_copy = malloc(sizeof(struct in6_addr));
+    memcpy(ipv6_node_id_copy, ipv6_node_id, sizeof(struct in6_addr));
+    dll_append(obj->nai_list, ipv6_node_id_copy);
 
     return obj;
 }
@@ -577,8 +591,12 @@ pcep_obj_create_ro_subobj_sr_ipv4_adj(bool loose_hop, bool sid_absent, bool c_fl
         obj->sid = sid;
     }
     obj->nai_list = dll_initialize();
-    dll_append(obj->nai_list, local_ipv4);
-    dll_append(obj->nai_list, remote_ipv4);
+    struct in_addr *local_ipv4_copy = malloc(sizeof(struct in_addr));
+    struct in_addr *remote_ipv4_copy = malloc(sizeof(struct in_addr));
+    local_ipv4_copy->s_addr = local_ipv4->s_addr;
+    remote_ipv4_copy->s_addr = remote_ipv4->s_addr;
+    dll_append(obj->nai_list, local_ipv4_copy);
+    dll_append(obj->nai_list, remote_ipv4_copy);
 
     return obj;
 }
@@ -603,8 +621,12 @@ pcep_obj_create_ro_subobj_sr_ipv6_adj(bool loose_hop, bool sid_absent, bool c_fl
         obj->sid = sid;
     }
     obj->nai_list = dll_initialize();
-    dll_append(obj->nai_list, local_ipv6);
-    dll_append(obj->nai_list, remote_ipv6);
+    struct in_addr *local_ipv6_copy = malloc(sizeof(struct in6_addr));
+    struct in_addr *remote_ipv6_copy = malloc(sizeof(struct in6_addr));
+    memcpy(local_ipv6_copy, local_ipv6, sizeof(struct in6_addr));
+    memcpy(remote_ipv6_copy, remote_ipv6, sizeof(struct in6_addr));
+    dll_append(obj->nai_list, local_ipv6_copy);
+    dll_append(obj->nai_list, remote_ipv6_copy);
 
     return obj;
 }
@@ -669,13 +691,17 @@ pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
         obj->sid = sid;
     }
     obj->nai_list = dll_initialize();
-    dll_append(obj->nai_list, local_ipv6);
+    struct in_addr *local_ipv6_copy = malloc(sizeof(struct in6_addr));
+    memcpy(local_ipv6_copy, local_ipv6, sizeof(struct in6_addr));
+    dll_append(obj->nai_list, local_ipv6_copy);
 
     uint32_t *local_if_id_copy = malloc(sizeof(uint32_t));
     *local_if_id_copy = local_if_id;
     dll_append(obj->nai_list, local_if_id_copy);
 
-    dll_append(obj->nai_list, remote_ipv6);
+    struct in_addr *remote_ipv6_copy = malloc(sizeof(struct in6_addr));
+    memcpy(remote_ipv6_copy, remote_ipv6, sizeof(struct in6_addr));
+    dll_append(obj->nai_list, remote_ipv6_copy);
 
     uint32_t *remote_if_id_copy = malloc(sizeof(uint32_t));
     *remote_if_id_copy = remote_if_id;

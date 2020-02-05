@@ -156,7 +156,8 @@ pcep_tlv_create_ipv4_lsp_identifiers(struct in_addr *ipv4_tunnel_sender,
     tlv->ipv4_tunnel_endpoint.s_addr = ipv4_tunnel_endpoint->s_addr;
     tlv->lsp_id = lsp_id;
     tlv->tunnel_id = tunnel_id;
-    tlv->extended_tunnel_id.s_addr = extended_tunnel_id->s_addr ;
+    tlv->extended_tunnel_id.s_addr =
+            (extended_tunnel_id == NULL ? INADDR_ANY : extended_tunnel_id->s_addr );
 
     return tlv;
 }

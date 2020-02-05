@@ -106,6 +106,7 @@ struct pcep_object_open
 #define OBJECT_RP_FLAG_R 0x08
 #define OBJECT_RP_FLAG_B 0x10
 #define OBJECT_RP_FLAG_O 0x20
+#define OBJECT_RP_MAX_PRIORITY 0x07
 
 struct pcep_object_rp
 {
@@ -171,7 +172,7 @@ enum pcep_nopath_tlv_err_codes {
     PCEP_NOPATH_TLV_ERR_UNKNOWN_SRC = 3
 };
 
-#define OBJECT_NOPATH_FLAG_C 0x01
+#define OBJECT_NOPATH_FLAG_C 0x80
 
 struct pcep_object_nopath
 {
@@ -417,7 +418,7 @@ enum pcep_ro_subobj_types
     RO_SUBOBJ_TYPE_IPV6 = 2,       /* RFC 3209 */
     RO_SUBOBJ_TYPE_LABEL = 3,      /* RFC 3209 */
     RO_SUBOBJ_TYPE_UNNUM = 4,      /* RFC 3477 */
-    RO_SUBOBJ_TYPE_ASN = 32,       /* RFC 3209 */
+    RO_SUBOBJ_TYPE_ASN = 32,       /* RFC 3209, Section 4.3.3.4 */
     RO_SUBOBJ_TYPE_SR = 36,        /* draft-ietf-pce-segment-routing-16 */
     RO_SUBOBJ_TYPE_SR_DRAFT07 = 5  /* draft-ietf-pce-segment-routing-07 */
 };
@@ -539,8 +540,8 @@ struct pcep_object_notify*              pcep_obj_create_notify      (enum pcep_n
 struct pcep_object_nopath*              pcep_obj_create_nopath      (uint8_t ni, bool flag_c, enum pcep_nopath_tlv_err_codes error_code);
 struct pcep_object_association_ipv4*    pcep_obj_create_association_ipv4(bool r_flag, uint16_t association_type, uint16_t association_id, struct in_addr src);
 struct pcep_object_association_ipv6*    pcep_obj_create_association_ipv6(bool r_flag, uint16_t association_type, uint16_t association_id, struct in6_addr src);
-struct pcep_object_endpoints_ipv4*      pcep_obj_create_enpoint_ipv4(const struct in_addr* src_ipv4, const struct in_addr* dst_ipv4);
-struct pcep_object_endpoints_ipv6*      pcep_obj_create_enpoint_ipv6(const struct in6_addr* src_ipv6, const struct in6_addr* dst_ipv6);
+struct pcep_object_endpoints_ipv4*      pcep_obj_create_endpoint_ipv4(const struct in_addr* src_ipv4, const struct in_addr* dst_ipv4);
+struct pcep_object_endpoints_ipv6*      pcep_obj_create_endpoint_ipv6(const struct in6_addr* src_ipv6, const struct in6_addr* dst_ipv6);
 struct pcep_object_bandwidth*           pcep_obj_create_bandwidth   (float bandwidth);
 struct pcep_object_metric*              pcep_obj_create_metric      (enum pcep_metric_types type, bool flag_b, bool flag_c, float value);
 struct pcep_object_lspa*                pcep_obj_create_lspa        (uint32_t exclude_any, uint32_t include_any, uint32_t include_all,
@@ -584,18 +585,24 @@ struct pcep_ro_subobj_asn*      pcep_obj_create_ro_subobj_asn      (uint16_t asn
  *  - The PCC MUST set these fields according to its local policy and MPLS
  *    forwarding rules.
  *  - If the M flag is false then the C bit MUST be false. */
-struct pcep_ro_subobj_sr*     pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, uint32_t sid);
+struct pcep_ro_subobj_sr*     pcep_obj_create_ro_subobj_sr_nonai(bool loose_hop, uint32_t sid, bool c_flag, bool m_flag);
+
+    /* The ipv4_node_id will be copied internally */
 struct pcep_ro_subobj_sr*     pcep_obj_create_ro_subobj_sr_ipv4_node(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
                                                                      uint32_t sid, struct in_addr *ipv4_node_id);
+    /* The ipv6_node_id will be copied internally */
 struct pcep_ro_subobj_sr*     pcep_obj_create_ro_subobj_sr_ipv6_node(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
                                                                      uint32_t sid, struct in6_addr *ipv6_node_id);
+    /* The local_ipv4 and remote_ipv4 will be copied internally */
 struct pcep_ro_subobj_sr*     pcep_obj_create_ro_subobj_sr_ipv4_adj(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
                                                                     uint32_t sid, struct in_addr *local_ipv4, struct in_addr *remote_ipv4);
+    /* The local_ipv6 and remote_ipv6 will be copied internally */
 struct pcep_ro_subobj_sr*     pcep_obj_create_ro_subobj_sr_ipv6_adj(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
                                                                     uint32_t sid, struct in6_addr *local_ipv6, struct in6_addr *remote_ipv6);
 struct pcep_ro_subobj_sr*     pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
                                                                                uint32_t sid, uint32_t local_node_id, uint32_t local_if_id,
                                                                                uint32_t remote_node_id, uint32_t remote_if_id);
+    /* The local_ipv6 and remote_ipv6 will be copied internally */
 struct pcep_ro_subobj_sr*     pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(bool loose_hop, bool sid_absent, bool c_flag, bool m_flag,
                                                                               uint32_t sid, struct in6_addr *local_ipv6, uint32_t local_if_id,
                                                                               struct in6_addr *remote_ipv6, uint32_t remote_if_id);

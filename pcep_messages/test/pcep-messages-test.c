@@ -72,7 +72,7 @@ void test_pcep_msg_create_request()
 
     struct pcep_object_rp *rp_obj = pcep_obj_create_rp(0, false, false, false, 10, NULL);
     struct in_addr src_addr, dst_addr;
-    struct pcep_object_endpoints_ipv4 *ipv4_obj = pcep_obj_create_enpoint_ipv4(&src_addr, &dst_addr);
+    struct pcep_object_endpoints_ipv4 *ipv4_obj = pcep_obj_create_endpoint_ipv4(&src_addr, &dst_addr);
     message = pcep_msg_create_request(rp_obj, ipv4_obj, NULL);
 
     CU_ASSERT_PTR_NOT_NULL(message);
@@ -90,7 +90,7 @@ void test_pcep_msg_create_request()
 
     /* The objects get deleted with the message, so they need to be created again */
     rp_obj = pcep_obj_create_rp(0, false, false, false, 10, NULL);
-    ipv4_obj = pcep_obj_create_enpoint_ipv4(&src_addr, &dst_addr);
+    ipv4_obj = pcep_obj_create_endpoint_ipv4(&src_addr, &dst_addr);
     struct pcep_object_bandwidth *bandwidth_obj = pcep_obj_create_bandwidth(4.2);
     double_linked_list *obj_list = dll_initialize();
     dll_append(obj_list, bandwidth_obj);

@@ -253,7 +253,8 @@ uint16_t pcep_encode_obj_notify(struct pcep_object_header *hdr, struct pcep_vers
 uint16_t pcep_encode_obj_nopath(struct pcep_object_header *hdr, struct pcep_versioning *versioning, uint8_t *obj_body_buf)
 {
     struct pcep_object_nopath *nopath = (struct pcep_object_nopath *) hdr;
-    obj_body_buf[0] = ((nopath->ni << 1) | ((nopath->flag_c == true) ? OBJECT_NOPATH_FLAG_C : 0x00));
+    obj_body_buf[0] = nopath->ni;
+    obj_body_buf[1] = ((nopath->flag_c == true) ? OBJECT_NOPATH_FLAG_C : 0x00);
 
     return LENGTH_1WORD;
 }
@@ -305,10 +306,10 @@ uint16_t pcep_encode_obj_endpoints(struct pcep_object_header *hdr, struct pcep_v
         uint32_ptr[2] = htonl(ipv6->src_ipv6.__in6_u.__u6_addr32[2]);
         uint32_ptr[3] = htonl(ipv6->src_ipv6.__in6_u.__u6_addr32[3]);
 
-        uint32_ptr[0] = htonl(ipv6->dst_ipv6.__in6_u.__u6_addr32[0]);
-        uint32_ptr[1] = htonl(ipv6->dst_ipv6.__in6_u.__u6_addr32[1]);
-        uint32_ptr[2] = htonl(ipv6->dst_ipv6.__in6_u.__u6_addr32[2]);
-        uint32_ptr[3] = htonl(ipv6->dst_ipv6.__in6_u.__u6_addr32[3]);
+        uint32_ptr[4] = htonl(ipv6->dst_ipv6.__in6_u.__u6_addr32[0]);
+        uint32_ptr[5] = htonl(ipv6->dst_ipv6.__in6_u.__u6_addr32[1]);
+        uint32_ptr[6] = htonl(ipv6->dst_ipv6.__in6_u.__u6_addr32[2]);
+        uint32_ptr[7] = htonl(ipv6->dst_ipv6.__in6_u.__u6_addr32[3]);
 
         return LENGTH_8WORDS;
     }
@@ -490,8 +491,8 @@ uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioni
             struct pcep_ro_subobj_unnum *unum = (struct pcep_ro_subobj_unnum*) ro_subobj;
             index += 2; /* increment past 2 reserved bytes */
             uint32_ptr = (uint32_t *) (obj_body_buf + index);
-            uint32_ptr[0] = htonl(unum->interface_id);
-            uint32_ptr[1] = htonl(unum->router_id.s_addr);
+            uint32_ptr[0] = htonl(unum->router_id.s_addr);
+            uint32_ptr[1] = htonl(unum->interface_id);
             *length_ptr = LENGTH_3WORDS;
             index += LENGTH_2WORDS;
         }
@@ -529,19 +530,19 @@ uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioni
                                      (sr_subobj->flag_c == true ? OBJECT_SUBOBJ_SR_FLAG_C : 0x00) |
                                      (sr_subobj->flag_m == true ? OBJECT_SUBOBJ_SR_FLAG_M : 0x00));
             uint32_ptr = (uint32_t *) (obj_body_buf + index);
-            uint8_t sid_length = 0;
+            /* Start with LENGTH_1WORD for the SubObj HDR + NT + Flags */
+            uint8_t sr_base_length = LENGTH_1WORD;
             /* If the sid_absent flag is true, then dont convert the sid */
             if (sr_subobj->flag_s == false)
             {
                 uint32_ptr[0] = htonl(sr_subobj->sid);
                 index += LENGTH_1WORD;
                 uint32_ptr = (uint32_t *) (obj_body_buf + index);
-                sid_length = LENGTH_1WORD;
+                sr_base_length += LENGTH_1WORD;
             }
 
             /* The lengths below need to include:
-             * - LENGTH_1WORD: for the SubObj HDR + NT + Flags
-             * - sid_length: set above if the SID is present
+             * - sr_base_length: set above to include SR SubObj Hdr and the SID if present
              * - Number of bytes written to the NAI
              * The index will only be incremented below by the number of bytes written to
              * the NAI, since the RO SR subobj header and the SID have already been written. */
@@ -552,13 +553,13 @@ uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioni
             {
             case PCEP_SR_SUBOBJ_NAI_IPV4_NODE:
                 uint32_ptr[0] = htonl(((struct in_addr *) nai_node->data)->s_addr);
-                *length_ptr = sid_length + LENGTH_2WORDS;
+                *length_ptr = sr_base_length + LENGTH_1WORD;
                 index += LENGTH_1WORD;
                 break;
 
             case PCEP_SR_SUBOBJ_NAI_IPV6_NODE:
                 encode_ipv6((struct in6_addr *) nai_node->data, uint32_ptr);
-                *length_ptr = sid_length + LENGTH_5WORDS;
+                *length_ptr = sr_base_length + LENGTH_4WORDS;
                 index += LENGTH_4WORDS;
                 break;
 
@@ -570,7 +571,7 @@ uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioni
                 uint32_ptr[2] = htonl(((struct in_addr *) nai_node->data)->s_addr);
                 nai_node = nai_node->next_node;
                 uint32_ptr[3] = htonl(((struct in_addr *) nai_node->data)->s_addr);
-                *length_ptr = sid_length + LENGTH_5WORDS;
+                *length_ptr = sr_base_length + LENGTH_4WORDS;
                 index += LENGTH_4WORDS;
                 break;
 
@@ -578,33 +579,34 @@ uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioni
                 uint32_ptr[0] = htonl(((struct in_addr *) nai_node->data)->s_addr);
                 nai_node = nai_node->next_node;
                 uint32_ptr[1] = htonl(((struct in_addr *) nai_node->data)->s_addr);
-                *length_ptr = sid_length + LENGTH_3WORDS;
+                *length_ptr = sr_base_length + LENGTH_2WORDS;
                 index += LENGTH_2WORDS;
                 break;
 
             case PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY:
                 encode_ipv6((struct in6_addr *) nai_node->data, uint32_ptr);
                 nai_node = nai_node->next_node;
-                encode_ipv6((struct in6_addr *) nai_node->data, uint32_ptr + LENGTH_4WORDS);
-                *length_ptr = sid_length + LENGTH_9WORDS;
+                encode_ipv6((struct in6_addr *) nai_node->data, uint32_ptr + 4);
+                *length_ptr = sr_base_length + LENGTH_8WORDS;
                 index += LENGTH_8WORDS;
                 break;
 
             case PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY:
                 encode_ipv6((struct in6_addr *) nai_node->data, uint32_ptr);
                 nai_node = nai_node->next_node;
-                uint32_ptr[LENGTH_4WORDS] = htonl(((struct in_addr *) nai_node->data)->s_addr);
+                uint32_ptr[4] = htonl(((struct in_addr *) nai_node->data)->s_addr);
                 nai_node = nai_node->next_node;
-                encode_ipv6((struct in6_addr *) nai_node->data, uint32_ptr + LENGTH_5WORDS);
+                encode_ipv6((struct in6_addr *) nai_node->data, uint32_ptr + 5);
                 nai_node = nai_node->next_node;
-                uint32_ptr[LENGTH_9WORDS] = htonl(((struct in_addr *) nai_node->data)->s_addr);
-                *length_ptr = sid_length + LENGTH_11WORDS;
+                uint32_ptr[9] = htonl(((struct in_addr *) nai_node->data)->s_addr);
+                *length_ptr = sr_base_length + LENGTH_10WORDS;
                 index += LENGTH_10WORDS;
                 break;
 
             case PCEP_SR_SUBOBJ_NAI_ABSENT:
-                *length_ptr = sid_length;
+                *length_ptr = sr_base_length;
                 break;
+
             default:
                 break;
             }
@@ -613,7 +615,6 @@ uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioni
 
         default:
             break;
-
         }
     }
 

@@ -55,21 +55,19 @@ int setup_signals()
 
 void send_pce_report_message(pcep_session *session)
 {
-    uint32_t srp_id_number = 0x10203040;
-    //uint32_t plsp_id = 0x00050607;
-    uint32_t plsp_id = 42;
-    enum pcep_lsp_operational_status lsp_status = PCEP_LSP_OPERATIONAL_ACTIVE;
-    bool c_flag = true;  /* Lsp was created by PcInitiate msg */
-    bool a_flag = true;  /* Admin state, active / inactive */
-    bool r_flag = false; /* true if LSP has been removed */
-    bool s_flag = true;  /* Syncronization */
-    bool d_flag = true;  /* Delegate LSP to PCE */
-    struct in_addr *sr_subobj_ipv4 = malloc(sizeof(struct in_addr));
     double_linked_list *report_list = dll_initialize();
 
-    /* Create the SRP object */
+    /* SRP Path Setup Type TLV */
+    struct pcep_object_tlv_path_setup_type *pst_tlv = pcep_tlv_create_path_setup_type(SR_TE_PST);
+    double_linked_list *srp_tlv_list = dll_initialize();
+    dll_append(srp_tlv_list, pst_tlv);
+
+    /*
+     * Create the SRP object
+     */
+    uint32_t srp_id_number = 0x10203040;
     struct pcep_object_header *obj =
-            (struct pcep_object_header*) pcep_obj_create_srp(false, srp_id_number, NULL);
+            (struct pcep_object_header*) pcep_obj_create_srp(false, srp_id_number, srp_tlv_list);
     if (obj == NULL)
     {
         pcep_log(LOG_WARNING, "send_pce_report_message SRP object was NULL\n");
@@ -77,9 +75,33 @@ void send_pce_report_message(pcep_session *session)
     }
     dll_append(report_list, obj);
 
-    /* Create the LSP object */
+    /* LSP Symbolic path name TLV */
+    char symbolic_path_name[] = "second-default";
+    struct pcep_object_tlv_symbolic_path_name *spn_tlv = pcep_tlv_create_symbolic_path_name(symbolic_path_name, 14);
+    double_linked_list *lsp_tlv_list = dll_initialize();
+    dll_append(lsp_tlv_list, spn_tlv);
+
+    /* LSP IPv4 LSP ID TLV */
+    struct in_addr ipv4_tunnel_sender;
+    struct in_addr ipv4_tunnel_endpoint;
+    inet_pton(AF_INET, "9.9.1.1", &ipv4_tunnel_sender);
+    inet_pton(AF_INET, "9.9.2.1", &ipv4_tunnel_endpoint);
+    struct pcep_object_tlv_ipv4_lsp_identifier *ipv4_lsp_id_tlv =
+            pcep_tlv_create_ipv4_lsp_identifiers(&ipv4_tunnel_sender, &ipv4_tunnel_endpoint, 42, 1, NULL);
+    dll_append(lsp_tlv_list, ipv4_lsp_id_tlv);
+
+    /*
+     * Create the LSP object
+     */
+    uint32_t plsp_id = 42;
+    enum pcep_lsp_operational_status lsp_status = PCEP_LSP_OPERATIONAL_ACTIVE;
+    bool c_flag = false;  /* Lsp was created by PcInitiate msg */
+    bool a_flag = false;  /* Admin state, active / inactive */
+    bool r_flag = false;  /* true if LSP has been removed */
+    bool s_flag = true;   /* Synchronization */
+    bool d_flag = false;  /* Delegate LSP to PCE */
     obj = (struct pcep_object_header *)
-            pcep_obj_create_lsp(plsp_id, lsp_status, c_flag, a_flag, r_flag, s_flag, d_flag, NULL);
+            pcep_obj_create_lsp(plsp_id, lsp_status, c_flag, a_flag, r_flag, s_flag, d_flag, lsp_tlv_list);
     if (obj == NULL)
     {
         pcep_log(LOG_WARNING, "send_pce_report_message LSP object was NULL\n");
@@ -87,19 +109,29 @@ void send_pce_report_message(pcep_session *session)
     }
     dll_append(report_list, obj);
 
-    /* Create the ERO sub-object */
+    /* Create 2 ERO NONAI sub-objects */
+    double_linked_list* ero_subobj_list = dll_initialize();
+    struct pcep_ro_subobj_sr *sr_subobj_nonai1 = pcep_obj_create_ro_subobj_sr_nonai(false, 503808, true, true);
+    dll_append(ero_subobj_list, sr_subobj_nonai1);
+
+    struct pcep_ro_subobj_sr *sr_subobj_nonai2 = pcep_obj_create_ro_subobj_sr_nonai(false, 1867776, true, true);
+    dll_append(ero_subobj_list, sr_subobj_nonai2);
+
+    /* Create ERO IPv4 node sub-object */
+    struct in_addr *sr_subobj_ipv4 = malloc(sizeof(struct in_addr));
     inet_pton(AF_INET, "9.9.9.1", sr_subobj_ipv4);
-    struct pcep_ro_subobj_sr *subobj =
+    struct pcep_ro_subobj_sr *sr_subobj_ipv4node =
             pcep_obj_create_ro_subobj_sr_ipv4_node(false, false, false, true, 16060, sr_subobj_ipv4);
-    if (subobj == NULL)
+    if (sr_subobj_ipv4node == NULL)
     {
         pcep_log(LOG_WARNING, "send_pce_report_message ERO sub-object was NULL\n");
         return;
     }
-    double_linked_list* ero_subobj_list = dll_initialize();
-    dll_append(ero_subobj_list, subobj);
+    dll_append(ero_subobj_list, sr_subobj_ipv4node);
 
-    /* Create the ERO object */
+    /*
+     * Create the ERO object
+     */
     obj = (struct pcep_object_header *) pcep_obj_create_ero(ero_subobj_list);
     if (obj == NULL)
     {
@@ -156,10 +188,10 @@ int main(int argc, char **argv)
     config->pcep_msg_versioning->draft_ietf_pce_segment_routing_07 = true;
     config->src_pcep_port = 4999;
     pcep_session *session = connect_pce(config, &host_address);
-    free(config);
     if (session == NULL)
     {
         pcep_log(LOG_WARNING, "Error in connect_pce.\n");
+        destroy_pcep_configuration(config);
         return -1;
     }
 
@@ -182,6 +214,7 @@ int main(int argc, char **argv)
 
     pcep_log(LOG_NOTICE, "Disconnecting from PCE\n");
     disconnect_pce(session);
+    destroy_pcep_configuration(config);
 
     if (!destroy_pcc())
     {
