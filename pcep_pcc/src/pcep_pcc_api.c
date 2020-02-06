@@ -14,6 +14,7 @@
 
 #include "pcep-messages.h"
 #include "pcep_pcc_api.h"
+#include "pcep_utils_counters.h"
 #include "pcep_utils_logging.h"
 
 /* Not using an array here since the enum pcep_event_type indeces go into the 100's */
@@ -122,6 +123,8 @@ void send_message(pcep_session *session, struct pcep_message *msg, bool free_aft
     pcep_encode_message(msg, session->pcc_config.pcep_msg_versioning);
     socket_comm_session_send_message(session->socket_comm_session,
             (char *) msg->encoded_message, msg->encoded_message_length, free_after_send);
+
+    increment_message_tx_counters(session, msg);
 
     if (free_after_send == true)
     {
@@ -240,3 +243,23 @@ const char *get_event_type_str(int event_type)
         break;
     }
 }
+
+void dump_pcep_session_counters(pcep_session *session)
+{
+    /* Update the counters group name so that the PCE session connected time is accurate */
+    time_t now = time(NULL);
+    char counters_name[MAX_COUNTER_STR_LENGTH];
+    char ip_str[20];
+    inet_ntop(AF_INET, &session->socket_comm_session->dest_sock_addr.sin_addr, ip_str, 20);
+    sprintf(counters_name, "PCEP Session [%d], connected to [%s] for [%ld seconds]",
+            session->session_id, ip_str, (now - session->time_connected));
+    strcpy(session->pcep_session_counters->counters_group_name, counters_name);
+
+    dump_counters_group_to_log(session->pcep_session_counters);
+}
+
+void reset_pcep_session_counters(pcep_session *session)
+{
+    reset_group_counters(session->pcep_session_counters);
+}
+

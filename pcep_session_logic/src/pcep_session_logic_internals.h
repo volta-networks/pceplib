@@ -45,6 +45,19 @@ typedef struct pcep_session_event_
 
 } pcep_session_event;
 
+/* Event Counters counter-id definitions */
+typedef enum pcep_session_counters_event_counter_ids
+{
+    PCEP_EVENT_COUNTER_ID_PCC_CONNECT         = 0,
+    PCEP_EVENT_COUNTER_ID_PCE_CONNECT         = 1,
+    PCEP_EVENT_COUNTER_ID_PCC_DISCONNECT      = 2,
+    PCEP_EVENT_COUNTER_ID_PCE_DISCONNECT      = 3,
+    PCEP_EVENT_COUNTER_ID_TIMER_KEEPALIVE     = 4,
+    PCEP_EVENT_COUNTER_ID_TIMER_DEADTIMER     = 5,
+    PCEP_EVENT_COUNTER_ID_TIMER_OPENKEEPWAIT  = 6,
+    PCEP_EVENT_COUNTER_ID_TIMER_PCREQWAIT     = 7
+
+} pcep_session_counters_event_counter_ids;
 
 /* functions implemented in pcep_session_logic_loop.c */
 void *session_logic_loop(void *data);
@@ -61,5 +74,9 @@ void send_pcep_error(pcep_session *session,
                      enum pcep_error_type error_type,
                      enum pcep_error_value error_value);
 
+/* defined in pcep_session_logic_counters.c */
+void create_session_counters(pcep_session *session);
+void increment_event_counters(pcep_session *session, pcep_session_counters_event_counter_ids counter_id);
+void increment_message_rx_counters(pcep_session *session, struct pcep_message *message);
 
 #endif /* SRC_PCEPSESSIONLOGICINTERNALS_H_ */

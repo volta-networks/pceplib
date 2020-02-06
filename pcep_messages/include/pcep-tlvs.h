@@ -48,7 +48,7 @@ enum pcep_object_tlv_types
     PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_NAME = 61,  /*TDB3 draft-barth-pce-segment-routing-policy-cp-04 */
     PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_ID = 62,  /*TDB4 draft-barth-pce-segment-routing-policy-cp-04 */
     PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_PREFERENCE = 63,  /*TDB5 draft-barth-pce-segment-routing-policy-cp-04 */
-
+    PCEP_OBJ_TLV_TYPE_UNKNOWN
 };
 
 struct pcep_object_tlv_header

@@ -419,8 +419,9 @@ enum pcep_ro_subobj_types
     RO_SUBOBJ_TYPE_LABEL = 3,      /* RFC 3209 */
     RO_SUBOBJ_TYPE_UNNUM = 4,      /* RFC 3477 */
     RO_SUBOBJ_TYPE_ASN = 32,       /* RFC 3209, Section 4.3.3.4 */
+    RO_SUBOBJ_TYPE_SR_DRAFT07 = 5, /* draft-ietf-pce-segment-routing-07 */
     RO_SUBOBJ_TYPE_SR = 36,        /* draft-ietf-pce-segment-routing-16 */
-    RO_SUBOBJ_TYPE_SR_DRAFT07 = 5  /* draft-ietf-pce-segment-routing-07 */
+    RO_SUBOBJ_UNKNOWN
 };
 
 struct pcep_object_ro
@@ -486,7 +487,8 @@ enum pcep_sr_subobj_nai
     PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY = 3,
     PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY = 4,
     PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY = 5,
-    PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY = 6
+    PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY = 6,
+    PCEP_SR_SUBOBJ_NAI_UNKNOWN
 };
 
 #define OBJECT_SUBOBJ_SR_FLAG_M 0x01

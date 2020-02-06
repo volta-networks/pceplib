@@ -33,7 +33,7 @@ EXTERNAL_DEPS = $(patsubst %,$(PCEP_UTILS_INC_DIR)/%,$(_DEPS))  \
                 $(patsubst %,$(PCEP_TIMERS_INC_DIR)/%,$(_DEPS)) \
                 $(patsubst %,$(PCEP_SOCKETCOMM_INC_DIR)/%,$(_DEPS))
 
-_OBJ = pcep_session_logic.o pcep_session_logic_loop.o pcep_session_logic_states.o
+_OBJ = pcep_session_logic.o pcep_session_logic_loop.o pcep_session_logic_states.o pcep_session_logic_counters.o
 OBJ = $(patsubst %,$(OBJ_DIR)/%,$(_OBJ))
 
 _TEST_OBJ = pcep_session_logic_tests.o pcep_session_logic_test.o pcep_session_logic_loop_test.o pcep_session_logic_states_test.o

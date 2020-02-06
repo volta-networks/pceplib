@@ -79,8 +79,6 @@ pcep_msg_read(int sock_fd)
     int ret;
     uint8_t buffer[PCEP_MAX_SIZE];
     uint16_t buffer_read = 0;
-    double_linked_list* msg_list = dll_initialize();
-    struct pcep_message* msg = NULL;
 
     bzero(&buffer, PCEP_MAX_SIZE);
 
@@ -88,11 +86,14 @@ pcep_msg_read(int sock_fd)
 
     if(ret < 0) {
         pcep_log(LOG_INFO, "pcep_msg_read: Failed to read from socket errno [%d %s]\n", errno, strerror(errno));
-        return msg_list;
+        return NULL;
     } else if(ret == 0) {
         pcep_log(LOG_INFO, "pcep_msg_read: Remote shutdown\n");
-        return msg_list;
+        return NULL;
     }
+
+    double_linked_list* msg_list = dll_initialize();
+    struct pcep_message* msg = NULL;
 
     while((ret - buffer_read) >= MESSAGE_HEADER_LENGTH) {
 

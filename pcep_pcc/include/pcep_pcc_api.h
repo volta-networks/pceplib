@@ -52,6 +52,8 @@ pcep_session *connect_pce(pcep_configuration *config, struct in_addr *pce_ip);
 void disconnect_pce(pcep_session *session);
 void send_message(pcep_session *session, struct pcep_message *msg, bool free_after_send);
 
+void dump_pcep_session_counters(pcep_session *session);
+void reset_pcep_session_counters(pcep_session *session);
 
 /*
  * Event Queue functions

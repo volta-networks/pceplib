@@ -18,6 +18,7 @@
  */
 
 bool pcc_active_ = true;
+pcep_session *session = NULL;
 
 void handle_signal_action(int sig_number)
 {
@@ -26,10 +27,15 @@ void handle_signal_action(int sig_number)
         pcep_log(LOG_INFO, "SIGINT was caught!\n");
         pcc_active_ = false;
     }
-    else if (sig_number == SIGPIPE)
+    else if (sig_number == SIGUSR1)
     {
-        pcep_log(LOG_INFO, "SIGPIPE was caught!\n");
-        pcc_active_ = false;
+        pcep_log(LOG_INFO, "SIGUSR1 was caught, dumping counters\n");
+        dump_pcep_session_counters(session);
+    }
+    else if (sig_number == SIGUSR2)
+    {
+        pcep_log(LOG_INFO, "SIGUSR2 was caught, reseting counters\n");
+        reset_pcep_session_counters(session);
     }
 }
 
@@ -44,7 +50,14 @@ int setup_signals()
         perror("sigaction()");
         return -1;
     }
-    if (sigaction(SIGPIPE, &sa, 0) != 0)
+
+    if (sigaction(SIGUSR1, &sa, 0) != 0)
+    {
+        perror("sigaction()");
+        return -1;
+    }
+
+    if (sigaction(SIGUSR2, &sa, 0) != 0)
     {
         perror("sigaction()");
         return -1;
@@ -118,10 +131,10 @@ void send_pce_report_message(pcep_session *session)
     dll_append(ero_subobj_list, sr_subobj_nonai2);
 
     /* Create ERO IPv4 node sub-object */
-    struct in_addr *sr_subobj_ipv4 = malloc(sizeof(struct in_addr));
-    inet_pton(AF_INET, "9.9.9.1", sr_subobj_ipv4);
+    struct in_addr sr_subobj_ipv4;
+    inet_pton(AF_INET, "9.9.9.1", &sr_subobj_ipv4);
     struct pcep_ro_subobj_sr *sr_subobj_ipv4node =
-            pcep_obj_create_ro_subobj_sr_ipv4_node(false, false, false, true, 16060, sr_subobj_ipv4);
+            pcep_obj_create_ro_subobj_sr_ipv4_node(false, false, false, true, 16060, &sr_subobj_ipv4);
     if (sr_subobj_ipv4node == NULL)
     {
         pcep_log(LOG_WARNING, "send_pce_report_message ERO sub-object was NULL\n");
@@ -187,7 +200,7 @@ int main(int argc, char **argv)
     pcep_configuration *config = create_default_pcep_configuration();
     config->pcep_msg_versioning->draft_ietf_pce_segment_routing_07 = true;
     config->src_pcep_port = 4999;
-    pcep_session *session = connect_pce(config, &host_address);
+    session = connect_pce(config, &host_address);
     if (session == NULL)
     {
         pcep_log(LOG_WARNING, "Error in connect_pce.\n");

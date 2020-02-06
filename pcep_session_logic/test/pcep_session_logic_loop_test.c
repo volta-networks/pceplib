@@ -81,7 +81,7 @@ void test_session_logic_msg_ready_handler()
     pcep_session session;
     bzero(&session, sizeof(pcep_session));
     session.session_id = 100;
-    CU_ASSERT_EQUAL(session_logic_msg_ready_handler(&session, fd), -1);
+    CU_ASSERT_EQUAL(session_logic_msg_ready_handler(&session, fd), 0);
     CU_ASSERT_EQUAL(session_logic_handle_->session_event_queue->num_entries, 0);
 
     /* A pcep_session_event should be created */

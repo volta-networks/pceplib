@@ -58,16 +58,15 @@ static void verify_pcep_obj_header2(uint8_t obj_class, uint8_t obj_type, uint16_
         CU_FAIL("Object Header Class");
     }
 
-    uint8_t exp8 = (obj_type << 4) & 0xf0;
-    uint8_t found8 = obj_buf[1];
-    if (exp8 != found8)
+    uint8_t found8 = (obj_buf[1] >> 4) & 0x0f;
+    if (obj_type != found8)
     {
         fprintf(stderr, "Test failure obj_class [%d] obj_type expected [%d] found [%d]\n",
-                obj_class, exp8, found8);
+                obj_class, obj_type, found8);
         CU_FAIL("Object Header Type");
     }
 
-    exp8 = 0;
+    uint8_t exp8 = 0;
     found8 = obj_buf[1] & 0x0f;
     if (exp8 != found8)
     {

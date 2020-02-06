@@ -33,9 +33,9 @@ static pcep_session_event *create_session_event(pcep_session *session)
 
 /* A function pointer to this function is passed to pcep_socket_comm
  * for each pcep_session creation, so it will be called whenever
- * messages are ready to be read. this function will be called
+ * messages are ready to be read. This function will be called
  * by the socket_comm thread.
- * this function will marshal the read PCEP message and give it
+ * This function will decode the read PCEP message and give it
  * to the session_logic_loop so it can be handled by the session_logic
  * state machine. */
 int session_logic_msg_ready_handler(void *data, int socket_fd)
@@ -60,12 +60,11 @@ int session_logic_msg_ready_handler(void *data, int socket_fd)
     double_linked_list *msg_list = pcep_msg_read(socket_fd);
     if (msg_list == NULL || msg_list->num_entries == 0)
     {
-        pcep_log(LOG_WARNING, "Error marshaling PCEP message\n");
-        send_pcep_error(session, PCEP_ERRT_CAPABILITY_NOT_SUPPORTED, PCEP_ERRV_UNASSIGNED);
+        pcep_log(LOG_WARNING, "Error decoding PCEP message, connection closed\n");
         pthread_mutex_unlock(&(session_logic_handle_->session_logic_mutex));
         dll_destroy(msg_list);
 
-        return -1;
+        return 0;
     }
 
     /* Just logging the first of potentially several messages received */

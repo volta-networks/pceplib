@@ -16,13 +16,26 @@ extern void test_remove_first_node(void);
 extern void test_remove_first_node_equals(void);
 extern void test_remove_node(void);
 
-extern void test_empty_dl_list();
-extern void test_null_dl_list_handle();
-extern void test_dll_prepend_data();
-extern void test_dll_append_data();
-extern void test_dll_delete_first_node();
-extern void test_dll_delete_last_node();
-extern void test_dll_delete_node();
+extern void test_empty_dl_list(void);
+extern void test_null_dl_list_handle(void);
+extern void test_dll_prepend_data(void);
+extern void test_dll_append_data(void);
+extern void test_dll_delete_first_node(void);
+extern void test_dll_delete_last_node(void);
+extern void test_dll_delete_node(void);
+
+extern void test_create_counters_group(void);
+extern void test_create_counters_subgroup(void);
+extern void test_add_counters_subgroup(void);
+extern void test_create_subgroup_counter(void);
+extern void test_delete_counters_group(void);
+extern void test_delete_counters_subgroup(void);
+extern void test_reset_group_counters(void);
+extern void test_reset_subgroup_counters(void);
+extern void test_increment_counter(void);
+extern void test_increment_subgroup_counter(void);
+extern void test_dump_counters_group_to_log(void);
+extern void test_dump_counters_subgroup_to_log(void);
 
 int main(int argc, char **argv)
 {
@@ -52,6 +65,20 @@ int main(int argc, char **argv)
     CU_add_test(test_dl_list_suite, "test_dll_delete_first_node", test_dll_delete_first_node);
     CU_add_test(test_dl_list_suite, "test_dll_delete_last_node", test_dll_delete_last_node);
     CU_add_test(test_dl_list_suite, "test_dll_delete_node", test_dll_delete_node);
+
+    CU_pSuite test_counters_suite = CU_add_suite("PCEP Utils Counters Test Suite", NULL, NULL);
+    CU_add_test(test_counters_suite, "test_create_counters_group", test_create_counters_group);
+    CU_add_test(test_counters_suite, "test_create_counters_subgroup", test_create_counters_subgroup);
+    CU_add_test(test_counters_suite, "test_add_counters_subgroup", test_add_counters_subgroup);
+    CU_add_test(test_counters_suite, "test_create_subgroup_counter", test_create_subgroup_counter);
+    CU_add_test(test_counters_suite, "test_delete_counters_group", test_delete_counters_group);
+    CU_add_test(test_counters_suite, "test_delete_counters_subgroup", test_delete_counters_subgroup);
+    CU_add_test(test_counters_suite, "test_reset_group_counters", test_reset_group_counters);
+    CU_add_test(test_counters_suite, "test_reset_subgroup_counters", test_reset_subgroup_counters);
+    CU_add_test(test_counters_suite, "test_increment_counter", test_increment_counter);
+    CU_add_test(test_counters_suite, "test_increment_subgroup_counter", test_increment_subgroup_counter);
+    CU_add_test(test_counters_suite, "test_dump_counters_group_to_log", test_dump_counters_group_to_log);
+    CU_add_test(test_counters_suite, "test_dump_counters_subgroup_to_log", test_dump_counters_subgroup_to_log);
 
     CU_basic_set_mode(CU_BRM_VERBOSE);
     CU_basic_run_tests();

@@ -181,7 +181,7 @@ void handle_reads(pcep_socket_comm_handle *socket_comm_handle)
             else if (comm_session->received_bytes < 0)
             {
                 /* TODO should we call conn_except_notifier() here ? */
-                pcep_log(LOG_WARNING, "Error on socket [%d] : [%d][%s]\n",
+                pcep_log(LOG_WARNING, "Error on socket [%d] : errno [%d][%s]\n",
                         comm_session->socket_fd, errno, strerror(errno));
             }
         }

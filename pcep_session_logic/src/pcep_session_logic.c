@@ -18,6 +18,7 @@
 #include "pcep_session_logic.h"
 #include "pcep_session_logic_internals.h"
 #include "pcep_timers.h"
+#include "pcep_utils_counters.h"
 #include "pcep_utils_ordered_list.h"
 #include "pcep_utils_logging.h"
 
@@ -29,7 +30,7 @@ pcep_session_logic_handle *session_logic_handle_ = NULL;
 pcep_event_queue *session_logic_event_queue_ = NULL;
 int session_id_ = 0;
 
-void create_and_send_open(pcep_session *session); /* forward decl */
+void create_and_send_open(pcep_session *session);    /* forward decl */
 
 int session_id_compare_function(void *list_entry, void *new_entry)
 {
@@ -188,6 +189,8 @@ void destroy_pcep_session(pcep_session *session)
         cancel_timer(session->timer_id_pc_req_wait);
     }
 
+    delete_counters_group(session->pcep_session_counters);
+
     queue_destroy_with_data(session->num_unknown_messages_time_queue);
 
     pcep_log(LOG_INFO, "[%ld-%ld] pcep_session [%d] destroyed\n", time(NULL), pthread_self(), session->session_id);
@@ -269,6 +272,9 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
     }
     session->session_state = SESSION_STATE_TCP_CONNECTED;
 
+    session->time_connected = time(NULL);
+    create_session_counters(session);
+
     create_and_send_open(session);
 
     session->timer_id_open_keep_wait = create_timer(config->keep_alive_seconds, session);
@@ -287,9 +293,11 @@ void session_send_message(pcep_session *session, struct pcep_message *message)
             message->encoded_message_length,
             true);
 
+    increment_message_tx_counters(session, message);
+
     /* The message->encoded_message will be freed in
      * socket_comm_session_send_message() once sent.
-     * Setting to NULL here so pcep_msg_free_message() doesnt free it */
+     * Setting to NULL here so pcep_msg_free_message() does not free it */
     message->encoded_message = NULL;
     pcep_msg_free_message(message);
 }

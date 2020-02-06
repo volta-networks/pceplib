@@ -29,8 +29,8 @@ void send_keep_alive(pcep_session *session)
 {
     struct pcep_message *keep_alive_msg = pcep_msg_create_keepalive();
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send keep_alive message len [%d] for session_id [%d]\n",
-            time(NULL), pthread_self(), keep_alive_msg->encoded_message_length, session->session_id);
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send keep_alive message for session_id [%d]\n",
+            time(NULL), pthread_self(), session->session_id);
 
     session_send_message(session, keep_alive_msg);
 
@@ -47,8 +47,8 @@ void send_pcep_error_with_object(pcep_session *session, enum pcep_error_type err
     dll_append(obj_list, object);
     struct pcep_message *error_msg = pcep_msg_create_error_with_objects(error_type, error_value, obj_list);
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send error message with object [%d][%d] len [%d] for session_id [%d]\n",
-            time(NULL), pthread_self(), error_type, error_value, error_msg->encoded_message_length, session->session_id);
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send error message with object [%d][%d] for session_id [%d]\n",
+            time(NULL), pthread_self(), error_type, error_value, session->session_id);
 
     session_send_message(session, error_msg);
 }
@@ -58,8 +58,8 @@ void send_pcep_error(pcep_session *session, enum pcep_error_type error_type, enu
 {
     struct pcep_message *error_msg = pcep_msg_create_error(error_type, error_value);
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send error message [%d][%d] len [%d] for session_id [%d]\n",
-            time(NULL), pthread_self(), error_type, error_value, error_msg->encoded_message_length, session->session_id);
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send error message [%d][%d] for session_id [%d]\n",
+            time(NULL), pthread_self(), error_type, error_value, session->session_id);
 
     session_send_message(session, error_msg);
 }
@@ -486,6 +486,7 @@ void handle_timer_event(pcep_session_event *event)
     if (event->expired_timer_id == session->timer_id_dead_timer)
     {
         session->timer_id_dead_timer = TIMER_ID_NOT_SET;
+        increment_event_counters(session, PCEP_EVENT_COUNTER_ID_TIMER_DEADTIMER);
         close_pcep_session_with_reason(session, PCEP_CLOSE_REASON_DEADTIMER);
         enqueue_event(session, PCE_DEAD_TIMER_EXPIRED, NULL);
         return;
@@ -493,6 +494,7 @@ void handle_timer_event(pcep_session_event *event)
     else if(event->expired_timer_id == session->timer_id_keep_alive)
     {
         session->timer_id_keep_alive = TIMER_ID_NOT_SET;
+        increment_event_counters(session, PCEP_EVENT_COUNTER_ID_TIMER_KEEPALIVE);
         send_keep_alive(session);
         return;
     }
@@ -507,6 +509,7 @@ void handle_timer_event(pcep_session_event *event)
         {
             /* close the TCP session */
             pcep_log(LOG_INFO, "handle_timer_event open_keep_wait timer expired for session [%d]\n", session->session_id);
+            increment_event_counters(session, PCEP_EVENT_COUNTER_ID_TIMER_OPENKEEPWAIT);
             socket_comm_session_close_tcp_after_write(session->socket_comm_session);
             session->session_state = SESSION_STATE_INITIALIZED;
             session->timer_id_open_keep_wait = TIMER_ID_NOT_SET;
@@ -518,6 +521,7 @@ void handle_timer_event(pcep_session_event *event)
         if (event->expired_timer_id == session->timer_id_pc_req_wait)
         {
             pcep_log(LOG_INFO, "handle_timer_event PCReq_wait timer expired for session [%d]\n", session->session_id);
+            increment_event_counters(session, PCEP_EVENT_COUNTER_ID_TIMER_PCREQWAIT);
             /* TODO is this the right reason?? */
             close_pcep_session_with_reason(session, PCEP_CLOSE_REASON_DEADTIMER);
             session->timer_id_pc_req_wait = TIMER_ID_NOT_SET;
@@ -564,6 +568,7 @@ void handle_socket_comm_event(pcep_session_event *event)
         session->session_state = SESSION_STATE_INITIALIZED;
         socket_comm_session_close_tcp(session->socket_comm_session);
         enqueue_event(session, PCE_CLOSED_SOCKET, NULL);
+        increment_event_counters(session, PCEP_EVENT_COUNTER_ID_PCE_DISCONNECT);
         return;
     }
 
@@ -583,6 +588,8 @@ void handle_socket_comm_event(pcep_session_event *event)
         struct pcep_message *msg = (struct pcep_message *) msg_node->data;
         pcep_log(LOG_INFO, "\t %s message\n", get_message_type_str(msg->msg_header->type));
 
+        increment_message_rx_counters(session, msg);
+
         switch (msg->msg_header->type)
         {
         case PCEP_TYPE_OPEN:
@@ -590,6 +597,7 @@ void handle_socket_comm_event(pcep_session_event *event)
             if (handle_pcep_open(session, msg) == true)
             {
                 enqueue_event(session, MESSAGE_RECEIVED, msg);
+                increment_event_counters(session, PCEP_EVENT_COUNTER_ID_PCE_CONNECT);
                 message_enqueued = true;
             }
             break;
@@ -601,6 +609,7 @@ void handle_socket_comm_event(pcep_session_event *event)
                 cancel_timer(session->timer_id_open_keep_wait);
                 session->timer_id_open_keep_wait = TIMER_ID_NOT_SET;
                 enqueue_event(session, PCC_CONNECTED_TO_PCE, NULL);
+                increment_event_counters(session, PCEP_EVENT_COUNTER_ID_PCC_CONNECT);
             }
             /* The dead_timer was already reset above, so nothing extra to do here */
             break;
@@ -625,6 +634,8 @@ void handle_socket_comm_event(pcep_session_event *event)
             socket_comm_session_close_tcp(session->socket_comm_session);
             /* TODO should we also enqueue the message, so they can see the reasons?? */
             enqueue_event(session, PCE_SENT_PCEP_CLOSE, NULL);
+            /* TODO could this duplicate the disconnect counter with socket close ?? */
+            increment_event_counters(session, PCEP_EVENT_COUNTER_ID_PCE_DISCONNECT);
             break;
 
         case PCEP_TYPE_PCREQ:

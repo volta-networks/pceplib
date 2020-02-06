@@ -121,6 +121,7 @@ typedef struct pcep_session_
     bool pcep_open_received;
     bool pcep_open_rejected;
     bool stateful_pce;
+    time_t time_connected;
     uint64_t lsp_db_version;
     queue_handle *num_unknown_messages_time_queue;
     /* set this flag when finalizing the session */
@@ -130,6 +131,7 @@ typedef struct pcep_session_
     pcep_configuration pcc_config;
     /* Configuration received from the PCE, to be used in the PCC */
     pcep_configuration pce_config;
+    struct counters_group *pcep_session_counters;
 
 } pcep_session;
 
@@ -185,5 +187,10 @@ void close_pcep_session_with_reason(pcep_session *session, enum pcep_close_reaso
 /* Destroy the PCEP session, a PCEP close should have
  * already been sent with close_pcep_session() */
 void destroy_pcep_session(pcep_session *session);
+
+/* Increments transmitted message counters, additionally counters for the objects,
+ * sub-objects, and TLVs in the message will be incremented.  Received counters
+ * are incremented internally. */
+void increment_message_tx_counters(pcep_session *session, struct pcep_message *message);
 
 #endif /* INCLUDE_PCEPSESSIONLOGIC_H_ */
