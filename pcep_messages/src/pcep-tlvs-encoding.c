@@ -32,6 +32,7 @@ uint16_t pcep_encode_tlv_pol_id(struct pcep_object_tlv_header *tlv, struct pcep_
 uint16_t pcep_encode_tlv_pol_name(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf);
 uint16_t pcep_encode_tlv_cpath_id(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf);
 uint16_t pcep_encode_tlv_cpath_preference(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf);
+uint16_t pcep_encode_tlv_vendor_info(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf);
 typedef uint16_t (*tlv_encoder_funcptr)(struct pcep_object_tlv_header *, struct pcep_versioning *versioning, uint8_t *tlv_body_buf);
 
 #define MAX_TLV_ENCODER_INDEX 64
@@ -56,6 +57,7 @@ struct pcep_object_tlv_header *pcep_decode_tlv_pol_id(struct pcep_object_tlv_hea
 struct pcep_object_tlv_header *pcep_decode_tlv_pol_name(struct pcep_object_tlv_header *tlv_hdr, uint8_t *tlv_body_buf);
 struct pcep_object_tlv_header *pcep_decode_tlv_cpath_id(struct pcep_object_tlv_header *tlv_hdr, uint8_t *tlv_body_buf);
 struct pcep_object_tlv_header *pcep_decode_tlv_cpath_preference(struct pcep_object_tlv_header *tlv_hdr, uint8_t *tlv_body_buf);
+struct pcep_object_tlv_header *pcep_decode_tlv_vendor_info(struct pcep_object_tlv_header *tlv_hdr, uint8_t *tlv_body_buf);
 typedef struct pcep_object_tlv_header* (*tlv_decoder_funcptr)(struct pcep_object_tlv_header *tlv_hdr, uint8_t *tlv_body_buf);
 
 tlv_decoder_funcptr tlv_decoders[MAX_TLV_ENCODER_INDEX];
@@ -90,6 +92,7 @@ static void initialize_tlv_coders()
     tlv_encoders[PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_NAME]           =  pcep_encode_tlv_pol_name;
     tlv_encoders[PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_ID]           =  pcep_encode_tlv_cpath_id;
     tlv_encoders[PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_PREFERENCE]   =  pcep_encode_tlv_cpath_preference;
+    tlv_encoders[PCEP_OBJ_TLV_TYPE_VENDOR_INFO]                 =  pcep_encode_tlv_vendor_info;
 
     /* Decoders */
     memset(tlv_decoders, 0, sizeof(tlv_decoder_funcptr) * MAX_TLV_ENCODER_INDEX);
@@ -109,6 +112,7 @@ static void initialize_tlv_coders()
     tlv_decoders[PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_NAME]           =  pcep_decode_tlv_pol_name;
     tlv_decoders[PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_ID]           =  pcep_decode_tlv_cpath_id;
     tlv_decoders[PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_PREFERENCE]   =  pcep_decode_tlv_cpath_preference;
+    tlv_decoders[PCEP_OBJ_TLV_TYPE_VENDOR_INFO]                 =  pcep_decode_tlv_vendor_info;
 }
 
 uint16_t pcep_encode_tlv(struct pcep_object_tlv_header* tlv_hdr, struct pcep_versioning *versioning, uint8_t *buf)
@@ -407,6 +411,7 @@ uint16_t pcep_encode_tlv_pol_id(struct pcep_object_tlv_header *tlv, struct pcep_
     }
 
 }
+
 uint16_t pcep_encode_tlv_pol_name(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf)
 {
     struct pcep_object_tlv_srpag_pol_name *pol_name_tlv = (struct pcep_object_tlv_srpag_pol_name *) tlv;
@@ -414,6 +419,7 @@ uint16_t pcep_encode_tlv_pol_name(struct pcep_object_tlv_header *tlv, struct pce
 
     return normalize_length(pol_name_tlv->name_length);
 }
+
 uint16_t pcep_encode_tlv_cpath_id(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf)
 {
     struct pcep_object_tlv_srpag_cp_id *cpath_id_tlv = (struct pcep_object_tlv_srpag_cp_id *) tlv;
@@ -427,6 +433,7 @@ uint16_t pcep_encode_tlv_cpath_id(struct pcep_object_tlv_header *tlv, struct pce
     return sizeof(cpath_id_tlv->proto)+sizeof(cpath_id_tlv->orig_asn)+sizeof(cpath_id_tlv->orig_addres)+
         sizeof(cpath_id_tlv->discriminator);
 }
+
 uint16_t pcep_encode_tlv_cpath_preference(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf)
 {
     struct pcep_object_tlv_srpag_cp_pref *cpath_pref_tlv = (struct pcep_object_tlv_srpag_cp_pref *) tlv;
@@ -436,6 +443,18 @@ uint16_t pcep_encode_tlv_cpath_preference(struct pcep_object_tlv_header *tlv, st
 
     return sizeof(cpath_pref_tlv->preference);
 }
+
+uint16_t pcep_encode_tlv_vendor_info(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf)
+{
+    struct pcep_object_tlv_vendor_info *vendor_info = (struct pcep_object_tlv_vendor_info *) tlv;
+
+    uint32_t* uint32_ptr = (uint32_t*)tlv_body_buf;
+    uint32_ptr[0] = htonl(vendor_info->enterprise_number);
+    uint32_ptr[1] = htonl(vendor_info->enterprise_specific_info);
+
+    return LENGTH_2WORDS;
+}
+
 /*
  * Decoding functions
  */
@@ -498,12 +517,12 @@ struct pcep_object_tlv_header *pcep_decode_tlv_stateful_pce_capability(struct pc
     struct pcep_object_tlv_stateful_pce_capability *tlv = (struct pcep_object_tlv_stateful_pce_capability *)
         common_tlv_create(tlv_hdr, sizeof(struct pcep_object_tlv_stateful_pce_capability));
 
-    tlv->flag_f_triggered_initial_sync        =  (tlv_body_buf[0] & TLV_STATEFUL_PCE_CAP_FLAG_F);
-    tlv->flag_d_delta_lsp_sync                =  (tlv_body_buf[0] & TLV_STATEFUL_PCE_CAP_FLAG_D);
-    tlv->flag_t_triggered_resync              =  (tlv_body_buf[0] & TLV_STATEFUL_PCE_CAP_FLAG_T);
-    tlv->flag_i_lsp_instantiation_capability  =  (tlv_body_buf[0] & TLV_STATEFUL_PCE_CAP_FLAG_I);
-    tlv->flag_s_include_db_version            =  (tlv_body_buf[0] & TLV_STATEFUL_PCE_CAP_FLAG_U);
-    tlv->flag_u_lsp_update_capability         =  (tlv_body_buf[0] & TLV_STATEFUL_PCE_CAP_FLAG_U);
+    tlv->flag_f_triggered_initial_sync        =  (tlv_body_buf[3] & TLV_STATEFUL_PCE_CAP_FLAG_F);
+    tlv->flag_d_delta_lsp_sync                =  (tlv_body_buf[3] & TLV_STATEFUL_PCE_CAP_FLAG_D);
+    tlv->flag_t_triggered_resync              =  (tlv_body_buf[3] & TLV_STATEFUL_PCE_CAP_FLAG_T);
+    tlv->flag_i_lsp_instantiation_capability  =  (tlv_body_buf[3] & TLV_STATEFUL_PCE_CAP_FLAG_I);
+    tlv->flag_s_include_db_version            =  (tlv_body_buf[3] & TLV_STATEFUL_PCE_CAP_FLAG_S);
+    tlv->flag_u_lsp_update_capability         =  (tlv_body_buf[3] & TLV_STATEFUL_PCE_CAP_FLAG_U);
 
     return (struct pcep_object_tlv_header *) tlv;
 }
@@ -766,3 +785,14 @@ struct pcep_object_tlv_header *pcep_decode_tlv_cpath_preference(struct pcep_obje
     return (struct pcep_object_tlv_header *) tlv;
 }
 
+struct pcep_object_tlv_header *pcep_decode_tlv_vendor_info(struct pcep_object_tlv_header *tlv_hdr, uint8_t *tlv_body_buf)
+{
+    struct pcep_object_tlv_vendor_info *tlv = (struct pcep_object_tlv_vendor_info *)
+        common_tlv_create(tlv_hdr, sizeof(struct pcep_object_tlv_vendor_info));
+
+    uint32_t *uint32_ptr=(uint32_t*)tlv_body_buf;
+    tlv->enterprise_number = ntohl(uint32_ptr[0]);
+    tlv->enterprise_specific_info = ntohl(uint32_ptr[1]);
+
+    return (struct pcep_object_tlv_header *) tlv;
+}

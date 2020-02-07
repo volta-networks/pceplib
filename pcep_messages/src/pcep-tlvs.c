@@ -292,6 +292,20 @@ pcep_tlv_create_nopath_vector(uint32_t error_code)
     return tlv;
 }
 
+struct pcep_object_tlv_vendor_info*
+pcep_tlv_create_vendor_info(uint32_t enterprise_number, uint32_t enterprise_specific_info)
+{
+    struct pcep_object_tlv_vendor_info *tlv =
+            (struct pcep_object_tlv_vendor_info *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_VENDOR_INFO,
+                    sizeof(struct pcep_object_tlv_vendor_info));
+
+    tlv->enterprise_number = enterprise_number;
+    tlv->enterprise_specific_info = enterprise_specific_info;
+
+    return tlv;
+}
+
 /*
  * SRPAG (SR Association Group) TLVs
  */
@@ -371,10 +385,4 @@ pcep_tlv_create_srpag_cp_pref(uint32_t pref)
     tlv->preference=pref;
 
     return tlv;
-}
-
-uint8_t get_pad4_bytes(uint32_t length)
-{
-    return (length % 4 == 0) ? 0 : (4 - (length % 4));
-
 }

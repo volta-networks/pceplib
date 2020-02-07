@@ -467,6 +467,24 @@ void test_pcep_obj_create_lsp()
     pcep_obj_free_object((struct pcep_object_header *) lsp);
 }
 
+void test_pcep_obj_create_vendor_info()
+{
+    uint32_t enterprise_number = 0x01020304;
+    uint32_t enterprise_specific_info = 0x05060708;
+
+    struct pcep_object_vendor_info *obj =
+            pcep_obj_create_vendor_info (enterprise_number, enterprise_specific_info);
+
+    CU_ASSERT_PTR_NOT_NULL(obj);
+    pcep_encode_object(&obj->header, versioning, object_buf);
+    verify_pcep_obj_header(PCEP_OBJ_CLASS_VENDOR_INFO, PCEP_OBJ_TYPE_VENDOR_INFO, &obj->header);
+    uint32_t *uint32_ptr = (uint32_t *) (obj->header.encoded_object + 4);
+    CU_ASSERT_EQUAL(uint32_ptr[0], htonl(enterprise_number));
+    CU_ASSERT_EQUAL(uint32_ptr[1], htonl(enterprise_specific_info));
+
+    pcep_obj_free_object((struct pcep_object_header *) obj);
+}
+
 /* Internal test function. The only difference between pcep_obj_create_ero(),
  * pcep_obj_create_iro(), and pcep_obj_create_rro() is the object_class
  * and the object_type.

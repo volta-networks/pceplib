@@ -333,6 +333,20 @@ pcep_obj_create_lsp(uint32_t plsp_id, enum pcep_lsp_operational_status status,
     return obj;
 }
 
+struct pcep_object_vendor_info*
+pcep_obj_create_vendor_info (uint32_t enterprise_number, uint32_t enterprise_spec_info)
+{
+    struct pcep_object_vendor_info *obj =
+            (struct pcep_object_vendor_info *) pcep_obj_create_common(
+                    sizeof(struct pcep_object_vendor_info),
+                    PCEP_OBJ_CLASS_VENDOR_INFO, PCEP_OBJ_TYPE_VENDOR_INFO);
+
+    obj->enterprise_number = enterprise_number;
+    obj->enterprise_specific_info = enterprise_spec_info;
+
+    return obj;
+}
+
 /* Wrap a list of ro subobjects in a structure with an object header */
 struct pcep_object_ro*
 pcep_obj_create_ero(double_linked_list* ero_list)

@@ -44,6 +44,7 @@ extern void test_pcep_tlv_create_srpag_pol_id_ipv6(void);
 extern void test_pcep_tlv_create_srpag_pol_name(void);
 extern void test_pcep_tlv_create_srpag_cp_id(void);
 extern void test_pcep_tlv_create_srpag_cp_pref(void);
+extern void test_pcep_tlv_create_nopath_vector(void);
 
 /* functions to be tested from pcep-objects.c */
 extern void pcep_objects_test_setup(void);
@@ -64,6 +65,7 @@ extern void test_pcep_obj_create_error(void);
 extern void test_pcep_obj_create_close(void);
 extern void test_pcep_obj_create_srp(void);
 extern void test_pcep_obj_create_lsp(void);
+extern void test_pcep_obj_create_vendor_info(void);
 extern void test_pcep_obj_create_ero(void);
 extern void test_pcep_obj_create_rro(void);
 extern void test_pcep_obj_create_iro(void);
@@ -89,6 +91,9 @@ extern void test_pcep_msg_read_pcep_open_initiate(void);
 extern void test_validate_message_header(void);
 extern void test_validate_message_objects(void);
 extern void test_validate_message_objects_invalid(void);
+extern void test_pcep_msg_read_pcep_open_cisco_pce(void);
+extern void test_pcep_msg_read_pcep_update_cisco_pce(void);
+extern void test_pcep_msg_read_pcep_report_cisco_pcc(void);
 
 
 int main(int argc, char **argv)
@@ -132,6 +137,7 @@ int main(int argc, char **argv)
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_lsp_error_code", test_pcep_tlv_create_lsp_error_code);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_rsvp_ipv4_error_spec", test_pcep_tlv_create_rsvp_ipv4_error_spec);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_rsvp_ipv6_error_spec", test_pcep_tlv_create_rsvp_ipv6_error_spec);
+    CU_add_test(tlvs_suite, "test_pcep_tlv_create_nopath_vector", test_pcep_tlv_create_nopath_vector);
 
     CU_pSuite objects_suite = CU_add_suite_with_setup_and_teardown(
             "PCEP Objects Test Suite",
@@ -153,6 +159,7 @@ int main(int argc, char **argv)
     CU_add_test(objects_suite, "test_pcep_obj_create_close", test_pcep_obj_create_close);
     CU_add_test(objects_suite, "test_pcep_obj_create_srp", test_pcep_obj_create_srp);
     CU_add_test(objects_suite, "test_pcep_obj_create_lsp", test_pcep_obj_create_lsp);
+    CU_add_test(objects_suite, "test_pcep_obj_create_vendor_info", test_pcep_obj_create_vendor_info);
 
     CU_add_test(objects_suite, "test_pcep_obj_create_ero", test_pcep_obj_create_ero);
     CU_add_test(objects_suite, "test_pcep_obj_create_rro", test_pcep_obj_create_rro);
@@ -182,6 +189,9 @@ int main(int argc, char **argv)
     CU_add_test(tools_suite, "test_validate_message_header", test_validate_message_header);
     CU_add_test(tools_suite, "test_validate_message_objects", test_validate_message_objects);
     CU_add_test(tools_suite, "test_validate_message_objects_invalid", test_validate_message_objects_invalid);
+    CU_add_test(tools_suite, "test_pcep_msg_read_pcep_open_cisco_pce", test_pcep_msg_read_pcep_open_cisco_pce);
+    CU_add_test(tools_suite, "test_pcep_msg_read_pcep_update_cisco_pce", test_pcep_msg_read_pcep_update_cisco_pce);
+    CU_add_test(tools_suite, "test_pcep_msg_read_pcep_report_cisco_pcc", test_pcep_msg_read_pcep_report_cisco_pcc);
 
     CU_basic_set_mode(CU_BRM_VERBOSE);
     CU_basic_run_tests();

@@ -80,6 +80,7 @@ void create_session_counters(pcep_session *session)
     create_subgroup_counter(rx_obj_subgroup, PCEP_OBJ_CLASS_CLOSE,       "Object Close");
     create_subgroup_counter(rx_obj_subgroup, PCEP_OBJ_CLASS_LSP,         "Object LSP");
     create_subgroup_counter(rx_obj_subgroup, PCEP_OBJ_CLASS_SRP,         "Object SRP");
+    create_subgroup_counter(rx_obj_subgroup, PCEP_OBJ_CLASS_VENDOR_INFO, "Object Vendor Info");
     create_subgroup_counter(rx_obj_subgroup, PCEP_OBJ_CLASS_ASSOCIATION, "Object Association");
     create_subgroup_counter(rx_obj_subgroup, PCEP_OBJ_CLASS_MAX,         "Object Unknown");
     create_subgroup_counter(rx_obj_subgroup, PCEP_OBJ_CLASS_MAX + 1,     "Object Erroneous");
@@ -139,6 +140,8 @@ void create_session_counters(pcep_session *session)
             create_counters_subgroup("RX TLV counters", COUNTER_SUBGROUP_ID_RX_TLV, PCEP_OBJ_TLV_TYPE_UNKNOWN + 1);
     create_subgroup_counter(rx_tlv_subgroup,
             PCEP_OBJ_TLV_TYPE_NO_PATH_VECTOR,             "TLV No Path Vector");
+    create_subgroup_counter(rx_tlv_subgroup,
+            PCEP_OBJ_TLV_TYPE_VENDOR_INFO,                "TLV Vendor Info");
     create_subgroup_counter(rx_tlv_subgroup,
             PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY,    "TLV Stateful PCE Capability");
     create_subgroup_counter(rx_tlv_subgroup,

@@ -46,6 +46,7 @@ enum pcep_object_classes
     PCEP_OBJ_CLASS_CLOSE = 15,
     PCEP_OBJ_CLASS_LSP = 32,
     PCEP_OBJ_CLASS_SRP = 33,
+    PCEP_OBJ_CLASS_VENDOR_INFO = 34,
     PCEP_OBJ_CLASS_ASSOCIATION = 40,/*draft-ietf-pce-association-group-10*/
     PCEP_OBJ_CLASS_MAX,
 };
@@ -59,7 +60,9 @@ enum pcep_object_types
     PCEP_OBJ_TYPE_ENDPOINT_IPV6 = 2,
     PCEP_OBJ_TYPE_BANDWIDTH_REQ = 1,
     PCEP_OBJ_TYPE_BANDWIDTH_TELSP = 2,
+    PCEP_OBJ_TYPE_BANDWIDTH_CISCO = 5, /* IANA unassigned, but rcvd from Cisco PCE */
     PCEP_OBJ_TYPE_SRP = 1,
+    PCEP_OBJ_TYPE_VENDOR_INFO = 1,
     PCEP_OBJ_TYPE_LSP = 1,
     PCEP_OBJ_TYPE_METRIC = 1,
     PCEP_OBJ_TYPE_ERO = 1,
@@ -405,6 +408,14 @@ struct pcep_object_lsp
     bool flag_c;
 };
 
+/* RFC 7470 */
+struct pcep_object_vendor_info
+{
+    struct pcep_object_header header;
+    uint32_t enterprise_number;
+    uint32_t enterprise_specific_info;
+};
+
 /*
  * Common Route Object sub-object definitions
  * used by ERO, IRO, and RRO
@@ -555,6 +566,7 @@ struct pcep_object_srp*                 pcep_obj_create_srp         (bool lsp_re
 struct pcep_object_lsp*                 pcep_obj_create_lsp         (uint32_t plsp_id, enum pcep_lsp_operational_status status,
                                                                      bool c_flag, bool a_flag, bool r_flag, bool s_flag, bool d_flag,
                                                                      double_linked_list *tlv_list);
+struct pcep_object_vendor_info*         pcep_obj_create_vendor_info (uint32_t enterprise_number, uint32_t enterprise_spec_info);
 
 /* Route Object (Explicit ero, Reported rro, and Include iro) functions
  * First, the sub-objects should be created and appended to a double_linked_list,

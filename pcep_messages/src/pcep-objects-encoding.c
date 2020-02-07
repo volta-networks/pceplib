@@ -16,12 +16,12 @@ void write_object_header(struct pcep_object_header *object_hdr, uint16_t object_
 /*
  * forward declarations for initialize_object_encoders()
  */
-uint16_t pcep_encode_obj_open(struct pcep_object_header *open, struct pcep_versioning *versioning, uint8_t *buf);
+uint16_t pcep_encode_obj_open(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_rp(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_nopath(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_endpoints(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_association(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
-uint16_t pcep_encode_obj_bandwidth(struct pcep_object_header *bandwidth, struct pcep_versioning *versioning, uint8_t *buf);
+uint16_t pcep_encode_obj_bandwidth(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_metric(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_ro(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_lspa(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
@@ -29,8 +29,9 @@ uint16_t pcep_encode_obj_svec(struct pcep_object_header *obj, struct pcep_versio
 uint16_t pcep_encode_obj_notify(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_error(struct pcep_object_header *error, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_close(struct pcep_object_header *close, struct pcep_versioning *versioning, uint8_t *buf);
-uint16_t pcep_encode_obj_srp(struct pcep_object_header *srp, struct pcep_versioning *versioning, uint8_t *buf);
-uint16_t pcep_encode_obj_lsp(struct pcep_object_header *lsp, struct pcep_versioning *versioning, uint8_t *buf);
+uint16_t pcep_encode_obj_srp(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
+uint16_t pcep_encode_obj_lsp(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
+uint16_t pcep_encode_obj_vendor_info(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 typedef uint16_t (*object_encoder_funcptr)(struct pcep_object_header *, struct pcep_versioning *versioning, uint8_t *buf);
 
 #define MAX_OBJECT_ENCODER_INDEX 64
@@ -54,6 +55,7 @@ struct pcep_object_header *pcep_decode_obj_error(struct pcep_object_header *hdr,
 struct pcep_object_header *pcep_decode_obj_close(struct pcep_object_header *hdr, uint8_t *buf);
 struct pcep_object_header *pcep_decode_obj_srp(struct pcep_object_header *hdr, uint8_t *buf);
 struct pcep_object_header *pcep_decode_obj_lsp(struct pcep_object_header *hdr, uint8_t *buf);
+struct pcep_object_header *pcep_decode_obj_vendor_info(struct pcep_object_header *hdr, uint8_t *buf);
 typedef struct pcep_object_header* (*object_decoder_funcptr)(struct pcep_object_header *, uint8_t *buf);
 
 object_decoder_funcptr object_decoders[MAX_OBJECT_ENCODER_INDEX];
@@ -79,7 +81,8 @@ static uint8_t pcep_object_class_lengths[] = {
         0, 0, 0, 0, 0, 0, 0, 0,   /* Object classes 16 - 23 are not used */
         0, 0, 0, 0, 0, 0, 0, 0,   /* Object classes 24 - 31 are not used */
         8,   /* PCEP_OBJ_CLASS_LSP = 32 */
-        12   /* PCEP_OBJ_CLASS_SRP = 33 */
+        12,  /* PCEP_OBJ_CLASS_SRP = 33 */
+        12    /* PCEP_OBJ_CLASS_VENDOR_INFO = 34 */
 };
 
 
@@ -113,6 +116,7 @@ static void initialize_object_coders()
     object_encoders[PCEP_OBJ_CLASS_LSP]        =  pcep_encode_obj_lsp;
     object_encoders[PCEP_OBJ_CLASS_SRP]        =  pcep_encode_obj_srp;
     object_encoders[PCEP_OBJ_CLASS_ASSOCIATION]=  pcep_encode_obj_association;
+    object_encoders[PCEP_OBJ_CLASS_VENDOR_INFO]=  pcep_encode_obj_vendor_info;
 
     /* Decoders */
     memset(object_decoders, 0, sizeof(object_decoder_funcptr) * MAX_OBJECT_ENCODER_INDEX);
@@ -133,6 +137,7 @@ static void initialize_object_coders()
     object_decoders[PCEP_OBJ_CLASS_LSP]        =  pcep_decode_obj_lsp;
     object_decoders[PCEP_OBJ_CLASS_SRP]        =  pcep_decode_obj_srp;
     object_decoders[PCEP_OBJ_CLASS_ASSOCIATION]=  pcep_decode_obj_association;
+    object_decoders[PCEP_OBJ_CLASS_VENDOR_INFO]=  pcep_decode_obj_vendor_info;
 }
 
 /*
@@ -413,6 +418,16 @@ uint16_t pcep_encode_obj_lsp(struct pcep_object_header *hdr, struct pcep_version
                        (lsp->flag_d == true ? OBJECT_LSP_FLAG_D : 0x00));
 
     return LENGTH_1WORD;
+}
+
+uint16_t pcep_encode_obj_vendor_info(struct pcep_object_header *hdr, struct pcep_versioning *versioning, uint8_t *obj_body_buf)
+{
+    struct pcep_object_vendor_info *obj = (struct pcep_object_vendor_info *) hdr;
+    uint32_t *uint32_ptr = (uint32_t *) obj_body_buf;
+    uint32_ptr[0] = htonl(obj->enterprise_number);
+    uint32_ptr[1] = htonl(obj->enterprise_specific_info);
+
+    return LENGTH_2WORDS;
 }
 
 uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioning *versioning, uint8_t *obj_body_buf)
@@ -882,7 +897,7 @@ struct pcep_object_header *pcep_decode_obj_metric(struct pcep_object_header *hdr
     obj->flag_b  =  (obj_buf[2] & OBJECT_METRIC_FLAC_B);
     obj->flag_c  =  (obj_buf[2] & OBJECT_METRIC_FLAC_C);
     obj->type    =  obj_buf[3];
-    obj->type    =  ntohl(*((uint32_t *) (obj_buf + 4)));
+    obj->value    =  ntohl(*((uint32_t *) (obj_buf + 4)));
 
     return (struct pcep_object_header *) obj;
 }
@@ -966,6 +981,15 @@ struct pcep_object_header *pcep_decode_obj_lsp(struct pcep_object_header *hdr, u
     obj->flag_c = (obj_buf[3] & OBJECT_LSP_FLAG_C);
     obj->operational_status = ((obj_buf[3] >> 4) & 0x07);
     obj->plsp_id = ((ntohl(*((uint32_t *) obj_buf)) >> 12) & 0x000fffff);
+
+    return (struct pcep_object_header *) obj;
+}
+
+struct pcep_object_header *pcep_decode_obj_vendor_info(struct pcep_object_header *hdr, uint8_t *obj_buf)
+{
+    struct pcep_object_vendor_info *obj = (struct pcep_object_vendor_info *) common_object_create(hdr, sizeof(struct pcep_object_vendor_info));
+    obj->enterprise_number = ntohl(*((uint32_t *) (obj_buf)));
+    obj->enterprise_specific_info = ntohl(*((uint32_t *) (obj_buf + 4)));
 
     return (struct pcep_object_header *) obj;
 }

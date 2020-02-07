@@ -513,3 +513,22 @@ void test_pcep_tlv_create_rsvp_ipv6_error_spec()
 
     pcep_obj_free_tlv(&tlv->header);
 }
+
+void test_pcep_tlv_create_nopath_vector()
+{
+    uint32_t enterprise_number = 0x01020304;
+    uint32_t enterprise_specific_info = 0x05060708;
+
+    struct pcep_object_tlv_vendor_info *tlv =
+            pcep_tlv_create_vendor_info(enterprise_number, enterprise_specific_info);
+    CU_ASSERT_PTR_NOT_NULL(tlv);
+
+    pcep_encode_tlv(&tlv->header, versioning, tlv_buf);
+    CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_VENDOR_INFO);
+    CU_ASSERT_EQUAL(tlv->header.encoded_tlv_length, 8);
+    uint32_t *uint32_ptr = (uint32_t *) tlv->header.encoded_tlv;
+    CU_ASSERT_EQUAL(uint32_ptr[1], htonl(enterprise_number));
+    CU_ASSERT_EQUAL(uint32_ptr[2], htonl(enterprise_specific_info));
+
+    pcep_obj_free_tlv(&tlv->header);
+}
