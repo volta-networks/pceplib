@@ -418,7 +418,7 @@ uint16_t pcep_encode_obj_lsp(struct pcep_object_header *hdr, struct pcep_version
 uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioning *versioning, uint8_t *obj_body_buf)
 {
     struct pcep_object_ro *ro = (struct pcep_object_ro *) hdr;
-    if (ro->sub_objects == NULL)
+    if (ro == NULL || ro->sub_objects == NULL)
     {
         return 0;
     }
@@ -549,6 +549,10 @@ uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioni
 
             double_linked_list_node *nai_node = (sr_subobj->nai_list == NULL ?
                     NULL : sr_subobj->nai_list->head);
+            if(nai_node == NULL && sr_subobj->nai_type == PCEP_SR_SUBOBJ_NAI_ABSENT){
+                *length_ptr = sr_base_length;
+                continue;
+            }
             switch (sr_subobj->nai_type)
             {
             case PCEP_SR_SUBOBJ_NAI_IPV4_NODE:
@@ -601,10 +605,6 @@ uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioni
                 uint32_ptr[9] = htonl(((struct in_addr *) nai_node->data)->s_addr);
                 *length_ptr = sr_base_length + LENGTH_10WORDS;
                 index += LENGTH_10WORDS;
-                break;
-
-            case PCEP_SR_SUBOBJ_NAI_ABSENT:
-                *length_ptr = sr_base_length;
                 break;
 
             default:
@@ -1010,6 +1010,7 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
         {
             pcep_log(LOG_INFO, "Invalid ro subobj type [%d] length [%d]\n",
                      subobj_type, subobj_length);
+            free(obj);
             return NULL;
         }
 

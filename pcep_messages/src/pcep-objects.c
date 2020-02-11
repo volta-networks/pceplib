@@ -564,7 +564,7 @@ pcep_obj_create_ro_subobj_sr_ipv6_node(bool loose_hop, bool sid_absent, bool c_f
         obj->sid = sid;
     }
     obj->nai_list = dll_initialize();
-    struct in_addr *ipv6_node_id_copy = malloc(sizeof(struct in6_addr));
+    struct in6_addr *ipv6_node_id_copy = malloc(sizeof(struct in6_addr));
     memcpy(ipv6_node_id_copy, ipv6_node_id, sizeof(struct in6_addr));
     dll_append(obj->nai_list, ipv6_node_id_copy);
 
@@ -621,8 +621,8 @@ pcep_obj_create_ro_subobj_sr_ipv6_adj(bool loose_hop, bool sid_absent, bool c_fl
         obj->sid = sid;
     }
     obj->nai_list = dll_initialize();
-    struct in_addr *local_ipv6_copy = malloc(sizeof(struct in6_addr));
-    struct in_addr *remote_ipv6_copy = malloc(sizeof(struct in6_addr));
+    struct in6_addr *local_ipv6_copy = malloc(sizeof(struct in6_addr));
+    struct in6_addr *remote_ipv6_copy = malloc(sizeof(struct in6_addr));
     memcpy(local_ipv6_copy, local_ipv6, sizeof(struct in6_addr));
     memcpy(remote_ipv6_copy, remote_ipv6, sizeof(struct in6_addr));
     dll_append(obj->nai_list, local_ipv6_copy);
@@ -691,7 +691,7 @@ pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
         obj->sid = sid;
     }
     obj->nai_list = dll_initialize();
-    struct in_addr *local_ipv6_copy = malloc(sizeof(struct in6_addr));
+    struct in6_addr *local_ipv6_copy = malloc(sizeof(struct in6_addr));
     memcpy(local_ipv6_copy, local_ipv6, sizeof(struct in6_addr));
     dll_append(obj->nai_list, local_ipv6_copy);
 
@@ -699,7 +699,7 @@ pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
     *local_if_id_copy = local_if_id;
     dll_append(obj->nai_list, local_if_id_copy);
 
-    struct in_addr *remote_ipv6_copy = malloc(sizeof(struct in6_addr));
+    struct in6_addr *remote_ipv6_copy = malloc(sizeof(struct in6_addr));
     memcpy(remote_ipv6_copy, remote_ipv6, sizeof(struct in6_addr));
     dll_append(obj->nai_list, remote_ipv6_copy);
 

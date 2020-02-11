@@ -37,7 +37,7 @@ void ordered_list_destroy(ordered_list_handle *handle)
     }
 
     ordered_list_node *node = handle->head;
-    ordered_list_node *next = node;
+    ordered_list_node *next;
 
     while(node != NULL)
     {
