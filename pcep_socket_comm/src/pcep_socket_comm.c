@@ -150,9 +150,9 @@ socket_comm_session_initialize_with_src(message_received_handler message_handler
     socket_comm_session->socket_fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (socket_comm_session->socket_fd == -1) {
         pcep_log(LOG_WARNING, "Cannot create socket errno [%d %s].\n", errno, strerror(errno));
-        socket_comm_session_teardown(socket_comm_session);
+        socket_comm_session_teardown(socket_comm_session);//socket_comm_session freed inside fn so NOLINT next.
 
-        return NULL;
+        return NULL;//NOLINT(clang-analyzer-unix.Malloc)
     }
 
     socket_comm_handle_->num_active_sessions++;

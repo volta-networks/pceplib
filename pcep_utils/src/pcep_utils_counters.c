@@ -29,8 +29,8 @@ struct counters_group *create_counters_group(const char *group_name, uint16_t ma
 
     struct counters_group *group = malloc(sizeof(struct counters_group));
     memset(group, 0, sizeof(struct counters_group));
-    group->subgroups = malloc(sizeof(struct counters_subgroup) * (max_subgroups + 1));
-    memset(group->subgroups, 0, sizeof(struct counters_subgroup) * (max_subgroups + 1));
+    group->subgroups = malloc(sizeof(struct counters_subgroup*) * (max_subgroups + 1));
+    memset(group->subgroups, 0, sizeof(struct counters_subgroup*) * (max_subgroups + 1));
 
     strcpy(group->counters_group_name, group_name);
     group->max_subgroups = max_subgroups;
@@ -63,8 +63,8 @@ struct counters_subgroup *create_counters_subgroup(const char *subgroup_name, ui
 
     struct counters_subgroup *subgroup = malloc(sizeof(struct counters_subgroup));
     memset(subgroup, 0, sizeof(struct counters_subgroup));
-    subgroup->counters = malloc(sizeof(struct counter) * (max_counters + 1));
-    memset(subgroup->counters, 0, sizeof(struct counter) * (max_counters + 1));
+    subgroup->counters = malloc(sizeof(struct counter*) * (max_counters + 1));
+    memset(subgroup->counters, 0, sizeof(struct counter*) * (max_counters + 1));
 
     strcpy(subgroup->counters_subgroup_name, subgroup_name);
     subgroup->subgroup_id = subgroup_id;

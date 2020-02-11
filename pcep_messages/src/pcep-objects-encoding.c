@@ -549,9 +549,13 @@ uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioni
 
             double_linked_list_node *nai_node = (sr_subobj->nai_list == NULL ?
                     NULL : sr_subobj->nai_list->head);
-            if(nai_node == NULL && sr_subobj->nai_type == PCEP_SR_SUBOBJ_NAI_ABSENT){
-                *length_ptr = sr_base_length;
-                continue;
+            if(nai_node == NULL){
+                if(sr_subobj->nai_type == PCEP_SR_SUBOBJ_NAI_ABSENT){
+                    *length_ptr = sr_base_length;
+                    continue;
+                }else{
+                    return 0;
+                }
             }
             switch (sr_subobj->nai_type)
             {
