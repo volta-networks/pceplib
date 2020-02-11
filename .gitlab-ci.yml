@@ -4,6 +4,7 @@ default:
 stages:
   - build
   - unittest
+  - analyze
 
 # Allow core filed to be generated
 before_script:
@@ -28,3 +29,9 @@ unittest_debian:
       - pcep_utils/core
     when: on_failure
     expire_in: 24 hours
+analyze_debian:
+  stage: analyze
+  script:
+    - ./reports/install.sh
+    - ./reports/analyze.sh
+    - sonar-scanner -Dsonar.host.url=$SONARQUBE_ENDPOINT || true # not critical
