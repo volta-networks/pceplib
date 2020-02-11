@@ -11,3 +11,6 @@ install/*
 /build/
 **/*.swp
 **/*.swo
+reports/clang-tidy-report
+compile_commands.json
+cscope*
