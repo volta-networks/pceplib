@@ -48,7 +48,7 @@ bool run_session_logic()
 {
     if (session_logic_handle_ != NULL)
     {
-        pcep_log(LOG_WARNING, "Session Logic is already initialized.\n");
+        pcep_log(LOG_WARNING, "Session Logic is already initialized.");
         return false;
     }
 
@@ -65,13 +65,13 @@ bool run_session_logic()
     session_logic_event_queue_->event_queue = queue_initialize();
     if (pthread_mutex_init(&(session_logic_event_queue_->event_queue_mutex), NULL) != 0)
     {
-        pcep_log(LOG_ERR, "Cannot initialize session_logic event queue mutex.\n");
+        pcep_log(LOG_ERR, "Cannot initialize session_logic event queue mutex.");
         return false;
     }
 
     if (!initialize_timers(session_logic_timer_expire_handler))
     {
-        pcep_log(LOG_ERR, "Cannot initialize session_logic timers.\n");
+        pcep_log(LOG_ERR, "Cannot initialize session_logic timers.");
         return false;
     }
 
@@ -79,13 +79,13 @@ bool run_session_logic()
 
     if (pthread_mutex_init(&(session_logic_handle_->session_logic_mutex), NULL) != 0)
     {
-        pcep_log(LOG_ERR, "Cannot initialize session_logic mutex.\n");
+        pcep_log(LOG_ERR, "Cannot initialize session_logic mutex.");
         return false;
     }
 
     if(pthread_create(&(session_logic_handle_->session_logic_thread), NULL, session_logic_loop, session_logic_handle_))
     {
-        pcep_log(LOG_ERR, "Cannot initialize session_logic thread.\n");
+        pcep_log(LOG_ERR, "Cannot initialize session_logic thread.");
         return false;
     }
 
@@ -111,7 +111,7 @@ bool stop_session_logic()
 {
     if (session_logic_handle_ == NULL)
     {
-        pcep_log(LOG_WARNING, "Session logic already stopped\n");
+        pcep_log(LOG_WARNING, "Session logic already stopped");
         return false;
     }
 
@@ -152,7 +152,7 @@ void close_pcep_session_with_reason(pcep_session *session, enum pcep_close_reaso
 {
     struct pcep_message* close_msg = pcep_msg_create_close(reason);
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send pcep_close message for session_id [%d]\n",
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send pcep_close message for session_id [%d]",
            time(NULL), pthread_self(), session->session_id);
 
     session_send_message(session, close_msg);
@@ -165,7 +165,7 @@ void destroy_pcep_session(pcep_session *session)
 {
     if (session == NULL)
     {
-        pcep_log(LOG_WARNING, "Cannot destroy NULL session\n");
+        pcep_log(LOG_WARNING, "Cannot destroy NULL session");
         return;
     }
 
@@ -193,7 +193,7 @@ void destroy_pcep_session(pcep_session *session)
 
     queue_destroy_with_data(session->num_unknown_messages_time_queue);
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session [%d] destroyed\n", time(NULL), pthread_self(), session->session_id);
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session [%d] destroyed", time(NULL), pthread_self(), session->session_id);
 
     socket_comm_session_teardown(session->socket_comm_session);
 
@@ -217,13 +217,13 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
 {
     if (config == NULL)
     {
-        pcep_log(LOG_WARNING, "Cannot create pcep session with NULL config\n");
+        pcep_log(LOG_WARNING, "Cannot create pcep session with NULL config");
         return NULL;
     }
 
     if (pce_ip == NULL)
     {
-        pcep_log(LOG_WARNING, "Cannot create pcep session with NULL pce_ip\n");
+        pcep_log(LOG_WARNING, "Cannot create pcep session with NULL pce_ip");
         return NULL;
     }
 
@@ -257,7 +257,7 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
             session);
     if (session->socket_comm_session == NULL)
     {
-        pcep_log(LOG_WARNING, "Cannot establish socket_comm_session.\n");
+        pcep_log(LOG_WARNING, "Cannot establish socket_comm_session.");
         destroy_pcep_session(session);
 
         return NULL;
@@ -265,7 +265,7 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
 
     if (!socket_comm_session_connect_tcp(session->socket_comm_session))
     {
-        pcep_log(LOG_WARNING, "Cannot establish TCP socket.\n");
+        pcep_log(LOG_WARNING, "Cannot establish TCP socket.");
         destroy_pcep_session(session);
 
         return NULL;
@@ -377,7 +377,7 @@ void create_and_send_open(pcep_session *session)
             session->session_id,
             tlv_list);
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send open message: TLVs [%d] for session_id [%d]\n",
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send open message: TLVs [%d] for session_id [%d]",
             time(NULL), pthread_self(), tlv_list->num_entries, session->session_id);
 
     session_send_message(session, open_msg);

@@ -16,13 +16,13 @@ struct counters_group *create_counters_group(const char *group_name, uint16_t ma
 {
     if (group_name == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot create counters group: group_name is NULL.\n");
+        pcep_log(LOG_INFO, "Cannot create counters group: group_name is NULL.");
         return NULL;
     }
 
     if (max_subgroups > MAX_COUNTER_GROUPS)
     {
-        pcep_log(LOG_INFO, "Cannot create counters group: max_subgroups [%d] is larger than max the [%d].\n",
+        pcep_log(LOG_INFO, "Cannot create counters group: max_subgroups [%d] is larger than max the [%d].",
                 max_subgroups, MAX_COUNTER_GROUPS);
         return NULL;
     }
@@ -43,20 +43,20 @@ struct counters_subgroup *create_counters_subgroup(const char *subgroup_name, ui
 {
     if (subgroup_name == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot create counters subgroup: subgroup_name is NULL.\n");
+        pcep_log(LOG_INFO, "Cannot create counters subgroup: subgroup_name is NULL.");
         return NULL;
     }
 
     if (max_counters > MAX_COUNTERS)
     {
-        pcep_log(LOG_INFO, "Cannot create counters subgroup: max_counters [%d] is larger than max the [%d].\n",
+        pcep_log(LOG_INFO, "Cannot create counters subgroup: max_counters [%d] is larger than max the [%d].",
                 max_counters, MAX_COUNTERS);
         return NULL;
     }
 
     if (subgroup_id > MAX_COUNTER_GROUPS)
     {
-        pcep_log(LOG_INFO, "Cannot create counters subgroup: subgroup_id [%d] is larger than max the [%d].\n",
+        pcep_log(LOG_INFO, "Cannot create counters subgroup: subgroup_id [%d] is larger than max the [%d].",
                 subgroup_id, MAX_COUNTER_GROUPS);
         return NULL;
     }
@@ -77,19 +77,19 @@ struct counters_subgroup *clone_counters_subgroup(struct counters_subgroup *subg
 {
     if (subgroup == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot clone counters subgroup: input counters_subgroup is NULL.\n");
+        pcep_log(LOG_INFO, "Cannot clone counters subgroup: input counters_subgroup is NULL.");
         return NULL;
     }
 
     if (subgroup_name == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot clone counters subgroup: subgroup_name is NULL.\n");
+        pcep_log(LOG_INFO, "Cannot clone counters subgroup: subgroup_name is NULL.");
         return NULL;
     }
 
     if (subgroup_id > MAX_COUNTER_GROUPS)
     {
-        pcep_log(LOG_INFO, "Cannot clone counters subgroup: subgroup_id [%d] is larger than max the [%d].\n",
+        pcep_log(LOG_INFO, "Cannot clone counters subgroup: subgroup_id [%d] is larger than max the [%d].",
                 subgroup_id, MAX_COUNTER_GROUPS);
         return NULL;
     }
@@ -112,19 +112,19 @@ bool add_counters_subgroup(struct counters_group *group, struct counters_subgrou
 {
     if (group == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot add counters subgroup: counters_group is NULL.\n");
+        pcep_log(LOG_INFO, "Cannot add counters subgroup: counters_group is NULL.");
         return false;
     }
 
     if (subgroup == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot add counters subgroup: counters_subgroup is NULL.\n");
+        pcep_log(LOG_INFO, "Cannot add counters subgroup: counters_subgroup is NULL.");
         return false;
     }
 
     if (subgroup->subgroup_id > group->max_subgroups)
     {
-        pcep_log(LOG_INFO, "Cannot add counters subgroup: counters_subgroup id [%d] is larger than the group max_subgroups [%d].\n",
+        pcep_log(LOG_INFO, "Cannot add counters subgroup: counters_subgroup id [%d] is larger than the group max_subgroups [%d].",
                 subgroup->subgroup_id, group->max_subgroups);
         return false;
     }
@@ -139,20 +139,20 @@ bool create_subgroup_counter(struct counters_subgroup *subgroup, uint32_t counte
 {
     if (subgroup == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot create subgroup counter: counters_subgroup is NULL.\n");
+        pcep_log(LOG_INFO, "Cannot create subgroup counter: counters_subgroup is NULL.");
         return false;
     }
 
     if (counter_id > subgroup->max_counters)
     {
-        pcep_log(LOG_INFO, "Cannot create subgroup counter: counter_id [%d] is larger than the subgroup max_counters [%d].\n",
+        pcep_log(LOG_INFO, "Cannot create subgroup counter: counter_id [%d] is larger than the subgroup max_counters [%d].",
                 counter_id, subgroup->max_counters);
         return false;
     }
 
     if (counter_name == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot create subgroup counter: counter_name is NULL.\n");
+        pcep_log(LOG_INFO, "Cannot create subgroup counter: counter_name is NULL.");
         return NULL;
     }
 
@@ -171,7 +171,7 @@ bool delete_counters_group(struct counters_group *group)
 {
     if (group == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot delete group counters: counters_group is NULL.\n");
+        pcep_log(LOG_INFO, "Cannot delete group counters: counters_group is NULL.");
         return false;
     }
 
@@ -195,7 +195,7 @@ bool delete_counters_subgroup(struct counters_subgroup *subgroup)
 {
     if (subgroup == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot delete subgroup counters: counters_subgroup is NULL.\n");
+        pcep_log(LOG_INFO, "Cannot delete subgroup counters: counters_subgroup is NULL.");
         return false;
     }
 
@@ -219,7 +219,7 @@ bool reset_group_counters(struct counters_group *group)
 {
     if (group == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot reset group counters: counters_group is NULL.\n");
+        pcep_log(LOG_INFO, "Cannot reset group counters: counters_group is NULL.");
         return false;
     }
 
@@ -242,7 +242,7 @@ bool reset_subgroup_counters(struct counters_subgroup *subgroup)
 {
     if (subgroup == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot reset subgroup counters: counters_subgroup is NULL.\n");
+        pcep_log(LOG_INFO, "Cannot reset subgroup counters: counters_subgroup is NULL.");
         return false;
     }
 
@@ -263,13 +263,13 @@ bool increment_counter(struct counters_group *group, uint16_t subgroup_id, uint1
 {
     if (group == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot increment counter: counters_group is NULL.\n");
+        pcep_log(LOG_INFO, "Cannot increment counter: counters_group is NULL.");
         return false;
     }
 
     if (subgroup_id >= group->max_subgroups)
     {
-        pcep_log(LOG_INFO, "Cannot increment counter: subgroup_id [%d] is larger than the group max_subgroups [%d].\n",
+        pcep_log(LOG_INFO, "Cannot increment counter: subgroup_id [%d] is larger than the group max_subgroups [%d].",
                 subgroup_id, group->max_subgroups);
         return false;
     }
@@ -277,7 +277,7 @@ bool increment_counter(struct counters_group *group, uint16_t subgroup_id, uint1
     struct counters_subgroup *subgroup = group->subgroups[subgroup_id];
     if (subgroup == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot increment counter: counters_subgroup in counters_group is NULL.\n");
+        pcep_log(LOG_INFO, "Cannot increment counter: counters_subgroup in counters_group is NULL.");
         return false;
     }
 
@@ -288,20 +288,20 @@ bool increment_subgroup_counter(struct counters_subgroup *subgroup, uint16_t cou
 {
     if (subgroup == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot increment counter: counters_subgroup is NULL.\n");
+        pcep_log(LOG_INFO, "Cannot increment counter: counters_subgroup is NULL.");
         return false;
     }
 
     if (counter_id >= subgroup->max_counters)
     {
-        pcep_log(LOG_INFO, "Cannot increment counter: counter_id [%d] is larger than the subgroup max_counters [%d].\n",
+        pcep_log(LOG_INFO, "Cannot increment counter: counter_id [%d] is larger than the subgroup max_counters [%d].",
                 counter_id, subgroup->max_counters);
         return false;
     }
 
     if (subgroup->counters[counter_id] == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot increment counter: No counter exists for counter_id [%d].\n", counter_id);
+        pcep_log(LOG_INFO, "Cannot increment counter: No counter exists for counter_id [%d].", counter_id);
         return false;
     }
 
@@ -314,12 +314,12 @@ bool dump_counters_group_to_log(struct counters_group *group)
 {
     if (group == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot dump group counters to log: counters_group is NULL.\n");
+        pcep_log(LOG_INFO, "Cannot dump group counters to log: counters_group is NULL.");
         return false;
     }
 
     time_t now = time(NULL);
-    pcep_log(LOG_INFO, "PCEP Counters group:\n  %s \n  Sub-Groups [%d] \n  Active for [%d seconds]\n",
+    pcep_log(LOG_INFO, "PCEP Counters group:\n  %s \n  Sub-Groups [%d] \n  Active for [%d seconds]",
             group->counters_group_name, group->num_subgroups, (now - group->start_time));
 
     int i = 0;
@@ -339,11 +339,11 @@ bool dump_counters_subgroup_to_log(struct counters_subgroup *subgroup)
 {
     if (subgroup == NULL)
     {
-        pcep_log(LOG_INFO, "Cannot dump subgroup counters to log: counters_subgroup is NULL.\n");
+        pcep_log(LOG_INFO, "Cannot dump subgroup counters to log: counters_subgroup is NULL.");
         return false;
     }
 
-    pcep_log(LOG_INFO, "\tPCEP Counters sub-group [%s] with [%d] counters\n",
+    pcep_log(LOG_INFO, "\tPCEP Counters sub-group [%s] with [%d] counters",
             subgroup->counters_subgroup_name, subgroup->num_counters);
 
     int i = 0;
@@ -352,7 +352,7 @@ bool dump_counters_subgroup_to_log(struct counters_subgroup *subgroup)
         struct counter *counter = subgroup->counters[i];
         if (counter != NULL)
         {
-            pcep_log(LOG_INFO, "\t\t%s %d\n",
+            pcep_log(LOG_INFO, "\t\t%s %d",
                     counter->counter_name, counter->counter_value);
         }
     }

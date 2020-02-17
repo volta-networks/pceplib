@@ -85,10 +85,10 @@ pcep_msg_read(int sock_fd)
     ret = read(sock_fd, &buffer, PCEP_MAX_SIZE);
 
     if(ret < 0) {
-        pcep_log(LOG_INFO, "pcep_msg_read: Failed to read from socket errno [%d %s]\n", errno, strerror(errno));
+        pcep_log(LOG_INFO, "pcep_msg_read: Failed to read from socket errno [%d %s]", errno, strerror(errno));
         return NULL;
     } else if(ret == 0) {
-        pcep_log(LOG_INFO, "pcep_msg_read: Remote shutdown\n");
+        pcep_log(LOG_INFO, "pcep_msg_read: Remote shutdown");
         return NULL;
     }
 
@@ -103,7 +103,7 @@ pcep_msg_read(int sock_fd)
         {
             /* If the message header is invalid, we cant keep
              * reading since the length may be invalid */
-            pcep_log(LOG_INFO, "pcep_msg_read: Received an invalid message\n");
+            pcep_log(LOG_INFO, "pcep_msg_read: Received an invalid message");
             return msg_list;
         }
 
@@ -112,12 +112,12 @@ pcep_msg_read(int sock_fd)
         if((ret - buffer_read) < msg_hdr_length) {
             int read_len = (msg_hdr_length - (ret - buffer_read));
             int read_ret = 0;
-            pcep_log(LOG_INFO, "pcep_msg_read: Message not fully read! Trying to read %d bytes more\n", read_len);
+            pcep_log(LOG_INFO, "pcep_msg_read: Message not fully read! Trying to read %d bytes more", read_len);
 
             read_ret = read(sock_fd, &buffer[ret], read_len);
 
             if(read_ret != read_len) {
-                pcep_log(LOG_INFO, "pcep_msg_read: Did not manage to read enough data (%d != %d)\n", read_ret, read_len);
+                pcep_log(LOG_INFO, "pcep_msg_read: Did not manage to read enough data (%d != %d)", read_ret, read_len);
                 return msg_list;
             }
         }
@@ -391,12 +391,12 @@ void pcep_msg_print(double_linked_list* msg_list)
     double_linked_list_node *node;
     for (node = msg_list->head; node != NULL; node = node->next_node) {
         struct pcep_message *msg = (struct pcep_message *) node->data;
-        pcep_log(LOG_INFO, "PCEP_MSG %s\n", get_message_type_str(msg->msg_header->type));
+        pcep_log(LOG_INFO, "PCEP_MSG %s", get_message_type_str(msg->msg_header->type));
 
         double_linked_list_node *obj_node = (msg->obj_list == NULL ? NULL : msg->obj_list->head);
         for (; obj_node != NULL; obj_node = obj_node->next_node) {
             struct pcep_object_header *obj_header = ((struct pcep_object_header *) obj_node->data);
-            pcep_log(LOG_INFO, "PCEP_OBJ %s\n", get_object_class_str(obj_header->object_class));
+            pcep_log(LOG_INFO, "PCEP_OBJ %s", get_object_class_str(obj_header->object_class));
         }
     }
 }

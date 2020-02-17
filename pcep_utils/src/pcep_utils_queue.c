@@ -53,13 +53,13 @@ queue_node *queue_enqueue(queue_handle *handle, void *data)
 {
     if (handle == NULL)
     {
-        pcep_log(LOG_WARNING, "queue_enqueue, the queue has not been initialized\n");
+        pcep_log(LOG_WARNING, "queue_enqueue, the queue has not been initialized");
         return NULL;
     }
 
     if (handle->max_entries > 0 && handle->num_entries >= handle->max_entries)
     {
-        pcep_log(LOG_WARNING, "queue_enqueue, cannot enqueue: max entries hit [%u]\n",
+        pcep_log(LOG_WARNING, "queue_enqueue, cannot enqueue: max entries hit [%u]",
                 handle->num_entries);
         return NULL;
     }
@@ -89,13 +89,13 @@ void *queue_dequeue(queue_handle *handle)
 {
     if (handle == NULL)
     {
-        pcep_log(LOG_WARNING, "queue_dequeue, the queue has not been initialized\n");
+        pcep_log(LOG_WARNING, "queue_dequeue, the queue has not been initialized");
         return NULL;
     }
 
     if (handle->head == NULL)
     {
-        pcep_log(LOG_DEBUG, "queue_dequeue, the queue is empty\n");
+        pcep_log(LOG_DEBUG, "queue_dequeue, the queue is empty");
         return NULL;
     }
 

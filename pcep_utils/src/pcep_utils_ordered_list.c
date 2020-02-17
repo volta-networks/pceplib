@@ -54,7 +54,7 @@ ordered_list_node *ordered_list_add_node(ordered_list_handle *handle, void *data
 {
     if (handle == NULL)
     {
-        pcep_log(LOG_WARNING, "ordered_list_add_node, the list has not been initialized\n");
+        pcep_log(LOG_WARNING, "ordered_list_add_node, the list has not been initialized");
         return NULL;
     }
     handle->num_entries++;
@@ -111,7 +111,7 @@ ordered_list_node *ordered_list_find(ordered_list_handle *handle, void *data)
 {
     if (handle == NULL)
     {
-        pcep_log(LOG_WARNING, "ordered_list_find, the list has not been initialized\n");
+        pcep_log(LOG_WARNING, "ordered_list_find, the list has not been initialized");
         return NULL;
     }
 
@@ -139,13 +139,13 @@ void *ordered_list_remove_first_node(ordered_list_handle *handle)
 {
     if (handle == NULL)
     {
-        pcep_log(LOG_WARNING, "ordered_list_remove_first_node, the list has not been initialized\n");
+        pcep_log(LOG_WARNING, "ordered_list_remove_first_node, the list has not been initialized");
         return NULL;
     }
 
     if (handle->head == NULL)
     {
-        pcep_log(LOG_WARNING, "ordered_list_remove_first_node, empty list\n");
+        pcep_log(LOG_WARNING, "ordered_list_remove_first_node, empty list");
         return NULL;
     }
     handle->num_entries--;
@@ -165,13 +165,13 @@ void *ordered_list_remove_first_node_equals2(ordered_list_handle *handle,
 {
     if (handle == NULL)
     {
-        pcep_log(LOG_WARNING, "ordered_list_remove_first_node_equals2, the list has not been initialized\n");
+        pcep_log(LOG_WARNING, "ordered_list_remove_first_node_equals2, the list has not been initialized");
         return NULL;
     }
 
     if (handle->head == NULL)
     {
-        pcep_log(LOG_DEBUG, "ordered_list_remove_first_node_equals2, empty list\n");
+        pcep_log(LOG_DEBUG, "ordered_list_remove_first_node_equals2, empty list");
         return NULL;
     }
 
@@ -218,7 +218,7 @@ void *ordered_list_remove_first_node_equals(ordered_list_handle *handle, void *d
 {
     if (handle == NULL)
     {
-        pcep_log(LOG_WARNING, "ordered_list_remove_first_node_equals, the list has not been initialized\n");
+        pcep_log(LOG_WARNING, "ordered_list_remove_first_node_equals, the list has not been initialized");
         return NULL;
     }
 
@@ -230,13 +230,13 @@ void *ordered_list_remove_node(ordered_list_handle *handle, ordered_list_node *p
 {
     if (handle == NULL)
     {
-        pcep_log(LOG_WARNING, "ordered_list_remove_node, the list has not been initialized\n");
+        pcep_log(LOG_WARNING, "ordered_list_remove_node, the list has not been initialized");
         return NULL;
     }
 
     if (handle->head == NULL)
     {
-        pcep_log(LOG_WARNING, "ordered_list_remove_node, empty list\n");
+        pcep_log(LOG_WARNING, "ordered_list_remove_node, empty list");
         return NULL;
     }
 

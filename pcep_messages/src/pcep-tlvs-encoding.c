@@ -121,14 +121,14 @@ uint16_t pcep_encode_tlv(struct pcep_object_tlv_header* tlv_hdr, struct pcep_ver
 
     if (tlv_hdr->type >= MAX_TLV_ENCODER_INDEX)
     {
-        pcep_log(LOG_INFO, "Cannot encode unknown Object class [%d]\n", tlv_hdr->type);
+        pcep_log(LOG_INFO, "Cannot encode unknown Object class [%d]", tlv_hdr->type);
         return 0;
     }
 
     tlv_encoder_funcptr tlv_encoder = tlv_encoders[tlv_hdr->type];
     if (tlv_encoder == NULL)
     {
-        pcep_log(LOG_INFO, "No object encoder found for Object class [%d]\n", tlv_hdr->type);
+        pcep_log(LOG_INFO, "No object encoder found for Object class [%d]", tlv_hdr->type);
         return 0;
     }
 
@@ -479,14 +479,14 @@ struct pcep_object_tlv_header *pcep_decode_tlv(uint8_t *tlv_buf)
 
     if (tlv_hdr.type >= MAX_TLV_ENCODER_INDEX)
     {
-        pcep_log(LOG_INFO, "Cannot decode unknown TLV type [%d]\n", tlv_hdr.type);
+        pcep_log(LOG_INFO, "Cannot decode unknown TLV type [%d]", tlv_hdr.type);
         return NULL;
     }
 
     tlv_decoder_funcptr tlv_decoder = tlv_decoders[tlv_hdr.type];
     if (tlv_decoder == NULL)
     {
-        pcep_log(LOG_INFO, "No TLV decoder found for TLV type [%d]\n", tlv_hdr.type);
+        pcep_log(LOG_INFO, "No TLV decoder found for TLV type [%d]", tlv_hdr.type);
         return NULL;
     }
 
@@ -599,13 +599,13 @@ struct pcep_object_tlv_header *pcep_decode_tlv_rsvp_error_spec(struct pcep_objec
 
     if (class_num != RSVP_ERROR_SPEC_CLASS_NUM)
     {
-        pcep_log(LOG_INFO, "Decoding RSVP Error Spec TLV, unknown class num [%d]\n", class_num);
+        pcep_log(LOG_INFO, "Decoding RSVP Error Spec TLV, unknown class num [%d]", class_num);
         return NULL;
     }
 
     if (ctype != RSVP_ERROR_SPEC_IPV4_CTYPE && ctype != RSVP_ERROR_SPEC_IPV6_CTYPE)
     {
-        pcep_log(LOG_INFO, "Decoding RSVP Error Spec TLV, unknown ctype [%d]\n", ctype);
+        pcep_log(LOG_INFO, "Decoding RSVP Error Spec TLV, unknown ctype [%d]", ctype);
         return NULL;
     }
 
@@ -651,7 +651,7 @@ struct pcep_object_tlv_header *pcep_decode_tlv_speaker_entity_id(struct pcep_obj
     if (num_entity_ids > MAX_ITERATIONS)
     {
         num_entity_ids = MAX_ITERATIONS;
-        pcep_log(LOG_INFO, "Decode Speaker Entity ID, truncating num entities from [%d] to [%d].\n");
+        pcep_log(LOG_INFO, "Decode Speaker Entity ID, truncating num entities from [%d] to [%d].");
     }
 
     uint32_t *uint32_ptr = (uint32_t *) tlv_body_buf;
@@ -697,7 +697,7 @@ struct pcep_object_tlv_header *pcep_decode_tlv_path_setup_type_capability(struct
     uint8_t num_psts = tlv_body_buf[3];
     if (num_psts > MAX_ITERATIONS)
     {
-        pcep_log(LOG_INFO, "Decode Path Setup Type Capability num PSTs [%d] exceeds MAX [%d] continuing anyways\n",
+        pcep_log(LOG_INFO, "Decode Path Setup Type Capability num PSTs [%d] exceeds MAX [%d] continuing anyways",
                  num_psts, MAX_ITERATIONS);
     }
 
@@ -724,7 +724,7 @@ struct pcep_object_tlv_header *pcep_decode_tlv_path_setup_type_capability(struct
         struct pcep_object_tlv_header *sub_tlv = pcep_decode_tlv(tlv_body_buf + buf_index);
         if (sub_tlv == NULL)
         {
-            pcep_log(LOG_INFO, "Decode PathSetupType Capability sub-TLV decode returned NULL\n");
+            pcep_log(LOG_INFO, "Decode PathSetupType Capability sub-TLV decode returned NULL");
             return (struct pcep_object_tlv_header *) tlv;
         }
 

@@ -56,11 +56,11 @@ void *event_loop(void *context)
 {
     if (context == NULL)
     {
-        pcep_log(LOG_WARNING, "pcep_timers_event_loop cannot start event_loop with NULL data\n");
+        pcep_log(LOG_WARNING, "pcep_timers_event_loop cannot start event_loop with NULL data");
         return NULL;
     }
 
-    pcep_log(LOG_NOTICE, "[%ld-%ld] Starting timers_event_loop thread\n", time(NULL), pthread_self());
+    pcep_log(LOG_NOTICE, "[%ld-%ld] Starting timers_event_loop thread", time(NULL), pthread_self());
 
     pcep_timers_context *timers_context = (pcep_timers_context *) context;
     struct timeval timer;
@@ -83,7 +83,7 @@ void *event_loop(void *context)
         walk_and_process_timers(timers_context);
     }
 
-    pcep_log(LOG_WARNING, "[%ld-%ld] Finished timers_event_loop thread\n", time(NULL), pthread_self());
+    pcep_log(LOG_WARNING, "[%ld-%ld] Finished timers_event_loop thread", time(NULL), pthread_self());
 
     return NULL;
 }

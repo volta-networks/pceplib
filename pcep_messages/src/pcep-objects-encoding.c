@@ -163,14 +163,14 @@ uint16_t pcep_encode_object(struct pcep_object_header* object_hdr, struct pcep_v
 
     if (object_hdr->object_class >= MAX_OBJECT_ENCODER_INDEX)
     {
-        pcep_log(LOG_INFO, "Cannot encode unknown Object class [%d]\n", object_hdr->object_class);
+        pcep_log(LOG_INFO, "Cannot encode unknown Object class [%d]", object_hdr->object_class);
         return 0;
     }
 
     object_encoder_funcptr obj_encoder = object_encoders[object_hdr->object_class];
     if (obj_encoder == NULL)
     {
-        pcep_log(LOG_INFO, "No object encoder found for Object class [%d]\n", object_hdr->object_class);
+        pcep_log(LOG_INFO, "No object encoder found for Object class [%d]", object_hdr->object_class);
         return 0;
     }
 
@@ -713,14 +713,14 @@ struct pcep_object_header *pcep_decode_object(uint8_t *obj_buf)
 
     if (object_hdr.object_class >= MAX_OBJECT_ENCODER_INDEX)
     {
-        pcep_log(LOG_INFO, "Cannot decode unknown Object class [%d]\n", object_hdr.object_class);
+        pcep_log(LOG_INFO, "Cannot decode unknown Object class [%d]", object_hdr.object_class);
         return NULL;
     }
 
     object_decoder_funcptr obj_decoder = object_decoders[object_hdr.object_class];
     if (obj_decoder == NULL)
     {
-        pcep_log(LOG_INFO, "No object decoder found for Object class [%d]\n", object_hdr.object_class);
+        pcep_log(LOG_INFO, "No object decoder found for Object class [%d]", object_hdr.object_class);
         return NULL;
     }
 
@@ -729,7 +729,7 @@ struct pcep_object_header *pcep_decode_object(uint8_t *obj_buf)
     struct pcep_object_header *object = obj_decoder(&object_hdr, obj_buf + OBJECT_HEADER_LENGTH);
     if (object == NULL)
     {
-        pcep_log(LOG_INFO, "Unable to decode Object class [%d].\n", object_hdr.object_class);
+        pcep_log(LOG_INFO, "Unable to decode Object class [%d].", object_hdr.object_class);
         return NULL;
     }
 
@@ -1036,7 +1036,7 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
 
         if (subobj_length <= OBJECT_RO_SUBOBJ_HEADER_LENGTH)
         {
-            pcep_log(LOG_INFO, "Invalid ro subobj type [%d] length [%d]\n",
+            pcep_log(LOG_INFO, "Invalid ro subobj type [%d] length [%d]",
                      subobj_type, subobj_length);
             free(obj);
             return NULL;

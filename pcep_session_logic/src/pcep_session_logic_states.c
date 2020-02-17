@@ -29,7 +29,7 @@ void send_keep_alive(pcep_session *session)
 {
     struct pcep_message *keep_alive_msg = pcep_msg_create_keepalive();
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send keep_alive message for session_id [%d]\n",
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send keep_alive message for session_id [%d]",
             time(NULL), pthread_self(), session->session_id);
 
     session_send_message(session, keep_alive_msg);
@@ -47,7 +47,7 @@ void send_pcep_error_with_object(pcep_session *session, enum pcep_error_type err
     dll_append(obj_list, object);
     struct pcep_message *error_msg = pcep_msg_create_error_with_objects(error_type, error_value, obj_list);
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send error message with object [%d][%d] for session_id [%d]\n",
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send error message with object [%d][%d] for session_id [%d]",
             time(NULL), pthread_self(), error_type, error_value, session->session_id);
 
     session_send_message(session, error_msg);
@@ -58,7 +58,7 @@ void send_pcep_error(pcep_session *session, enum pcep_error_type error_type, enu
 {
     struct pcep_message *error_msg = pcep_msg_create_error(error_type, error_value);
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send error message [%d][%d] for session_id [%d]\n",
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send error message [%d][%d] for session_id [%d]",
             time(NULL), pthread_self(), error_type, error_value, session->session_id);
 
     session_send_message(session, error_msg);
@@ -69,13 +69,13 @@ void reset_dead_timer(pcep_session *session)
 {
     if (session->timer_id_dead_timer == TIMER_ID_NOT_SET)
     {
-        pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic set dead timer [%d secs] for session_id [%d]\n",
+        pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic set dead timer [%d secs] for session_id [%d]",
                 time(NULL), pthread_self(), session->pce_config.dead_timer_seconds, session->session_id);
         session->timer_id_dead_timer = create_timer(session->pce_config.dead_timer_seconds, session);
     }
     else
     {
-        pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic reset dead timer [%d secs] for session_id [%d]\n",
+        pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic reset dead timer [%d secs] for session_id [%d]",
                 time(NULL), pthread_self(), session->pce_config.dead_timer_seconds, session->session_id);
         reset_timer(session->timer_id_dead_timer);
     }
@@ -86,7 +86,7 @@ void enqueue_event(pcep_session *session, pcep_event_type event_type, struct pce
 {
     if (event_type == MESSAGE_RECEIVED && message == NULL)
     {
-        pcep_log(LOG_WARNING, "enqueue_event cannot enqueue a NULL message\n");
+        pcep_log(LOG_WARNING, "enqueue_event cannot enqueue a NULL message");
         return;
     }
 
@@ -112,7 +112,7 @@ bool verify_pcep_open_object(pcep_session *session, struct pcep_object_open *ope
 
     if (open_object->open_keepalive < session->pcc_config.min_keep_alive_seconds)
     {
-        pcep_log(LOG_INFO, "Rejecting unsupported Open Keep Alive value [%d] min [%d]\n",
+        pcep_log(LOG_INFO, "Rejecting unsupported Open Keep Alive value [%d] min [%d]",
                open_object->open_keepalive, session->pcc_config.min_keep_alive_seconds);
         open_object->open_keepalive =
                 session->pcc_config.min_keep_alive_seconds;
@@ -120,7 +120,7 @@ bool verify_pcep_open_object(pcep_session *session, struct pcep_object_open *ope
     }
     else if (open_object->open_keepalive > session->pcc_config.max_keep_alive_seconds)
     {
-        pcep_log(LOG_INFO, "Rejecting unsupported Open Keep Alive value [%d] max [%d]\n",
+        pcep_log(LOG_INFO, "Rejecting unsupported Open Keep Alive value [%d] max [%d]",
                open_object->open_keepalive, session->pcc_config.max_keep_alive_seconds);
         open_object->open_keepalive =
                 session->pcc_config.max_keep_alive_seconds;
@@ -129,7 +129,7 @@ bool verify_pcep_open_object(pcep_session *session, struct pcep_object_open *ope
 
     if (open_object->open_deadtimer < session->pcc_config.min_dead_timer_seconds)
     {
-        pcep_log(LOG_INFO, "Rejecting unsupported Open Dead Timer value [%d]\n",
+        pcep_log(LOG_INFO, "Rejecting unsupported Open Dead Timer value [%d]",
                open_object->open_deadtimer);
         open_object->open_deadtimer =
                 session->pcc_config.min_dead_timer_seconds;
@@ -137,7 +137,7 @@ bool verify_pcep_open_object(pcep_session *session, struct pcep_object_open *ope
     }
     else if (open_object->open_keepalive > session->pcc_config.max_dead_timer_seconds)
     {
-        pcep_log(LOG_INFO, "Rejecting unsupported Open Dead Timer value [%d]\n",
+        pcep_log(LOG_INFO, "Rejecting unsupported Open Dead Timer value [%d]",
                open_object->open_deadtimer);
         open_object->open_deadtimer =
                 session->pcc_config.max_dead_timer_seconds;
@@ -169,43 +169,43 @@ bool verify_pcep_open_object(pcep_session *session, struct pcep_object_open *ope
                 if (session->pce_config.support_stateful_pce_lsp_update == false)
                 {
                     /* Turn off the U bit, as it is not supported */
-                    pcep_log(LOG_INFO, "Rejecting unsupported Open STATEFUL-PCE-CAPABILITY TLV U flag\n");
+                    pcep_log(LOG_INFO, "Rejecting unsupported Open STATEFUL-PCE-CAPABILITY TLV U flag");
                     pce_cap_tlv->flag_u_lsp_update_capability = false;
                     retval = false;
                 }
                 else
                 {
                     session->stateful_pce  = true;
-                    pcep_log(LOG_INFO, "Setting PCEP session [%d] STATEFUL to support LSP updates\n",
+                    pcep_log(LOG_INFO, "Setting PCEP session [%d] STATEFUL to support LSP updates",
                             session->session_id);
                 }
             }
             /* TODO the rest of the flags are not implemented yet */
             else if (pce_cap_tlv->flag_s_include_db_version)
             {
-                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV S Include DB Version flag\n");
+                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV S Include DB Version flag");
             }
             else if (pce_cap_tlv->flag_i_lsp_instantiation_capability)
             {
-                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV I LSP Instantiation Capability flag\n");
+                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV I LSP Instantiation Capability flag");
             }
             else if (pce_cap_tlv->flag_t_triggered_resync)
             {
-                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV T Triggered Resync flag\n");
+                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV T Triggered Resync flag");
             }
             else if (pce_cap_tlv->flag_d_delta_lsp_sync)
             {
-                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV D Delta LSP Sync flag\n");
+                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV D Delta LSP Sync flag");
             }
             else if (pce_cap_tlv->flag_f_triggered_initial_sync)
             {
-                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV F Triggered Initial Sync flag\n");
+                pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV F Triggered Initial Sync flag");
             }
         }
         else
         {
             /* TODO how to handle unrecognized TLV ?? */
-            pcep_log(LOG_INFO, "Unhandled OPEN TLV type: %d, length %d\n",
+            pcep_log(LOG_INFO, "Unhandled OPEN TLV type: %d, length %d",
                     tlv->type, tlv->encoded_tlv_length);
         }
     }
@@ -237,7 +237,7 @@ bool handle_pcep_open(pcep_session *session, struct pcep_message *open_msg)
     /* Check for additional Open Msg objects */
     if (open_msg->obj_list->num_entries > 1)
     {
-        pcep_log(LOG_INFO, "Found additional unsupported objects in the Open message\n");
+        pcep_log(LOG_INFO, "Found additional unsupported objects in the Open message");
         send_pcep_error(session, PCEP_ERRT_SESSION_FAILURE, PCEP_ERRV_RECVD_INVALID_OPEN_MSG);
         return false;
     }
@@ -281,7 +281,7 @@ bool handle_pcep_update(pcep_session *session, struct pcep_message *upd_msg)
 
     if (upd_msg->obj_list == NULL)
     {
-        pcep_log(LOG_INFO, "Invalid PcUpd message: Message has no objects\n");
+        pcep_log(LOG_INFO, "Invalid PcUpd message: Message has no objects");
         send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
                 PCEP_ERRV_SRP_OBJECT_MISSING);
         return false;
@@ -291,7 +291,7 @@ bool handle_pcep_update(pcep_session *session, struct pcep_message *upd_msg)
     struct pcep_object_header *obj = pcep_obj_get(upd_msg->obj_list, PCEP_OBJ_CLASS_SRP);
     if (obj == NULL)
     {
-        pcep_log(LOG_INFO, "Invalid PcUpd message: Missing SRP object\n");
+        pcep_log(LOG_INFO, "Invalid PcUpd message: Missing SRP object");
         send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
                 PCEP_ERRV_SRP_OBJECT_MISSING);
         return false;
@@ -300,7 +300,7 @@ bool handle_pcep_update(pcep_session *session, struct pcep_message *upd_msg)
     obj = pcep_obj_get(upd_msg->obj_list, PCEP_OBJ_CLASS_LSP);
     if (obj == NULL)
     {
-        pcep_log(LOG_INFO, "Invalid PcUpd message: Missing LSP object\n");
+        pcep_log(LOG_INFO, "Invalid PcUpd message: Missing LSP object");
         send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
                 PCEP_ERRV_LSP_OBJECT_MISSING);
         return false;
@@ -309,7 +309,7 @@ bool handle_pcep_update(pcep_session *session, struct pcep_message *upd_msg)
     obj = pcep_obj_get(upd_msg->obj_list, PCEP_OBJ_CLASS_ERO);
     if (obj == NULL)
     {
-        pcep_log(LOG_INFO, "Invalid PcUpd message: Missing ERO object\n");
+        pcep_log(LOG_INFO, "Invalid PcUpd message: Missing ERO object");
         send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
                 PCEP_ERRV_ERO_OBJECT_MISSING);
         return false;
@@ -320,7 +320,7 @@ bool handle_pcep_update(pcep_session *session, struct pcep_message *upd_msg)
     struct pcep_object_srp *srp_object = (struct pcep_object_srp *) node->data;
     if (srp_object->header.object_class != PCEP_OBJ_CLASS_SRP)
     {
-        pcep_log(LOG_INFO, "Invalid PcUpd message: First object must be an SRP, found [%d]\n",
+        pcep_log(LOG_INFO, "Invalid PcUpd message: First object must be an SRP, found [%d]",
                 srp_object->header.object_class);
         send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
                 PCEP_ERRV_SRP_OBJECT_MISSING);
@@ -331,7 +331,7 @@ bool handle_pcep_update(pcep_session *session, struct pcep_message *upd_msg)
     struct pcep_object_lsp *lsp_object = (struct pcep_object_lsp *) node->data;
     if (lsp_object->header.object_class != PCEP_OBJ_CLASS_LSP)
     {
-        pcep_log(LOG_INFO, "Invalid PcUpd message: Second object must be an LSP, found [%d]\n",
+        pcep_log(LOG_INFO, "Invalid PcUpd message: Second object must be an LSP, found [%d]",
                 lsp_object->header.object_class);
         send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
                 PCEP_ERRV_LSP_OBJECT_MISSING);
@@ -342,7 +342,7 @@ bool handle_pcep_update(pcep_session *session, struct pcep_message *upd_msg)
     struct pcep_object_ro *ero_object = node->data;
     if (ero_object->header.object_class != PCEP_OBJ_CLASS_ERO)
     {
-        pcep_log(LOG_INFO, "Invalid PcUpd message: Third object must be an ERO, found [%d]\n",
+        pcep_log(LOG_INFO, "Invalid PcUpd message: Third object must be an ERO, found [%d]",
                 ero_object->header.object_class);
         send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
                 PCEP_ERRV_ERO_OBJECT_MISSING);
@@ -354,7 +354,7 @@ bool handle_pcep_update(pcep_session *session, struct pcep_message *upd_msg)
     if (node != NULL)
     {
         struct pcep_object_header *object = node->data;
-        pcep_log(LOG_INFO, "Invalid PcUpd message: Extra PcUpd object: Class [%d] Type [%d] len [%d]\n",
+        pcep_log(LOG_INFO, "Invalid PcUpd message: Extra PcUpd object: Class [%d] Type [%d] len [%d]",
                 object->object_class, object->object_type, object->encoded_object_length);
         /* Send the offending object with the error */
         send_pcep_error_with_object(session, PCEP_ERRT_NOT_SUPPORTED_OBJECT,
@@ -372,7 +372,7 @@ bool handle_pcep_initiate(pcep_session *session, struct pcep_message *init_msg)
 
     if (init_msg->obj_list == NULL)
     {
-        pcep_log(LOG_INFO, "Invalid PcInitiate message: Message has no objects\n");
+        pcep_log(LOG_INFO, "Invalid PcInitiate message: Message has no objects");
         send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
                 PCEP_ERRV_SRP_OBJECT_MISSING);
         return false;
@@ -382,7 +382,7 @@ bool handle_pcep_initiate(pcep_session *session, struct pcep_message *init_msg)
     struct pcep_object_header *obj = pcep_obj_get(init_msg->obj_list, PCEP_OBJ_CLASS_SRP);
     if (obj == NULL)
     {
-        pcep_log(LOG_INFO, "Invalid PcInitiate message: Missing SRP object\n");
+        pcep_log(LOG_INFO, "Invalid PcInitiate message: Missing SRP object");
         send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
                 PCEP_ERRV_SRP_OBJECT_MISSING);
         return false;
@@ -391,7 +391,7 @@ bool handle_pcep_initiate(pcep_session *session, struct pcep_message *init_msg)
     obj = pcep_obj_get(init_msg->obj_list, PCEP_OBJ_CLASS_LSP);
     if (obj == NULL)
     {
-        pcep_log(LOG_INFO, "Invalid PcInitiate message: Missing LSP object\n");
+        pcep_log(LOG_INFO, "Invalid PcInitiate message: Missing LSP object");
         send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
                 PCEP_ERRV_LSP_OBJECT_MISSING);
         return false;
@@ -402,7 +402,7 @@ bool handle_pcep_initiate(pcep_session *session, struct pcep_message *init_msg)
     struct pcep_object_srp *srp_object = (struct pcep_object_srp *) node->data;
     if (srp_object->header.object_class != PCEP_OBJ_CLASS_SRP)
     {
-        pcep_log(LOG_INFO, "Invalid PcInitiate message: First object must be an SRP, found [%d]\n",
+        pcep_log(LOG_INFO, "Invalid PcInitiate message: First object must be an SRP, found [%d]",
                 srp_object->header.object_class);
         send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
                 PCEP_ERRV_SRP_OBJECT_MISSING);
@@ -413,7 +413,7 @@ bool handle_pcep_initiate(pcep_session *session, struct pcep_message *init_msg)
     struct pcep_object_lsp *lsp_object = (struct pcep_object_lsp *) node->data;
     if (lsp_object->header.object_class != PCEP_OBJ_CLASS_LSP)
     {
-        pcep_log(LOG_INFO, "Invalid PcInitiate message: Second object must be an LSP, found [%d]\n",
+        pcep_log(LOG_INFO, "Invalid PcInitiate message: Second object must be an LSP, found [%d]",
                 lsp_object->header.object_class);
         send_pcep_error(session, PCEP_ERRT_MANDATORY_OBJECT_MISSING,
                 PCEP_ERRV_LSP_OBJECT_MISSING);
@@ -468,14 +468,14 @@ void handle_timer_event(pcep_session_event *event)
 {
     if (event == NULL)
     {
-        pcep_log(LOG_INFO, "handle_timer_event NULL event\n");
+        pcep_log(LOG_INFO, "handle_timer_event NULL event");
         return;
     }
 
     pcep_session *session = event->session;
 
     pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic handle_timer_event: session_id [%d] event timer_id [%d] "
-            "session timers [OKW, PRW, DT, KA] [%d, %d, %d, %d]\n",
+            "session timers [OKW, PRW, DT, KA] [%d, %d, %d, %d]",
             time(NULL), pthread_self(), session->session_id, event->expired_timer_id,
             session->timer_id_open_keep_wait, session->timer_id_pc_req_wait,
             session->timer_id_dead_timer, session->timer_id_keep_alive);
@@ -508,7 +508,7 @@ void handle_timer_event(pcep_session_event *event)
         if (event->expired_timer_id == session->timer_id_open_keep_wait)
         {
             /* close the TCP session */
-            pcep_log(LOG_INFO, "handle_timer_event open_keep_wait timer expired for session [%d]\n", session->session_id);
+            pcep_log(LOG_INFO, "handle_timer_event open_keep_wait timer expired for session [%d]", session->session_id);
             increment_event_counters(session, PCEP_EVENT_COUNTER_ID_TIMER_OPENKEEPWAIT);
             socket_comm_session_close_tcp_after_write(session->socket_comm_session);
             session->session_state = SESSION_STATE_INITIALIZED;
@@ -520,7 +520,7 @@ void handle_timer_event(pcep_session_event *event)
     case SESSION_STATE_WAIT_PCREQ:
         if (event->expired_timer_id == session->timer_id_pc_req_wait)
         {
-            pcep_log(LOG_INFO, "handle_timer_event PCReq_wait timer expired for session [%d]\n", session->session_id);
+            pcep_log(LOG_INFO, "handle_timer_event PCReq_wait timer expired for session [%d]", session->session_id);
             increment_event_counters(session, PCEP_EVENT_COUNTER_ID_TIMER_PCREQWAIT);
             /* TODO is this the right reason?? */
             close_pcep_session_with_reason(session, PCEP_CLOSE_REASON_DEADTIMER);
@@ -533,7 +533,7 @@ void handle_timer_event(pcep_session_event *event)
     case SESSION_STATE_INITIALIZED:
     case SESSION_STATE_OPENED:
     default:
-        pcep_log(LOG_INFO, "handle_timer_event unrecognized state transition, timer_id [%d] state [%d] session_id [%d]\n",
+        pcep_log(LOG_INFO, "handle_timer_event unrecognized state transition, timer_id [%d] state [%d] session_id [%d]",
                 event->expired_timer_id, session->session_state, session->session_id);
         break;
     }
@@ -547,13 +547,13 @@ void handle_socket_comm_event(pcep_session_event *event)
 {
     if (event == NULL)
     {
-        pcep_log(LOG_INFO, "handle_socket_comm_event NULL event\n");
+        pcep_log(LOG_INFO, "handle_socket_comm_event NULL event");
         return;
     }
 
     pcep_session *session = event->session;
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic handle_socket_comm_event: session_id [%d] num messages [%d] socket_closed [%d]\n",
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic handle_socket_comm_event: session_id [%d] num messages [%d] socket_closed [%d]",
             time(NULL), pthread_self(),
             session->session_id,
             (event->received_msg_list == NULL ? -1 : event->received_msg_list->num_entries),
@@ -564,7 +564,7 @@ void handle_socket_comm_event(pcep_session_event *event)
      */
     if (event->socket_closed)
     {
-        pcep_log(LOG_INFO, "handle_socket_comm_event socket closed for session [%d]\n", session->session_id);
+        pcep_log(LOG_INFO, "handle_socket_comm_event socket closed for session [%d]", session->session_id);
         session->session_state = SESSION_STATE_INITIALIZED;
         socket_comm_session_close_tcp(session->socket_comm_session);
         enqueue_event(session, PCE_CLOSED_SOCKET, NULL);
@@ -586,7 +586,7 @@ void handle_socket_comm_event(pcep_session_event *event)
     {
         bool message_enqueued = false;
         struct pcep_message *msg = (struct pcep_message *) msg_node->data;
-        pcep_log(LOG_INFO, "\t %s message\n", get_message_type_str(msg->msg_header->type));
+        pcep_log(LOG_INFO, "\t %s message", get_message_type_str(msg->msg_header->type));
 
         increment_message_rx_counters(session, msg);
 
@@ -677,7 +677,7 @@ void handle_socket_comm_event(pcep_session_event *event)
             break;
 
         default:
-            pcep_log(LOG_INFO, "\t UnSupported message\n");
+            pcep_log(LOG_INFO, "\t UnSupported message");
             send_pcep_error(session, PCEP_ERRT_CAPABILITY_NOT_SUPPORTED, PCEP_ERRV_UNASSIGNED);
             increment_unknown_message(session);
             break;

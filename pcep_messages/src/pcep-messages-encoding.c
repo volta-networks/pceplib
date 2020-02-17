@@ -107,19 +107,19 @@ static bool validate_msg_header(uint8_t msg_version, uint8_t msg_flags, uint8_t 
      * size or if its not a multiple of 4 */
     if (msg_length < MESSAGE_HEADER_LENGTH || (msg_length % 4) != 0)
     {
-        pcep_log(LOG_INFO, "Invalid PCEP message header length [%d]\n", msg_length);
+        pcep_log(LOG_INFO, "Invalid PCEP message header length [%d]", msg_length);
         return false;
     }
 
     if (msg_version != PCEP_MESSAGE_HEADER_VERSION)
     {
-        pcep_log(LOG_INFO, "Invalid PCEP message header version [0x%x]\n", msg_version);
+        pcep_log(LOG_INFO, "Invalid PCEP message header version [0x%x]", msg_version);
         return false;
     }
 
     if (msg_flags != 0)
     {
-        pcep_log(LOG_INFO, "Invalid PCEP message header flags [0x%x]\n", msg_flags);
+        pcep_log(LOG_INFO, "Invalid PCEP message header flags [0x%x]", msg_flags);
         return false;
     }
 
@@ -138,7 +138,7 @@ static bool validate_msg_header(uint8_t msg_version, uint8_t msg_flags, uint8_t 
     case PCEP_TYPE_INITIATE:
         break;
     default:
-        pcep_log(LOG_INFO, "Invalid PCEP message header type [%d]\n", msg_type);
+        pcep_log(LOG_INFO, "Invalid PCEP message header type [%d]", msg_type);
         return false;
         break;
     }
@@ -173,7 +173,7 @@ bool validate_message_objects(struct pcep_message *msg)
 {
     if (msg->msg_header->type >= PCEP_TYPE_UNKOWN_MSG)
     {
-        pcep_log(LOG_INFO, "Rejecting received message: Unknown message type [%d]\n",
+        pcep_log(LOG_INFO, "Rejecting received message: Unknown message type [%d]",
                 msg->msg_header->type);
         return false;
     }
@@ -191,7 +191,7 @@ bool validate_message_objects(struct pcep_message *msg)
         {
             if (node != NULL)
             {
-                pcep_log(LOG_INFO, "Rejecting received message: Unexpected object [%d] present\n",
+                pcep_log(LOG_INFO, "Rejecting received message: Unexpected object [%d] present",
                          obj->object_class);
                 return false;
             }
@@ -200,13 +200,13 @@ bool validate_message_objects(struct pcep_message *msg)
         {
             if (node == NULL)
             {
-                pcep_log(LOG_INFO, "Rejecting received message: Expecting object in position [%d], but none received\n",
+                pcep_log(LOG_INFO, "Rejecting received message: Expecting object in position [%d], but none received",
                          index);
                 return false;
             }
             else if (object_classes[index] != obj->object_class)
             {
-                pcep_log(LOG_INFO, "Rejecting received message: Unexpected Object Class received [%d]\n",
+                pcep_log(LOG_INFO, "Rejecting received message: Unexpected Object Class received [%d]",
                          object_classes[index]);
                 return false;
             }

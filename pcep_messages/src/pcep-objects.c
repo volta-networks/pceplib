@@ -58,7 +58,7 @@ pcep_obj_create_rp(uint8_t priority, bool flag_r, bool flag_b, bool flag_s, uint
 {
     if (priority > OBJECT_RP_MAX_PRIORITY)
     {
-        pcep_log(LOG_INFO, "Error creating RP object, invalid priority [%d], max priority [%d].\n",
+        pcep_log(LOG_INFO, "Error creating RP object, invalid priority [%d], max priority [%d].",
                 priority, OBJECT_RP_MAX_PRIORITY);
         return NULL;
     }
@@ -304,7 +304,7 @@ pcep_obj_create_lsp(uint32_t plsp_id, enum pcep_lsp_operational_status status,
     /* The plsp_id is only 20 bits */
     if (plsp_id > MAX_PLSP_ID)
     {
-        pcep_log(LOG_INFO, "pcep_obj_create_lsp invalid plsp_id [%d] max value [%d]\n",
+        pcep_log(LOG_INFO, "pcep_obj_create_lsp invalid plsp_id [%d] max value [%d]",
                 plsp_id, MAX_PLSP_ID);
         return NULL;
     }
@@ -312,7 +312,7 @@ pcep_obj_create_lsp(uint32_t plsp_id, enum pcep_lsp_operational_status status,
     /* The status is only 3 bits */
     if (status > MAX_LSP_STATUS)
     {
-        pcep_log(LOG_INFO, "pcep_obj_create_lsp invalid status [%d] max value [%d]\n",
+        pcep_log(LOG_INFO, "pcep_obj_create_lsp invalid status [%d] max value [%d]",
                 plsp_id, MAX_PLSP_ID);
         return NULL;
     }

@@ -82,13 +82,13 @@ bool initialize_timers(timer_expire_handler expire_handler)
 
     if (pthread_mutex_init(&(timers_context_->timer_list_lock), NULL) != 0)
     {
-        pcep_log(LOG_ERR, "ERROR initializing timers, cannot initialize the mutex\n");
+        pcep_log(LOG_ERR, "ERROR initializing timers, cannot initialize the mutex");
         return false;
     }
 
     if(pthread_create(&(timers_context_->event_loop_thread), NULL, event_loop, timers_context_))
     {
-        pcep_log(LOG_ERR, "ERROR initializing timers, cannot initialize the thread\n");
+        pcep_log(LOG_ERR, "ERROR initializing timers, cannot initialize the thread");
         return false;
     }
 
@@ -124,13 +124,13 @@ bool teardown_timers()
 {
     if (timers_context_ == NULL)
     {
-        pcep_log(LOG_WARNING, "Trying to teardown the timers, but they are not initialized\n");
+        pcep_log(LOG_WARNING, "Trying to teardown the timers, but they are not initialized");
         return false;
     }
 
     if (timers_context_->active == false)
     {
-        pcep_log(LOG_WARNING, "Trying to teardown the timers, but they are not active\n");
+        pcep_log(LOG_WARNING, "Trying to teardown the timers, but they are not active");
         return false;
     }
 
@@ -146,7 +146,7 @@ bool teardown_timers()
     int retval = pthread_timedjoin_np(timers_context_->event_loop_thread, NULL, &ts);
     if (retval != 0)
     {
-        pcep_log(LOG_WARNING, "thread did not stop after 1 second waiting on it.\n");
+        pcep_log(LOG_WARNING, "thread did not stop after 1 second waiting on it.");
     }
     */
 
@@ -155,7 +155,7 @@ bool teardown_timers()
 
     if (pthread_mutex_destroy(&(timers_context_->timer_list_lock)) != 0)
     {
-        pcep_log(LOG_WARNING, "Trying to teardown the timers, cannot destroy the mutex\n");
+        pcep_log(LOG_WARNING, "Trying to teardown the timers, cannot destroy the mutex");
     }
 
     free(timers_context_);
@@ -179,7 +179,7 @@ int create_timer(uint16_t sleep_seconds, void *data)
 {
     if (timers_context_ == NULL)
     {
-        pcep_log(LOG_WARNING, "Trying to create a timer: the timers have not been initialized\n");
+        pcep_log(LOG_WARNING, "Trying to create a timer: the timers have not been initialized");
         return -1;
     }
 
@@ -197,7 +197,7 @@ int create_timer(uint16_t sleep_seconds, void *data)
     {
         free(timer);
         pthread_mutex_unlock(&timers_context_->timer_list_lock);
-        pcep_log(LOG_WARNING, "Trying to create a timer, cannot add the timer to the timer list\n");
+        pcep_log(LOG_WARNING, "Trying to create a timer, cannot add the timer to the timer list");
 
         return -1;
     }
@@ -214,7 +214,7 @@ bool cancel_timer(int timer_id)
 
     if (timers_context_ == NULL)
     {
-        pcep_log(LOG_WARNING, "Trying to cancel a timer: the timers have not been initialized\n");
+        pcep_log(LOG_WARNING, "Trying to cancel a timer: the timers have not been initialized");
         return false;
     }
 
@@ -226,7 +226,7 @@ bool cancel_timer(int timer_id)
     if (timer_toRemove == NULL)
     {
         pthread_mutex_unlock(&timers_context_->timer_list_lock);
-        pcep_log(LOG_WARNING, "Trying to cancel a timer [%d] that does not exist\n", timer_id);
+        pcep_log(LOG_WARNING, "Trying to cancel a timer [%d] that does not exist", timer_id);
         return false;
     }
     free(timer_toRemove);
@@ -242,7 +242,7 @@ bool reset_timer(int timer_id)
 
     if (timers_context_ == NULL)
     {
-        pcep_log(LOG_WARNING, "Trying to reset a timer: the timers have not been initialized\n");
+        pcep_log(LOG_WARNING, "Trying to reset a timer: the timers have not been initialized");
 
         return false;
     }
@@ -255,7 +255,7 @@ bool reset_timer(int timer_id)
     if (timer_toReset == NULL)
     {
         pthread_mutex_unlock(&timers_context_->timer_list_lock);
-        pcep_log(LOG_WARNING, "Trying to reset a timer that does not exist\n");
+        pcep_log(LOG_WARNING, "Trying to reset a timer that does not exist");
 
         return false;
     }
@@ -265,7 +265,7 @@ bool reset_timer(int timer_id)
     {
         free(timer_toReset);
         pthread_mutex_unlock(&timers_context_->timer_list_lock);
-        pcep_log(LOG_WARNING, "Trying to reset a timer, cannot add the timer to the timer list\n");
+        pcep_log(LOG_WARNING, "Trying to reset a timer, cannot add the timer to the timer list");
 
         return false;
     }

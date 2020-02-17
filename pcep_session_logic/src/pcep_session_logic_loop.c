@@ -42,13 +42,13 @@ int session_logic_msg_ready_handler(void *data, int socket_fd)
 {
     if (data == NULL)
     {
-        pcep_log(LOG_WARNING, "Cannot handle msg_ready with NULL data\n");
+        pcep_log(LOG_WARNING, "Cannot handle msg_ready with NULL data");
         return -1;
     }
 
     if (session_logic_handle_->active == false)
     {
-        pcep_log(LOG_WARNING, "Received a message ready notification while the session logic is not active\n");
+        pcep_log(LOG_WARNING, "Received a message ready notification while the session logic is not active");
         return -1;
     }
 
@@ -60,7 +60,7 @@ int session_logic_msg_ready_handler(void *data, int socket_fd)
     double_linked_list *msg_list = pcep_msg_read(socket_fd);
     if (msg_list == NULL || msg_list->num_entries == 0)
     {
-        pcep_log(LOG_WARNING, "Error decoding PCEP message, connection closed\n");
+        pcep_log(LOG_WARNING, "Error decoding PCEP message, connection closed");
         pthread_mutex_unlock(&(session_logic_handle_->session_logic_mutex));
         dll_destroy(msg_list);
 
@@ -69,7 +69,7 @@ int session_logic_msg_ready_handler(void *data, int socket_fd)
 
     /* Just logging the first of potentially several messages received */
     struct pcep_message *msg = ((struct pcep_message *) msg_list->head->data);
-    pcep_log(LOG_INFO, "[%ld-%ld] session_logic_msg_ready_handler received message of type [%d] len [%d] on session_id [%d]\n",
+    pcep_log(LOG_INFO, "[%ld-%ld] session_logic_msg_ready_handler received message of type [%d] len [%d] on session_id [%d]",
             time(NULL), pthread_self(), msg->msg_header->type, msg->encoded_message_length, session->session_id);
 
     /* This event will ultimately be handled by handle_socket_comm_event()
@@ -93,7 +93,7 @@ void session_logic_message_sent_handler(void *data, int socket_fd)
 {
     if (data == NULL)
     {
-        pcep_log(LOG_WARNING, "Cannot handle msg_sent with NULL data\n");
+        pcep_log(LOG_WARNING, "Cannot handle msg_sent with NULL data");
         return;
     }
 
@@ -112,13 +112,13 @@ void session_logic_message_sent_handler(void *data, int socket_fd)
          * the session, only if the session is not destroyed */
         if (session->timer_id_keep_alive == TIMER_ID_NOT_SET)
         {
-            pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic set keep alive timer [%d secs] for session_id [%d]\n",
+            pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic set keep alive timer [%d secs] for session_id [%d]",
                     time(NULL), pthread_self(), session->pce_config.keep_alive_seconds, session->session_id);
             session->timer_id_keep_alive = create_timer(session->pce_config.keep_alive_seconds, session);
         }
         else
         {
-            pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic reset keep alive timer [%d secs] for session_id [%d]\n",
+            pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic reset keep alive timer [%d secs] for session_id [%d]",
                     time(NULL), pthread_self(), session->pce_config.keep_alive_seconds, session->session_id);
             reset_timer(session->timer_id_keep_alive);
         }
@@ -134,18 +134,18 @@ void session_logic_conn_except_notifier(void *data, int socket_fd)
 {
     if (data == NULL)
     {
-        pcep_log(LOG_WARNING, "Cannot handle conn_except with NULL data\n");
+        pcep_log(LOG_WARNING, "Cannot handle conn_except with NULL data");
         return;
     }
 
     if (session_logic_handle_->active == false)
     {
-        pcep_log(LOG_WARNING, "Received a connection exception notification while the session logic is not active\n");
+        pcep_log(LOG_WARNING, "Received a connection exception notification while the session logic is not active");
         return;
     }
 
     pcep_session *session = (pcep_session *) data;
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic session_logic_conn_except_notifier socket closed [%d], session_id [%d]\n",
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic session_logic_conn_except_notifier socket closed [%d], session_id [%d]",
             time(NULL), pthread_self(), socket_fd, session->session_id);
 
     pthread_mutex_lock(&(session_logic_handle_->session_logic_mutex));
@@ -169,17 +169,17 @@ void session_logic_timer_expire_handler(void *data, int timer_id)
 {
     if (data == NULL)
     {
-        pcep_log(LOG_WARNING, "Cannot handle timer with NULL data\n");
+        pcep_log(LOG_WARNING, "Cannot handle timer with NULL data");
         return;
     }
 
     if (session_logic_handle_->active == false)
     {
-        pcep_log(LOG_WARNING, "Received a timer expiration while the session logic is not active\n");
+        pcep_log(LOG_WARNING, "Received a timer expiration while the session logic is not active");
         return;
     }
 
-    pcep_log(LOG_INFO, "[%ld-%ld] timer expired handler timer_id [%d]\n", time(NULL), pthread_self(), timer_id);
+    pcep_log(LOG_INFO, "[%ld-%ld] timer expired handler timer_id [%d]", time(NULL), pthread_self(), timer_id);
     pcep_session_event *expired_timer_event = create_session_event((pcep_session *) data);
     expired_timer_event->expired_timer_id = timer_id;
 
@@ -200,12 +200,12 @@ void *session_logic_loop(void *data)
 {
     if (data == NULL)
     {
-        pcep_log(LOG_WARNING, "Cannot start session_logic_loop with NULL data\n");
+        pcep_log(LOG_WARNING, "Cannot start session_logic_loop with NULL data");
 
         return NULL;
     }
 
-    pcep_log(LOG_NOTICE, "[%ld-%ld] Starting session_logic_loop thread\n", time(NULL), pthread_self());
+    pcep_log(LOG_NOTICE, "[%ld-%ld] Starting session_logic_loop thread", time(NULL), pthread_self());
 
     pcep_session_logic_handle *session_logic_handle = (pcep_session_logic_handle *) data;
 
@@ -245,7 +245,7 @@ void *session_logic_loop(void *data)
         pthread_mutex_unlock(&(session_logic_handle->session_logic_mutex));
     }
 
-    pcep_log(LOG_NOTICE, "[%ld-%ld] Finished session_logic_loop thread\n", time(NULL), pthread_self());
+    pcep_log(LOG_NOTICE, "[%ld-%ld] Finished session_logic_loop thread", time(NULL), pthread_self());
 
     return NULL;
 }

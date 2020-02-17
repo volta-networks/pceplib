@@ -37,7 +37,7 @@ bool initialize_pcc()
 {
     if (!run_session_logic())
     {
-        pcep_log(LOG_ERR, "Error initializing PCC session logic.\n");
+        pcep_log(LOG_ERR, "Error initializing PCC session logic.");
         return false;
     }
 
@@ -56,7 +56,7 @@ bool destroy_pcc()
 {
     if (!stop_session_logic())
     {
-        pcep_log(LOG_WARNING, "Error stopping PCC session logic.\n");
+        pcep_log(LOG_WARNING, "Error stopping PCC session logic.");
         return false;
     }
 
@@ -140,7 +140,7 @@ bool event_queue_is_empty()
 {
     if (session_logic_event_queue_ == NULL)
     {
-        pcep_log(LOG_WARNING, "event_queue_is_empty Session Logic is not initialized yet\n");
+        pcep_log(LOG_WARNING, "event_queue_is_empty Session Logic is not initialized yet");
         return false;
     }
 
@@ -157,7 +157,7 @@ uint32_t event_queue_num_events_available()
 {
     if (session_logic_event_queue_ == NULL)
     {
-        pcep_log(LOG_WARNING, "event_queue_num_events_available Session Logic is not initialized yet\n");
+        pcep_log(LOG_WARNING, "event_queue_num_events_available Session Logic is not initialized yet");
         return 0;
     }
 
@@ -174,7 +174,7 @@ struct pcep_event *event_queue_get_event()
 {
     if (session_logic_event_queue_ == NULL)
     {
-        pcep_log(LOG_WARNING, "event_queue_get_event Session Logic is not initialized yet\n");
+        pcep_log(LOG_WARNING, "event_queue_get_event Session Logic is not initialized yet");
         return NULL;
     }
 
@@ -192,7 +192,7 @@ void destroy_pcep_event(struct pcep_event *event)
 {
     if (event == NULL)
     {
-        pcep_log(LOG_WARNING, "destroy_pcep_event cannot destroy NULL event\n");
+        pcep_log(LOG_WARNING, "destroy_pcep_event cannot destroy NULL event");
         return;
     }
 

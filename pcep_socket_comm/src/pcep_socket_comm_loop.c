@@ -28,7 +28,7 @@ void write_message(int socket_fd, const char *message, unsigned int msg_length)
     {
         bytes_sent = write(socket_fd, message + total_bytes_sent, msg_length);
 
-        pcep_log(LOG_INFO, "[%ld-%ld] socket_comm writing on socket [%d] msg_lenth [%u] bytes sent [%d]\n",
+        pcep_log(LOG_INFO, "[%ld-%ld] socket_comm writing on socket [%d] msg_lenth [%u] bytes sent [%d]",
                 time(NULL), pthread_self(), socket_fd, msg_length, bytes_sent);
 
         if (bytes_sent < 0)
@@ -52,7 +52,7 @@ unsigned int read_message(int socket_fd, char *received_message, unsigned int ma
 {
     /* TODO what if bytes_read == max_message_size? there could be more to read */
     unsigned int bytes_read = read(socket_fd, received_message, max_message_size);
-    pcep_log(LOG_INFO, "[%ld-%ld] socket_comm read message bytes_read [%u] on socket [%d]\n",
+    pcep_log(LOG_INFO, "[%ld-%ld] socket_comm read message bytes_read [%u] on socket [%d]",
             time(NULL), pthread_self(), bytes_read, socket_fd);
 
     return bytes_read;
@@ -77,7 +77,7 @@ int build_fd_sets(pcep_socket_comm_handle *socket_comm_handle)
             max_fd = comm_session->socket_fd;
         }
 
-        /*pcep_log(LOG_DEBUG, ld] socket_comm::build_fdSets set ready_toRead [%d]\n",
+        /*pcep_log(LOG_DEBUG, ld] socket_comm::build_fdSets set ready_toRead [%d]",
                    time(NULL), comm_session->socket_fd);*/
         FD_SET(comm_session->socket_fd, &socket_comm_handle->read_master_set);
         FD_SET(comm_session->socket_fd, &socket_comm_handle->except_master_set);
@@ -94,7 +94,7 @@ int build_fd_sets(pcep_socket_comm_handle *socket_comm_handle)
             max_fd = comm_session->socket_fd;
         }
 
-        /*pcep_log(LOG_DEBUG, "[%ld] socket_comm::build_fdSets set ready_toWrite [%d]\n",
+        /*pcep_log(LOG_DEBUG, "[%ld] socket_comm::build_fdSets set ready_toWrite [%d]",
                    time(NULL), comm_session->socket_fd);*/
         FD_SET(comm_session->socket_fd, &socket_comm_handle->write_master_set);
         FD_SET(comm_session->socket_fd, &socket_comm_handle->except_master_set);
@@ -181,7 +181,7 @@ void handle_reads(pcep_socket_comm_handle *socket_comm_handle)
             else if (comm_session->received_bytes < 0)
             {
                 /* TODO should we call conn_except_notifier() here ? */
-                pcep_log(LOG_WARNING, "Error on socket [%d] : errno [%d][%s]\n",
+                pcep_log(LOG_WARNING, "Error on socket [%d] : errno [%d][%s]",
                         comm_session->socket_fd, errno, strerror(errno));
             }
         }
@@ -267,11 +267,11 @@ void *socket_comm_loop(void *data)
 {
     if (data == NULL)
     {
-        pcep_log(LOG_WARNING, "Cannot start socket_comm_loop with NULL pcep_socketcomm_handle\n");
+        pcep_log(LOG_WARNING, "Cannot start socket_comm_loop with NULL pcep_socketcomm_handle");
         return NULL;
     }
 
-    pcep_log(LOG_NOTICE, "[%ld-%ld] Starting socket_comm_loop thread\n", time(NULL), pthread_self());
+    pcep_log(LOG_NOTICE, "[%ld-%ld] Starting socket_comm_loop thread", time(NULL), pthread_self());
 
     pcep_socket_comm_handle *socket_comm_handle = (pcep_socket_comm_handle *) data;
     struct timeval timer;
@@ -291,7 +291,7 @@ void *socket_comm_loop(void *data)
                 &timer) < 0)
         {
             /* TODO handle the error */
-            pcep_log(LOG_WARNING, "ERROR socket_comm_loop on select\n");
+            pcep_log(LOG_WARNING, "ERROR socket_comm_loop on select");
         }
 
         handle_reads(socket_comm_handle);
@@ -299,7 +299,7 @@ void *socket_comm_loop(void *data)
         handle_excepts(socket_comm_handle);
     }
 
-    pcep_log(LOG_NOTICE, "[%ld-%ld] Finished socket_comm_loop thread\n", time(NULL), pthread_self());
+    pcep_log(LOG_NOTICE, "[%ld-%ld] Finished socket_comm_loop thread", time(NULL), pthread_self());
 
     return NULL;
 }

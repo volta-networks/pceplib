@@ -45,6 +45,7 @@ int pcep_stdout_logger(int priority, const char *format, va_list args)
     if (priority <= logging_level_)
     {
         vprintf(format, args);
+        printf("\n");
     }
 
     return 0;

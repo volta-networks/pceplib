@@ -57,13 +57,13 @@ bool initialize_socket_comm_loop()
 
     if (pthread_mutex_init(&(socket_comm_handle_->socket_comm_mutex), NULL) != 0)
     {
-        pcep_log(LOG_ERR, "Cannot initialize socket_comm mutex.\n");
+        pcep_log(LOG_ERR, "Cannot initialize socket_comm mutex.");
         return false;
     }
 
     if(pthread_create(&(socket_comm_handle_->socket_comm_thread), NULL, socket_comm_loop, socket_comm_handle_))
     {
-        pcep_log(LOG_ERR, "Cannot initialize socket_comm thread.\n");
+        pcep_log(LOG_ERR, "Cannot initialize socket_comm thread.");
         return false;
     }
 
@@ -118,26 +118,26 @@ socket_comm_session_initialize_with_src(message_received_handler message_handler
     /* check that not both message handlers were set */
     if (message_handler != NULL && message_ready_handler != NULL)
     {
-        pcep_log(LOG_WARNING, "Only one of <message_received_handler | message_ready_to_read_handler> can be set.\n");
+        pcep_log(LOG_WARNING, "Only one of <message_received_handler | message_ready_to_read_handler> can be set.");
         return NULL;
     }
 
     /* check that at least one message handler was set */
     if (message_handler == NULL && message_ready_handler == NULL)
     {
-        pcep_log(LOG_WARNING, "At least one of <message_received_handler | message_ready_to_read_handler> must be set.\n");
+        pcep_log(LOG_WARNING, "At least one of <message_received_handler | message_ready_to_read_handler> must be set.");
         return NULL;
     }
 
     if (dest_ip == NULL)
     {
-        pcep_log(LOG_WARNING, "dest_ip is NULL\n");
+        pcep_log(LOG_WARNING, "dest_ip is NULL");
         return NULL;
     }
 
     if (!initialize_socket_comm_loop())
     {
-        pcep_log(LOG_WARNING, "ERROR: cannot initialize socket_comm_loop.\n");
+        pcep_log(LOG_WARNING, "ERROR: cannot initialize socket_comm_loop.");
 
         return NULL;
     }
@@ -149,7 +149,7 @@ socket_comm_session_initialize_with_src(message_received_handler message_handler
 
     socket_comm_session->socket_fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (socket_comm_session->socket_fd == -1) {
-        pcep_log(LOG_WARNING, "Cannot create socket errno [%d %s].\n", errno, strerror(errno));
+        pcep_log(LOG_WARNING, "Cannot create socket errno [%d %s].", errno, strerror(errno));
         socket_comm_session_teardown(socket_comm_session);//socket_comm_session freed inside fn so NOLINT next.
 
         return NULL;//NOLINT(clang-analyzer-unix.Malloc)
@@ -183,7 +183,7 @@ socket_comm_session_initialize_with_src(message_received_handler message_handler
     int reuse_addr = 1;
     if (setsockopt(socket_comm_session->socket_fd, SOL_SOCKET, SO_REUSEADDR, &reuse_addr, sizeof(int)) < 0)
     {
-        pcep_log(LOG_WARNING, "Error in setsockopt() SO_REUSEADDR errno [%d %s].\n",
+        pcep_log(LOG_WARNING, "Error in setsockopt() SO_REUSEADDR errno [%d %s].",
                 errno, strerror(errno));
         socket_comm_session_teardown(socket_comm_session);
 
@@ -194,7 +194,7 @@ socket_comm_session_initialize_with_src(message_received_handler message_handler
          (struct sockaddr *) &(socket_comm_session->src_sock_addr),
          sizeof(struct sockaddr)) == -1)
     {
-        pcep_log(LOG_WARNING, "Cannot bind address to socket errno [%d %s].\n",
+        pcep_log(LOG_WARNING, "Cannot bind address to socket errno [%d %s].",
                 errno, strerror(errno));
         socket_comm_session_teardown(socket_comm_session);
 
@@ -213,7 +213,7 @@ bool socket_comm_session_connect_tcp(pcep_socket_comm_session *socket_comm_sessi
 {
     if (socket_comm_session == NULL)
     {
-        pcep_log(LOG_WARNING, "socket_comm_session_connect_tcp NULL socket_comm_session.\n");
+        pcep_log(LOG_WARNING, "socket_comm_session_connect_tcp NULL socket_comm_session.");
         return NULL;
     }
 
@@ -247,14 +247,14 @@ bool socket_comm_session_connect_tcp(pcep_socket_comm_session *socket_comm_sessi
         getsockopt(socket_comm_session->socket_fd, SOL_SOCKET, SO_ERROR, &so_error, &len);
         if (so_error != 0)
         {
-            pcep_log(LOG_WARNING, "TCP connect failed on socket_fd [%d].\n",
+            pcep_log(LOG_WARNING, "TCP connect failed on socket_fd [%d].",
                     socket_comm_session->socket_fd);
             return false;
         }
     }
     else
     {
-        pcep_log(LOG_WARNING, "TCP connect timed-out on socket_fd [%d].\n",
+        pcep_log(LOG_WARNING, "TCP connect timed-out on socket_fd [%d].",
                 socket_comm_session->socket_fd);
         return false;
     }
@@ -272,7 +272,7 @@ bool socket_comm_session_close_tcp(pcep_socket_comm_session *socket_comm_session
 {
     if (socket_comm_session == NULL)
     {
-        pcep_log(LOG_WARNING, "socket_comm_session_close_tcp NULL socket_comm_session.\n");
+        pcep_log(LOG_WARNING, "socket_comm_session_close_tcp NULL socket_comm_session.");
         return false;
     }
 
@@ -291,7 +291,7 @@ bool socket_comm_session_close_tcp_after_write(pcep_socket_comm_session *socket_
 {
     if (socket_comm_session == NULL)
     {
-        pcep_log(LOG_WARNING, "socket_comm_session_close_tcp_after_write NULL socket_comm_session.\n");
+        pcep_log(LOG_WARNING, "socket_comm_session_close_tcp_after_write NULL socket_comm_session.");
         return false;
     }
 
@@ -307,13 +307,13 @@ bool socket_comm_session_teardown(pcep_socket_comm_session *socket_comm_session)
 {
     if (socket_comm_handle_ == NULL)
     {
-        pcep_log(LOG_WARNING, "Cannot teardown NULL socket_comm_handle\n");
+        pcep_log(LOG_WARNING, "Cannot teardown NULL socket_comm_handle");
         return false;
     }
 
     if (socket_comm_session == NULL)
     {
-        pcep_log(LOG_WARNING, "Cannot teardown NULL session\n");
+        pcep_log(LOG_WARNING, "Cannot teardown NULL session");
         return false;
     }
 
@@ -330,7 +330,7 @@ bool socket_comm_session_teardown(pcep_socket_comm_session *socket_comm_session)
     socket_comm_handle_->num_active_sessions--;
     pthread_mutex_unlock(&(socket_comm_handle_->socket_comm_mutex));
 
-    pcep_log(LOG_INFO, "[%ld-%ld] socket_comm_session [%d] destroyed, [%d] sessions remaining\n",
+    pcep_log(LOG_INFO, "[%ld-%ld] socket_comm_session [%d] destroyed, [%d] sessions remaining",
             time(NULL), pthread_self(),
             socket_comm_session->socket_fd,
             socket_comm_handle_->num_active_sessions);
@@ -355,7 +355,7 @@ void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_sess
 {
     if (socket_comm_session == NULL)
     {
-        pcep_log(LOG_WARNING, "socket_comm_session_send_message NULL socket_comm_session.\n");
+        pcep_log(LOG_WARNING, "socket_comm_session_send_message NULL socket_comm_session.");
         return;
     }
 

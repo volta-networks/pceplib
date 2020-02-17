@@ -24,17 +24,17 @@ void handle_signal_action(int sig_number)
 {
     if (sig_number == SIGINT)
     {
-        pcep_log(LOG_INFO, "SIGINT was caught!\n");
+        pcep_log(LOG_INFO, "SIGINT was caught!");
         pcc_active_ = false;
     }
     else if (sig_number == SIGUSR1)
     {
-        pcep_log(LOG_INFO, "SIGUSR1 was caught, dumping counters\n");
+        pcep_log(LOG_INFO, "SIGUSR1 was caught, dumping counters");
         dump_pcep_session_counters(session);
     }
     else if (sig_number == SIGUSR2)
     {
-        pcep_log(LOG_INFO, "SIGUSR2 was caught, reseting counters\n");
+        pcep_log(LOG_INFO, "SIGUSR2 was caught, reseting counters");
         reset_pcep_session_counters(session);
     }
 }
@@ -83,7 +83,7 @@ void send_pce_report_message(pcep_session *session)
             (struct pcep_object_header*) pcep_obj_create_srp(false, srp_id_number, srp_tlv_list);
     if (obj == NULL)
     {
-        pcep_log(LOG_WARNING, "send_pce_report_message SRP object was NULL\n");
+        pcep_log(LOG_WARNING, "send_pce_report_message SRP object was NULL");
         return;
     }
     dll_append(report_list, obj);
@@ -117,7 +117,7 @@ void send_pce_report_message(pcep_session *session)
             pcep_obj_create_lsp(plsp_id, lsp_status, c_flag, a_flag, r_flag, s_flag, d_flag, lsp_tlv_list);
     if (obj == NULL)
     {
-        pcep_log(LOG_WARNING, "send_pce_report_message LSP object was NULL\n");
+        pcep_log(LOG_WARNING, "send_pce_report_message LSP object was NULL");
         return;
     }
     dll_append(report_list, obj);
@@ -137,7 +137,7 @@ void send_pce_report_message(pcep_session *session)
             pcep_obj_create_ro_subobj_sr_ipv4_node(false, false, false, true, 16060, &sr_subobj_ipv4);
     if (sr_subobj_ipv4node == NULL)
     {
-        pcep_log(LOG_WARNING, "send_pce_report_message ERO sub-object was NULL\n");
+        pcep_log(LOG_WARNING, "send_pce_report_message ERO sub-object was NULL");
         return;
     }
     dll_append(ero_subobj_list, sr_subobj_ipv4node);
@@ -148,7 +148,7 @@ void send_pce_report_message(pcep_session *session)
     obj = (struct pcep_object_header *) pcep_obj_create_ero(ero_subobj_list);
     if (obj == NULL)
     {
-        pcep_log(LOG_WARNING, "send_pce_report_message ERO object was NULL\n");
+        pcep_log(LOG_WARNING, "send_pce_report_message ERO object was NULL");
         return;
     }
     dll_append(report_list, obj);
@@ -160,7 +160,7 @@ void send_pce_report_message(pcep_session *session)
 
 void print_queue_event(struct pcep_event *event)
 {
-    pcep_log(LOG_INFO, "[%ld-%ld] Received Event: type [%s] on session [%d] occurred at [%ld]\n",
+    pcep_log(LOG_INFO, "[%ld-%ld] Received Event: type [%s] on session [%d] occurred at [%ld]",
             time(NULL), pthread_self(),
             get_event_type_str(event->event_type),
             event->session->session_id,
@@ -168,13 +168,13 @@ void print_queue_event(struct pcep_event *event)
 
     if (event->event_type == MESSAGE_RECEIVED)
     {
-        pcep_log(LOG_INFO, "\t Event message type [%s]\n", get_message_type_str(event->message->msg_header->type));
+        pcep_log(LOG_INFO, "\t Event message type [%s]", get_message_type_str(event->message->msg_header->type));
     }
 }
 
 int main(int argc, char **argv)
 {
-    pcep_log(LOG_NOTICE, "[%ld-%ld] starting pcc_pcep example client\n",
+    pcep_log(LOG_NOTICE, "[%ld-%ld] starting pcc_pcep example client",
             time(NULL), pthread_self());
 
     setup_signals();
@@ -184,13 +184,13 @@ int main(int argc, char **argv)
 
     if (!initialize_pcc())
     {
-        pcep_log(LOG_ERR, "Error initializing PCC.\n");
+        pcep_log(LOG_ERR, "Error initializing PCC.");
         return -1;
     }
 
     struct hostent *host_info = gethostbyname("localhost");
     if(host_info == NULL) {
-        pcep_log(LOG_ERR, "Error getting IP address.\n");
+        pcep_log(LOG_ERR, "Error getting IP address.");
         return -1;
     }
 
@@ -203,7 +203,7 @@ int main(int argc, char **argv)
     session = connect_pce(config, &host_address);
     if (session == NULL)
     {
-        pcep_log(LOG_WARNING, "Error in connect_pce.\n");
+        pcep_log(LOG_WARNING, "Error in connect_pce.");
         destroy_pcep_configuration(config);
         return -1;
     }
@@ -225,13 +225,13 @@ int main(int argc, char **argv)
     }
 
 
-    pcep_log(LOG_NOTICE, "Disconnecting from PCE\n");
+    pcep_log(LOG_NOTICE, "Disconnecting from PCE");
     disconnect_pce(session);
     destroy_pcep_configuration(config);
 
     if (!destroy_pcc())
     {
-        pcep_log(LOG_NOTICE, "Error stopping PCC.\n");
+        pcep_log(LOG_NOTICE, "Error stopping PCC.");
     }
 
     return 0;
