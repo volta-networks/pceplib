@@ -36,13 +36,13 @@ $(LIB): $(OBJ)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(DEPS)
 	$(shell [ ! -d $(@D) ] && mkdir -p $(@D))
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -c -o $@ $< $(CFLAGS) $(COVERAGE_FLAGS)
 
 $(TEST_BIN): $(TEST_OBJ) $(LIB)
-	$(CC) -o $@ $(TEST_OBJ) $(CFLAGS) $(TEST_LIB_DIRS) $(TEST_LIBS)
+	$(CC) -o $@ $(TEST_OBJ) $(CFLAGS) $(TEST_LIB_DIRS) $(TEST_LIBS) $(COVERAGE_FLAGS)
 
 $(TEST_DIR)/%.o: $(TEST_DIR)/%.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -c -o $@ $< $(CFLAGS) $(COVERAGE_FLAGS)
 
 .PHONY: all clean test
 

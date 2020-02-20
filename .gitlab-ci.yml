@@ -34,4 +34,5 @@ analyze_debian:
   script:
     - ./reports/install.sh
     - ./reports/analyze.sh
+    - ./reports/cov.sh
     - sonar-scanner -Dsonar.host.url=$SONARQUBE_ENDPOINT || true # not critical

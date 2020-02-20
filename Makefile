@@ -1,5 +1,4 @@
 PROJECT_ROOT = $(dir $(abspath $(lastword $(MAKEFILE_LIST))))
-
 AR= ar
 ARFLAGS = rc
 RANLIB = ranlib

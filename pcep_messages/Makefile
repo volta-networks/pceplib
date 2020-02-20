@@ -37,13 +37,13 @@ $(LIB): $(OBJ)
 
 $(OBJ_DIR)/%.o: $(SRC_DIR)/%.c $(DEPS) $(EXTERNAL_DEPS)
 	$(shell [ ! -d $(@D) ] && mkdir -p $(@D))
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -c -o $@ $< $(CFLAGS) $(COVERAGE_FLAGS)
 
 $(TEST_BIN): $(TEST_OBJ) $(LIB)
-	$(CC) -o $@ $(TEST_OBJ) $(CFLAGS) $(TEST_LIB_DIRS) $(TEST_LIBS)
+	$(CC) -o $@ $(TEST_OBJ) $(CFLAGS) $(TEST_LIB_DIRS) $(TEST_LIBS) $(COVERAGE_FLAGS)
 
 $(TEST_DIR)/%.o: $(TEST_DIR)/%.c $(DEPS)
-	$(CC) -c -o $@ $< $(CFLAGS)
+	$(CC) -c -o $@ $< $(CFLAGS) $(COVERAGE_FLAGS)
 
 .PHONY: all clean test
 
@@ -53,5 +53,5 @@ test: $(TEST_BIN)
 	$(VALGRIND) --log-file=valgrind.$(LIB_NAME).log $(TEST_BIN) || ({ echo "Valgrind memory check error"; exit 1; })
 
 clean:
-	rm -f $(LIB) $(TEST_BIN) $(OBJ_DIR)/*.o valgrind*.log *~ core $(INC_DIR)/*~ $(SRC_DIR)/*~
+	rm -f $(LIB) $(TEST_BIN) $(OBJ_DIR)/*.o $(TEST_DIR)/*.o valgrind*.log *~ core $(INC_DIR)/*~ $(SRC_DIR)/*~
 
