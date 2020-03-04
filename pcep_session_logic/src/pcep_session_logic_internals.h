@@ -79,4 +79,7 @@ void create_session_counters(pcep_session *session);
 void increment_event_counters(pcep_session *session, pcep_session_counters_event_counter_ids counter_id);
 void increment_message_rx_counters(pcep_session *session, struct pcep_message *message);
 
+/* defined in pcep_session_logic.c, also used in pcep_session_logic_states.c */
+struct pcep_message *create_pcep_open(pcep_session *session);
+
 #endif /* SRC_PCEPSESSIONLOGICINTERNALS_H_ */

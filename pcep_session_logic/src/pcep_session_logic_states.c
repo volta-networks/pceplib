@@ -135,7 +135,7 @@ bool verify_pcep_open_object(pcep_session *session, struct pcep_object_open *ope
                 session->pcc_config.min_dead_timer_seconds;
         retval = false;
     }
-    else if (open_object->open_keepalive > session->pcc_config.max_dead_timer_seconds)
+    else if (open_object->open_deadtimer > session->pcc_config.max_dead_timer_seconds)
     {
         pcep_log(LOG_INFO, "Rejecting unsupported Open Dead Timer value [%d]",
                open_object->open_deadtimer);
@@ -152,11 +152,29 @@ bool verify_pcep_open_object(pcep_session *session, struct pcep_object_open *ope
     }
 
     double_linked_list_node *tlv_node = open_object->header.tlv_list->head;
-    for (; tlv_node != NULL; tlv_node = tlv_node->next_node)
+    while (tlv_node != NULL)
     {
         struct pcep_object_tlv_header *tlv = tlv_node->data;
+        tlv_node = tlv_node->next_node;
 
-        /* Check for the STATEFUL-PCE-CAPABILITY TLV */
+        /* Supported Open Object TLVs */
+        switch (tlv->type)
+        {
+        case PCEP_OBJ_TLV_TYPE_LSP_DB_VERSION:
+        case PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY:
+        case PCEP_OBJ_TLV_TYPE_SPEAKER_ENTITY_ID:
+        case PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY:
+        case PCEP_OBJ_TLV_TYPE_SR_PCE_CAPABILITY:
+            break;
+
+        default:
+            /* TODO how to handle unrecognized TLV ?? */
+            pcep_log(LOG_INFO, "Unhandled OPEN Object TLV type: %d, length %d",
+                    tlv->type, tlv->encoded_tlv_length);
+            break;
+        }
+
+        /* Verify the STATEFUL-PCE-CAPABILITY TLV */
         if (tlv->type == PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY)
         {
             struct pcep_object_tlv_stateful_pce_capability *pce_cap_tlv =
@@ -202,11 +220,15 @@ bool verify_pcep_open_object(pcep_session *session, struct pcep_object_open *ope
                 pcep_log(LOG_INFO, "Ignoring Open STATEFUL-PCE-CAPABILITY TLV F Triggered Initial Sync flag");
             }
         }
-        else
+        else if (tlv->type == PCEP_OBJ_TLV_TYPE_LSP_DB_VERSION)
         {
-            /* TODO how to handle unrecognized TLV ?? */
-            pcep_log(LOG_INFO, "Unhandled OPEN TLV type: %d, length %d",
-                    tlv->type, tlv->encoded_tlv_length);
+            if (session->pce_config.support_include_db_version == false)
+            {
+                pcep_log(LOG_INFO, "Rejecting unsupported Open LSP DB VERSION TLV");
+                /* Remove this TLV from the list */
+                dll_delete_node(open_object->header.tlv_list, tlv_node);
+                retval = false;
+            }
         }
     }
 
@@ -219,8 +241,19 @@ bool handle_pcep_open(pcep_session *session, struct pcep_message *open_msg)
     /* Open Message validation and errors according to:
      * https://tools.ietf.org/html/rfc5440#section-7.15 */
 
-    if (session->pcep_open_received == true)
+    if (session->session_state != SESSION_STATE_PCEP_CONNECTING &&
+        session->session_state != SESSION_STATE_INITIALIZED)
     {
+        pcep_log(LOG_INFO, "Received unexpected OPEN, current session state [%d, replying with error]",
+                 session->session_state);
+        send_pcep_error(session, PCEP_ERRT_ATTEMPT_TO_ESTABLISH_2ND_PCEP_SESSION,
+                PCEP_ERRV_RECVD_INVALID_OPEN_MSG);
+        return false;
+    }
+
+    if (session->pce_open_received == true && session->pce_open_rejected == false)
+    {
+        pcep_log(LOG_INFO, "Received duplicate OPEN, replying with error");
         send_pcep_error(session, PCEP_ERRT_ATTEMPT_TO_ESTABLISH_2ND_PCEP_SESSION,
                         PCEP_ERRV_RECVD_INVALID_OPEN_MSG);
         return false;
@@ -230,6 +263,7 @@ bool handle_pcep_open(pcep_session *session, struct pcep_message *open_msg)
             (struct pcep_object_open *) pcep_obj_get(open_msg->obj_list, PCEP_OBJ_CLASS_OPEN);
     if (open_object == NULL)
     {
+        pcep_log(LOG_INFO, "Received OPEN message with no OPEN object, replying with error");
         send_pcep_error(session, PCEP_ERRT_SESSION_FAILURE, PCEP_ERRV_RECVD_INVALID_OPEN_MSG);
         return false;
     }
@@ -237,28 +271,41 @@ bool handle_pcep_open(pcep_session *session, struct pcep_message *open_msg)
     /* Check for additional Open Msg objects */
     if (open_msg->obj_list->num_entries > 1)
     {
-        pcep_log(LOG_INFO, "Found additional unsupported objects in the Open message");
+        pcep_log(LOG_INFO, "Found additional unsupported objects in the Open message, replying with error");
         send_pcep_error(session, PCEP_ERRT_SESSION_FAILURE, PCEP_ERRV_RECVD_INVALID_OPEN_MSG);
         return false;
     }
 
+    session->pce_open_received = true;
+
     /* Verify the open object parameters and TLVs */
     if (verify_pcep_open_object(session, open_object) == false)
     {
-        if (session->pcep_open_rejected)
+        enqueue_event(session, PCC_RCVD_INVALID_OPEN, NULL);
+        if (session->pce_open_rejected)
         {
             /* The Open message was already rejected once, so according to
              * the spec, send an error message and close the TCP connection. */
+            pcep_log(LOG_INFO, "Received 2 consecutive unsupported Open messages, closing the connection.");
             send_pcep_error(session, PCEP_ERRT_SESSION_FAILURE,
                             PCEP_ERRV_RECVD_SECOND_OPEN_MSG_UNACCEPTABLE);
             socket_comm_session_close_tcp_after_write(session->socket_comm_session);
             session->session_state = SESSION_STATE_INITIALIZED;
+            enqueue_event(session, PCC_CONNECTION_FAILURE, NULL);
         }
         else
         {
-            session->pcep_open_rejected = true;
+            session->pce_open_rejected = true;
+            /* Clone the object here, since the encapsulating message will
+             * be deleted in handle_socket_comm_event() most likely before
+             * this error message is sent */
+            struct pcep_object_open *cloned_open_object = malloc(sizeof(struct pcep_object_open));
+            memcpy(cloned_open_object, open_object, sizeof(struct pcep_object_open));
+            open_object->header.tlv_list = NULL;
+            cloned_open_object->header.encoded_object = NULL;
+            cloned_open_object->header.encoded_object_length = 0;
             send_pcep_error_with_object(session, PCEP_ERRT_SESSION_FAILURE,
-                    PCEP_ERRV_UNACCEPTABLE_OPEN_MSG_NO_NEG, &open_object->header);
+                    PCEP_ERRV_UNACCEPTABLE_OPEN_MSG_NEG, &cloned_open_object->header);
         }
 
         return false;
@@ -267,10 +314,53 @@ bool handle_pcep_open(pcep_session *session, struct pcep_message *open_msg)
     /* Open Message accepted */
     session->pce_config.dead_timer_seconds = open_object->open_deadtimer;
     session->pce_config.keep_alive_seconds = open_object->open_keepalive;
-    session->pcep_open_received = true;
     send_keep_alive(session);
 
     return true;
+}
+
+
+/* The original PCEP Open message sent to the PCE was rejected,
+ * try to reconcile the differences and re-send a new Open. */
+void send_reconciled_pcep_open(pcep_session *session, struct pcep_message *error_msg)
+{
+    struct pcep_message *open_msg = create_pcep_open(session);
+
+    struct pcep_object_open *error_open_obj =
+            (struct pcep_object_open *) pcep_obj_get(error_msg->obj_list, PCEP_OBJ_CLASS_OPEN);
+    if (error_open_obj == NULL)
+    {
+        /* Nothing to reconcile, send the same Open message again */
+        pcep_log(LOG_INFO, "No Open object received in Error, sending the same Open message");
+        session_send_message(session, open_msg);
+        return;
+    }
+
+    struct pcep_object_open *open_obj =
+            (struct pcep_object_open *) pcep_obj_get(open_msg->obj_list, PCEP_OBJ_CLASS_OPEN);
+    if (error_open_obj->open_deadtimer >= session->pce_config.min_dead_timer_seconds &&
+        error_open_obj->open_deadtimer <= session->pce_config.max_dead_timer_seconds)
+    {
+        open_obj->open_deadtimer = error_open_obj->open_deadtimer;
+    }
+    else
+    {
+        pcep_log(LOG_INFO, "Can not reconcile Open with suggested deadtimer [%d]", error_open_obj->open_deadtimer);
+    }
+
+    if (error_open_obj->open_keepalive >= session->pce_config.min_keep_alive_seconds &&
+        error_open_obj->open_keepalive <= session->pce_config.max_keep_alive_seconds)
+    {
+        open_obj->open_keepalive = error_open_obj->open_keepalive;
+    }
+    else
+    {
+        pcep_log(LOG_INFO, "Can not reconcile Open with suggested keepalive [%d]", error_open_obj->open_keepalive);
+    }
+
+    /* TODO reconcile the TLVs */
+
+    session_send_message(session, open_msg);
 }
 
 
@@ -504,7 +594,7 @@ void handle_timer_event(pcep_session_event *event)
      */
     switch(session->session_state)
     {
-    case SESSION_STATE_TCP_CONNECTED:
+    case SESSION_STATE_PCEP_CONNECTING:
         if (event->expired_timer_id == session->timer_id_open_keep_wait)
         {
             /* close the TCP session */
@@ -531,7 +621,7 @@ void handle_timer_event(pcep_session_event *event)
 
     case SESSION_STATE_IDLE:
     case SESSION_STATE_INITIALIZED:
-    case SESSION_STATE_OPENED:
+    case SESSION_STATE_PCEP_CONNECTED:
     default:
         pcep_log(LOG_INFO, "handle_timer_event unrecognized state transition, timer_id [%d] state [%d] session_id [%d]",
                 event->expired_timer_id, session->session_state, session->session_id);
@@ -565,9 +655,13 @@ void handle_socket_comm_event(pcep_session_event *event)
     if (event->socket_closed)
     {
         pcep_log(LOG_INFO, "handle_socket_comm_event socket closed for session [%d]", session->session_id);
-        session->session_state = SESSION_STATE_INITIALIZED;
         socket_comm_session_close_tcp(session->socket_comm_session);
         enqueue_event(session, PCE_CLOSED_SOCKET, NULL);
+        if (session->session_state == SESSION_STATE_PCEP_CONNECTING)
+        {
+            enqueue_event(session, PCC_CONNECTION_FAILURE, NULL);
+        }
+        session->session_state = SESSION_STATE_INITIALIZED;
         increment_event_counters(session, PCEP_EVENT_COUNTER_ID_PCE_DISCONNECT);
         return;
     }
@@ -579,6 +673,7 @@ void handle_socket_comm_event(pcep_session_event *event)
         return;
     }
 
+    /* Message received on socket */
     double_linked_list_node *msg_node;
     for (msg_node = event->received_msg_list->head;
          msg_node != NULL;
@@ -593,23 +688,41 @@ void handle_socket_comm_event(pcep_session_event *event)
         switch (msg->msg_header->type)
         {
         case PCEP_TYPE_OPEN:
-            /* handle_pcep_open() checks for duplicate erroneous open messages */
+            /* handle_pcep_open() checks session state, and for duplicate erroneous
+             * open messages, and replies with error messages as needed. It also
+             * sets pce_open_received. */
             if (handle_pcep_open(session, msg) == true)
             {
+                /* PCE Open Message Accepted */
                 enqueue_event(session, MESSAGE_RECEIVED, msg);
-                increment_event_counters(session, PCEP_EVENT_COUNTER_ID_PCE_CONNECT);
                 message_enqueued = true;
+                session->pce_open_accepted = true;
+                session->pce_open_rejected = false;
+                if (session->pcc_open_accepted)
+                {
+                    /* If both the PCC and PCE Opens are accepted, then the session is connected */
+                    session->session_state = SESSION_STATE_PCEP_CONNECTED;
+                    increment_event_counters(session, PCEP_EVENT_COUNTER_ID_PCE_CONNECT);
+                    enqueue_event(session, PCC_CONNECTED_TO_PCE, NULL);
+                }
             }
             break;
 
         case PCEP_TYPE_KEEPALIVE:
-            if (session->session_state == SESSION_STATE_TCP_CONNECTED)
+            if (session->session_state == SESSION_STATE_PCEP_CONNECTING)
             {
-                session->session_state = SESSION_STATE_OPENED;
+                /* PCC Open Message Accepted */
                 cancel_timer(session->timer_id_open_keep_wait);
                 session->timer_id_open_keep_wait = TIMER_ID_NOT_SET;
-                enqueue_event(session, PCC_CONNECTED_TO_PCE, NULL);
-                increment_event_counters(session, PCEP_EVENT_COUNTER_ID_PCC_CONNECT);
+                session->pcc_open_accepted = true;
+                session->pcc_open_rejected = false;
+                if (session->pce_open_accepted)
+                {
+                    /* If both the PCC and PCE Opens are accepted, then the session is connected */
+                    session->session_state = SESSION_STATE_PCEP_CONNECTED;
+                    increment_event_counters(session, PCEP_EVENT_COUNTER_ID_PCC_CONNECT);
+                    enqueue_event(session, PCC_CONNECTED_TO_PCE, NULL);
+                }
             }
             /* The dead_timer was already reset above, so nothing extra to do here */
             break;
@@ -674,6 +787,16 @@ void handle_socket_comm_event(pcep_session_event *event)
         case PCEP_TYPE_ERROR:
             enqueue_event(session, MESSAGE_RECEIVED, msg);
             message_enqueued = true;
+            if (session->session_state == SESSION_STATE_PCEP_CONNECTING)
+            {
+                /* A PCC_CONNECTION_FAILURE event will be sent when the socket is
+                 * closed, if the state is SESSION_STATE_PCEP_CONNECTING, in case
+                 * the PCE allows more than 2 failed open messages. */
+                pcep_log(LOG_INFO, "PCC Open message rejected by PCC");
+                enqueue_event(session, PCC_SENT_INVALID_OPEN, NULL);
+                session->pcc_open_rejected = true;
+                send_reconciled_pcep_open(session, msg);
+            }
             break;
 
         default:

@@ -57,31 +57,39 @@ int session_logic_msg_ready_handler(void *data, int socket_fd)
     pthread_mutex_lock(&(session_logic_handle_->session_logic_mutex));
     session_logic_handle_->session_logic_condition = true;
 
-    double_linked_list *msg_list = pcep_msg_read(socket_fd);
-    if (msg_list == NULL || msg_list->num_entries == 0)
-    {
-        pcep_log(LOG_WARNING, "Error decoding PCEP message, connection closed");
-        pthread_mutex_unlock(&(session_logic_handle_->session_logic_mutex));
-        dll_destroy(msg_list);
-
-        return 0;
-    }
-
-    /* Just logging the first of potentially several messages received */
-    struct pcep_message *msg = ((struct pcep_message *) msg_list->head->data);
-    pcep_log(LOG_INFO, "[%ld-%ld] session_logic_msg_ready_handler received message of type [%d] len [%d] on session_id [%d]",
-            time(NULL), pthread_self(), msg->msg_header->type, msg->encoded_message_length, session->session_id);
-
     /* This event will ultimately be handled by handle_socket_comm_event()
      * in pcep_session_logic_states.c */
     pcep_session_event *rcvd_msg_event = create_session_event(session);
-    rcvd_msg_event->received_msg_list = msg_list;
-    queue_enqueue(session_logic_handle_->session_event_queue, rcvd_msg_event);
 
+    int msg_length = 0;
+    double_linked_list *msg_list = pcep_msg_read(socket_fd);
+
+    if (msg_list == NULL || msg_list->num_entries == 0)
+    {
+        pcep_log(LOG_INFO, "PCEP connection closed for pcep_session [%d]", session->session_id);
+        dll_destroy(msg_list);
+        rcvd_msg_event->socket_closed = true;
+        socket_comm_session_teardown(session->socket_comm_session);
+        pcep_session_cancel_timers(session);
+        session->socket_comm_session = NULL;
+        session->session_state = SESSION_STATE_INITIALIZED;
+    }
+    else
+    {
+        /* Just logging the first of potentially several messages received */
+        struct pcep_message *msg = ((struct pcep_message *) msg_list->head->data);
+        pcep_log(LOG_INFO, "[%ld-%ld] session_logic_msg_ready_handler received message of type [%d] len [%d] on session_id [%d]",
+                time(NULL), pthread_self(), msg->msg_header->type, msg->encoded_message_length, session->session_id);
+
+        rcvd_msg_event->received_msg_list = msg_list;
+        msg_length = msg->encoded_message_length;
+    }
+
+    queue_enqueue(session_logic_handle_->session_event_queue, rcvd_msg_event);
     pthread_cond_signal(&(session_logic_handle_->session_logic_cond_var));
     pthread_mutex_unlock(&(session_logic_handle_->session_logic_mutex));
 
-    return msg->encoded_message_length;
+    return msg_length;
 }
 
 

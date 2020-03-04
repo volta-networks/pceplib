@@ -146,8 +146,11 @@ bool socket_comm_session_teardown(pcep_socket_comm_session *socket_comm_session)
 {
     mock_socket_metadata.socket_comm_session_teardown_times_called++;
 
-    queue_destroy(socket_comm_session->message_queue);
-    free(socket_comm_session);
+    if (socket_comm_session != NULL)
+    {
+        queue_destroy(socket_comm_session->message_queue);
+        free(socket_comm_session);
+    }
 
     return true;
 }

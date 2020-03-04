@@ -82,7 +82,12 @@ void test_session_logic_msg_ready_handler()
     bzero(&session, sizeof(pcep_session));
     session.session_id = 100;
     CU_ASSERT_EQUAL(session_logic_msg_ready_handler(&session, fd), 0);
-    CU_ASSERT_EQUAL(session_logic_handle_->session_event_queue->num_entries, 0);
+    CU_ASSERT_EQUAL(session_logic_handle_->session_event_queue->num_entries, 1);
+    pcep_session_event *socket_event =
+            (pcep_session_event *) queue_dequeue(session_logic_handle_->session_event_queue);
+    CU_ASSERT_PTR_NOT_NULL(socket_event);
+    CU_ASSERT_TRUE(socket_event->socket_closed);
+    free(socket_event);
 
     /* A pcep_session_event should be created */
     struct pcep_versioning *versioning = create_default_pcep_versioning();
@@ -92,9 +97,8 @@ void test_session_logic_msg_ready_handler()
     lseek(fd, 0, SEEK_SET);
     CU_ASSERT_EQUAL(session_logic_msg_ready_handler(&session, fd), keep_alive_msg->encoded_message_length);
     CU_ASSERT_EQUAL(session_logic_handle_->session_event_queue->num_entries, 1);
-    pcep_session_event *socket_event =
-            (pcep_session_event *) queue_dequeue(session_logic_handle_->session_event_queue);
-    CU_ASSERT_PTR_NOT_NULL_FATAL(socket_event);
+    socket_event = (pcep_session_event *) queue_dequeue(session_logic_handle_->session_event_queue);
+    CU_ASSERT_PTR_NOT_NULL(socket_event);
     CU_ASSERT_FALSE(socket_event->socket_closed);
     CU_ASSERT_PTR_EQUAL(socket_event->session, &session);
     CU_ASSERT_EQUAL(socket_event->expired_timer_id, TIMER_ID_NOT_SET);

@@ -218,45 +218,71 @@ bool socket_comm_session_connect_tcp(pcep_socket_comm_session *socket_comm_sessi
     }
 
     /* Set the socket to non-blocking, so connect() does not block */
-    fcntl(socket_comm_session->socket_fd, F_SETFL, O_NONBLOCK);
-    connect(socket_comm_session->socket_fd,
+    int fcntl_arg;
+    if ((fcntl_arg = fcntl(socket_comm_session->socket_fd, F_GETFL, NULL)) < 0 )
+    {
+        pcep_log(LOG_WARNING, "Error fcntl(..., F_GETFL) [%d %s]", errno, strerror(errno));
+        return false;
+    }
+
+    fcntl_arg |= O_NONBLOCK;
+    if (fcntl(socket_comm_session->socket_fd, F_SETFL, fcntl_arg) < 0)
+    {
+        pcep_log(LOG_WARNING, "Error fcntl(..., F_SETFL) [%d %s]", errno, strerror(errno));
+        return false;
+    }
+
+    int connect_result = connect(socket_comm_session->socket_fd,
             (struct sockaddr *) &(socket_comm_session->dest_sock_addr),
             sizeof(struct sockaddr));
 
-    /* Calculate the configured timeout in seconds and microseconds */
-    struct timeval tv;
-    if (socket_comm_session->connect_timeout_millis > 1000)
+    if (connect_result < 0)
     {
-        tv.tv_sec = socket_comm_session->connect_timeout_millis / 1000;
-        tv.tv_usec = (socket_comm_session->connect_timeout_millis - (tv.tv_sec * 1000)) * 1000;
-    }
-    else
-    {
-        tv.tv_sec = 0;
-        tv.tv_usec = socket_comm_session->connect_timeout_millis * 1000;
-    }
-
-    /* Use select to wait a max timeout for connect */
-    fd_set fdset;
-    FD_ZERO(&fdset);
-    FD_SET(socket_comm_session->socket_fd, &fdset);
-    if (select(socket_comm_session->socket_fd + 1, NULL, &fdset, NULL, &tv) == 1)
-    {
-        int so_error;
-        socklen_t len = sizeof(so_error);
-        getsockopt(socket_comm_session->socket_fd, SOL_SOCKET, SO_ERROR, &so_error, &len);
-        if (so_error != 0)
+        if (errno == EINPROGRESS)
         {
-            pcep_log(LOG_WARNING, "TCP connect failed on socket_fd [%d].",
-                    socket_comm_session->socket_fd);
+            /* Calculate the configured timeout in seconds and microseconds */
+            struct timeval tv;
+            if (socket_comm_session->connect_timeout_millis > 1000)
+            {
+                tv.tv_sec = socket_comm_session->connect_timeout_millis / 1000;
+                tv.tv_usec = (socket_comm_session->connect_timeout_millis - (tv.tv_sec * 1000)) * 1000;
+            }
+            else
+            {
+                tv.tv_sec = 0;
+                tv.tv_usec = socket_comm_session->connect_timeout_millis * 1000;
+            }
+
+            /* Use select to wait a max timeout for connect
+             * https://stackoverflow.com/questions/2597608/c-socket-connection-timeout */
+            fd_set fdset;
+            FD_ZERO(&fdset);
+            FD_SET(socket_comm_session->socket_fd, &fdset);
+            if (select(socket_comm_session->socket_fd + 1, NULL, &fdset, NULL, &tv) > 0)
+            {
+                int so_error;
+                socklen_t len = sizeof(so_error);
+                getsockopt(socket_comm_session->socket_fd, SOL_SOCKET, SO_ERROR, &so_error, &len);
+                if (so_error)
+                {
+                    pcep_log(LOG_WARNING, "TCP connect failed on socket_fd [%d].",
+                            socket_comm_session->socket_fd);
+                    return false;
+                }
+            }
+            else
+            {
+                pcep_log(LOG_WARNING, "TCP connect timed-out on socket_fd [%d].",
+                        socket_comm_session->socket_fd);
+                return false;
+            }
+        }
+        else
+        {
+            pcep_log(LOG_WARNING, "TCP connect, error connecting on socket_fd [%d] errno [%d %s]",
+                    socket_comm_session->socket_fd, errno, strerror(errno));
             return false;
         }
-    }
-    else
-    {
-        pcep_log(LOG_WARNING, "TCP connect timed-out on socket_fd [%d].",
-                socket_comm_session->socket_fd);
-        return false;
     }
 
     pthread_mutex_lock(&(socket_comm_handle_->socket_comm_mutex));

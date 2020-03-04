@@ -48,6 +48,7 @@ extern void test_handle_socket_comm_event_initiate(void);
 extern void test_handle_socket_comm_event_notify(void);
 extern void test_handle_socket_comm_event_error(void);
 extern void test_handle_socket_comm_event_unknown_msg(void);
+extern void test_connection_failure(void);
 
 
 int main(int argc, char **argv)
@@ -161,6 +162,9 @@ int main(int argc, char **argv)
     CU_add_test(test_session_logic_states_suite,
                 "test_handle_socket_comm_event_unknown_msg",
                 test_handle_socket_comm_event_unknown_msg);
+    CU_add_test(test_session_logic_states_suite,
+                "test_connection_failure",
+                test_connection_failure);
 
     /*
      * Run the tests and cleanup.

@@ -30,7 +30,7 @@ pcep_session_logic_handle *session_logic_handle_ = NULL;
 pcep_event_queue *session_logic_event_queue_ = NULL;
 int session_id_ = 0;
 
-void create_and_send_open(pcep_session *session);    /* forward decl */
+void send_pcep_open(pcep_session *session); /* forward decl */
 
 int session_id_compare_function(void *list_entry, void *new_entry)
 {
@@ -169,6 +169,36 @@ void destroy_pcep_session(pcep_session *session)
         return;
     }
 
+    pcep_session_cancel_timers(session);
+
+    delete_counters_group(session->pcep_session_counters);
+
+    queue_destroy_with_data(session->num_unknown_messages_time_queue);
+
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session [%d] destroyed", time(NULL), pthread_self(), session->session_id);
+
+    socket_comm_session_teardown(session->socket_comm_session);
+
+    if (session->pcc_config.pcep_msg_versioning != NULL)
+    {
+        free(session->pcc_config.pcep_msg_versioning);
+    }
+
+    if (session->pce_config.pcep_msg_versioning != NULL)
+    {
+        free(session->pce_config.pcep_msg_versioning);
+    }
+
+    free(session);
+}
+
+void pcep_session_cancel_timers(pcep_session *session)
+{
+    if (session == NULL)
+    {
+        return;
+    }
+
     if (session->timer_id_dead_timer != TIMER_ID_NOT_SET)
     {
         cancel_timer(session->timer_id_dead_timer);
@@ -188,18 +218,7 @@ void destroy_pcep_session(pcep_session *session)
     {
         cancel_timer(session->timer_id_pc_req_wait);
     }
-
-    delete_counters_group(session->pcep_session_counters);
-
-    queue_destroy_with_data(session->num_unknown_messages_time_queue);
-
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session [%d] destroyed", time(NULL), pthread_self(), session->session_id);
-
-    socket_comm_session_teardown(session->socket_comm_session);
-
-    free(session);
 }
-
 
 /* Internal util function */
 static int get_next_session_id()
@@ -228,6 +247,7 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
     }
 
     pcep_session *session = malloc(sizeof(pcep_session));
+    memset(session, 0, sizeof(pcep_session));
     session->session_id = get_next_session_id();
     session->session_state = SESSION_STATE_INITIALIZED;
     session->timer_id_open_keep_wait = TIMER_ID_NOT_SET;
@@ -236,13 +256,23 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
     session->timer_id_keep_alive = TIMER_ID_NOT_SET;
     session->stateful_pce = false;
     session->num_unknown_messages_time_queue = queue_initialize();
-    session->pcep_open_received = false;
-    session->pcep_open_rejected = false;
+    session->pce_open_received = false;
+    session->pce_open_rejected = false;
+    session->pcc_open_rejected = false;
+    session->pce_open_accepted = false;
+    session->pcc_open_accepted = false;
     session->destroy_session_after_write = false;
     session->lsp_db_version = config->lsp_db_version;
     memcpy(&(session->pcc_config), config, sizeof(pcep_configuration));
     /* copy the pcc_config to the pce_config until we receive the open keep_alive response */
     memcpy(&(session->pce_config), config, sizeof(pcep_configuration));
+    if (config->pcep_msg_versioning != NULL)
+    {
+        session->pcc_config.pcep_msg_versioning = malloc(sizeof(struct pcep_versioning));
+        memcpy(session->pcc_config.pcep_msg_versioning, config->pcep_msg_versioning, sizeof(struct pcep_versioning));
+        session->pce_config.pcep_msg_versioning = malloc(sizeof(struct pcep_versioning));
+        memcpy(session->pce_config.pcep_msg_versioning, config->pcep_msg_versioning, sizeof(struct pcep_versioning));
+    }
 
     session->socket_comm_session = socket_comm_session_initialize_with_src(
             NULL,
@@ -270,13 +300,13 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
 
         return NULL;
     }
-    session->session_state = SESSION_STATE_TCP_CONNECTED;
 
     session->time_connected = time(NULL);
     create_session_counters(session);
 
-    create_and_send_open(session);
+    send_pcep_open(session);
 
+    session->session_state = SESSION_STATE_PCEP_CONNECTING;
     session->timer_id_open_keep_wait = create_timer(config->keep_alive_seconds, session);
     //session->session_state = SESSION_STATE_OPENED;
 
@@ -303,7 +333,8 @@ void session_send_message(pcep_session *session, struct pcep_message *message)
 }
 
 
-void create_and_send_open(pcep_session *session)
+/* This function is also used in pcep_session_logic_states.c */
+struct pcep_message *create_pcep_open(pcep_session *session)
 {
     /* create and send PCEP open
      * with PCEP, the PCC sends the config the PCE should use in the open message,
@@ -380,5 +411,11 @@ void create_and_send_open(pcep_session *session)
     pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send open message: TLVs [%d] for session_id [%d]",
             time(NULL), pthread_self(), tlv_list->num_entries, session->session_id);
 
-    session_send_message(session, open_msg);
+    return(open_msg);
+}
+
+
+void send_pcep_open(pcep_session *session)
+{
+    session_send_message(session, create_pcep_open(session));
 }

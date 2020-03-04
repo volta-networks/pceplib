@@ -102,10 +102,10 @@ typedef enum pcep_session_state_
 {
     SESSION_STATE_UNKNOWN = 0,
     SESSION_STATE_INITIALIZED = 1,
-    SESSION_STATE_TCP_CONNECTED = 2,
-    SESSION_STATE_OPENED = 3,
+    SESSION_STATE_PCEP_CONNECTING = 2,
+    SESSION_STATE_PCEP_CONNECTED = 3,
     SESSION_STATE_WAIT_PCREQ = 4,
-    SESSION_STATE_IDLE = 5
+    SESSION_STATE_IDLE = 5  /* Only used in conjunction with SESSION_STATE_WAIT_PCREQ */
 
 } pcep_session_state;
 
@@ -118,8 +118,11 @@ typedef struct pcep_session_
     int timer_id_pc_req_wait;
     int timer_id_dead_timer;
     int timer_id_keep_alive;
-    bool pcep_open_received;
-    bool pcep_open_rejected;
+    bool pce_open_received;
+    bool pce_open_rejected;
+    bool pce_open_accepted;
+    bool pcc_open_rejected;
+    bool pcc_open_accepted;
     bool stateful_pce;
     time_t time_connected;
     uint64_t lsp_db_version;
@@ -144,10 +147,12 @@ typedef enum pcep_event_type
     PCE_DEAD_TIMER_EXPIRED = 3,
     PCE_OPEN_KEEP_WAIT_TIMER_EXPIRED = 4,
     PCC_CONNECTED_TO_PCE = 100,
-    PCC_PCEP_SESSION_CLOSED = 101,
-    PCC_RCVD_INVALID_OPEN = 102,
-    PCC_RCVD_MAX_INVALID_MSGS = 103,
-    PCC_RCVD_MAX_UNKOWN_MSGS = 104
+    PCC_CONNECTION_FAILURE = 101,
+    PCC_PCEP_SESSION_CLOSED = 102,
+    PCC_RCVD_INVALID_OPEN = 103,
+    PCC_SENT_INVALID_OPEN = 104,
+    PCC_RCVD_MAX_INVALID_MSGS = 105,
+    PCC_RCVD_MAX_UNKOWN_MSGS = 106
 
 } pcep_event_type;
 
@@ -187,6 +192,8 @@ void close_pcep_session_with_reason(pcep_session *session, enum pcep_close_reaso
 /* Destroy the PCEP session, a PCEP close should have
  * already been sent with close_pcep_session() */
 void destroy_pcep_session(pcep_session *session);
+
+void pcep_session_cancel_timers(pcep_session *session);
 
 /* Increments transmitted message counters, additionally counters for the objects,
  * sub-objects, and TLVs in the message will be incremented.  Received counters

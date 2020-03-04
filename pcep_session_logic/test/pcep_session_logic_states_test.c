@@ -158,7 +158,7 @@ void test_handle_timer_event_open_keep_wait()
 {
     /* Open Keep Wait timer expired */
     event.expired_timer_id = session.timer_id_open_keep_wait = 300;
-    session.session_state = SESSION_STATE_TCP_CONNECTED;
+    session.session_state = SESSION_STATE_PCEP_CONNECTING;
     handle_timer_event(&event);
 
     CU_ASSERT_EQUAL(session.timer_id_open_keep_wait, TIMER_ID_NOT_SET);
@@ -170,7 +170,7 @@ void test_handle_timer_event_open_keep_wait()
     CU_ASSERT_EQUAL(PCE_OPEN_KEEP_WAIT_TIMER_EXPIRED, e->event_type);
     free(e);
 
-    /* If the state is not SESSION_STATE_TCP_CONNECTED, then nothing should happen */
+    /* If the state is not SESSION_STATE_PCEP_CONNECTED, then nothing should happen */
     reset_mock_socket_comm_info();
     session.session_state = SESSION_STATE_WAIT_PCREQ;
     event.expired_timer_id = session.timer_id_open_keep_wait = 300;
@@ -198,14 +198,14 @@ void test_handle_timer_event_pc_req_wait()
     CU_ASSERT_EQUAL(PCE_OPEN_KEEP_WAIT_TIMER_EXPIRED, e->event_type);
     free(e);
 
-    /* If the state is not SESSION_STATE_TCP_CONNECTED, then nothing should happen */
+    /* If the state is not SESSION_STATE_PCEP_CONNECTED, then nothing should happen */
     reset_mock_socket_comm_info();
-    session.session_state = SESSION_STATE_TCP_CONNECTED;
+    session.session_state = SESSION_STATE_PCEP_CONNECTED;
     event.expired_timer_id = session.timer_id_pc_req_wait = 400;
     handle_timer_event(&event);
 
     CU_ASSERT_EQUAL(session.timer_id_pc_req_wait, 400);
-    CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_TCP_CONNECTED);
+    CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_PCEP_CONNECTED);
     verify_socket_comm_times_called(0, 0, 0, 0, 0, 0, 0);
 }
 
@@ -240,21 +240,65 @@ void test_handle_socket_comm_event_close()
 
 void test_handle_socket_comm_event_open()
 {
+    /*
+     * Test when a PCE Open is received, but the PCC Open has not been accepted yet
+     */
     create_message_for_test(PCEP_TYPE_OPEN, false, true);
     struct pcep_object_open *open_object = pcep_obj_create_open(1, 1, 1, NULL);
     dll_append(message->obj_list, open_object);
-    session.pcep_open_received = false;
+    session.pcc_open_accepted = false;
+    session.pce_open_received = false;
+    session.pce_open_accepted = false;
+    session.session_state = SESSION_STATE_PCEP_CONNECTING;
 
     handle_socket_comm_event(&event);
 
-    CU_ASSERT_TRUE(session.pcep_open_received);
+    CU_ASSERT_TRUE(session.pce_open_received);
+    CU_ASSERT_TRUE(session.pce_open_accepted);
+    CU_ASSERT_FALSE(session.pce_open_rejected);
+    CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_PCEP_CONNECTING);
+    /* A keep alive response should be sent, accepting the Open */
     verify_socket_comm_times_called(0, 0, 0, 1, 0, 0, 0);
+    CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 1);
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
+    CU_ASSERT_EQUAL(PCEP_TYPE_OPEN, e->message->msg_header->type);
     free(e);
     destroy_message_for_test();
 
-    /* Send a 2nd Open, an error should be sent */
+    /*
+     * Test when a PCE Open is received, and the PCC Open has been accepted
+     */
+    create_message_for_test(PCEP_TYPE_OPEN, false, true);
+    reset_mock_socket_comm_info();
+    open_object = pcep_obj_create_open(1, 1, 1, NULL);
+    dll_append(message->obj_list, open_object);
+    session.pcc_open_accepted = true;
+    session.pce_open_received = false;
+    session.pce_open_accepted = false;
+    session.session_state = SESSION_STATE_PCEP_CONNECTING;
+
+    handle_socket_comm_event(&event);
+
+    CU_ASSERT_TRUE(session.pce_open_received);
+    CU_ASSERT_TRUE(session.pce_open_accepted);
+    CU_ASSERT_FALSE(session.pce_open_rejected);
+    CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_PCEP_CONNECTED);
+    /* A keep alive response should be sent, accepting the Open */
+    verify_socket_comm_times_called(0, 0, 0, 1, 0, 0, 0);
+    CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 2);
+    e = queue_dequeue(session_logic_event_queue_->event_queue);
+    CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
+    CU_ASSERT_EQUAL(PCEP_TYPE_OPEN, e->message->msg_header->type);
+    free(e);
+    e = queue_dequeue(session_logic_event_queue_->event_queue);
+    CU_ASSERT_EQUAL(PCC_CONNECTED_TO_PCE, e->event_type);
+    free(e);
+    destroy_message_for_test();
+
+    /*
+     * Send a 2nd Open, an error should be sent
+     */
     create_message_for_test(PCEP_TYPE_OPEN, false, false);
     reset_mock_socket_comm_info();
     mock_socket_comm_info *mock_info = get_mock_socket_comm_info();
@@ -285,18 +329,44 @@ void test_handle_socket_comm_event_open()
 
 void test_handle_socket_comm_event_keep_alive()
 {
+    /* Test when a Keep Alive is received, but the PCE Open has not been accepted yet */
     create_message_for_test(PCEP_TYPE_KEEPALIVE, false, false);
-    session.session_state = SESSION_STATE_TCP_CONNECTED;
+    session.session_state = SESSION_STATE_PCEP_CONNECTING;
     session.timer_id_dead_timer = 100;
+    session.timer_id_open_keep_wait = 200;
+    session.pce_open_accepted = false;
+    session.pcc_open_accepted = false;
 
     handle_socket_comm_event(&event);
 
-    CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_OPENED);
+    CU_ASSERT_TRUE(session.pcc_open_accepted);
+    CU_ASSERT_FALSE(session.pcc_open_rejected);
+    CU_ASSERT_FALSE(session.pce_open_accepted);
+    CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_PCEP_CONNECTING);
+    CU_ASSERT_EQUAL(session.timer_id_open_keep_wait, TIMER_ID_NOT_SET);
+    CU_ASSERT_EQUAL(session.timer_id_dead_timer, 100);
+    verify_socket_comm_times_called(0, 0, 0, 0, 0, 0, 0);
+    CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 0);
+
+    /* Test when a Keep Alive is received, and the PCE Open has been accepted */
+    create_message_for_test(PCEP_TYPE_KEEPALIVE, false, false);
+    session.session_state = SESSION_STATE_PCEP_CONNECTING;
+    session.timer_id_dead_timer = 100;
+    session.timer_id_open_keep_wait = 200;
+    session.pce_open_accepted = true;
+    session.pcc_open_accepted = false;
+
+    handle_socket_comm_event(&event);
+
+    CU_ASSERT_TRUE(session.pcc_open_accepted);
+    CU_ASSERT_FALSE(session.pcc_open_rejected);
+    CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_PCEP_CONNECTED);
     CU_ASSERT_EQUAL(session.timer_id_open_keep_wait, TIMER_ID_NOT_SET);
     CU_ASSERT_EQUAL(session.timer_id_dead_timer, 100);
     verify_socket_comm_times_called(0, 0, 0, 0, 0, 0, 0);
 
-    /* The session is considered connected, when the Keep Alive is received after the Open */
+    /* The session is considered connected, when both the
+     * PCE and PCC Open messages have been accepted */
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(PCC_CONNECTED_TO_PCE, e->event_type);
     free(e);
@@ -524,4 +594,112 @@ void test_handle_socket_comm_event_unknown_msg()
     CU_ASSERT_EQUAL(PCEP_CLOSE_REASON_UNREC_MSG, close_obj->reason);
     pcep_msg_free_message(msg);
     free(encoded_msg);
+}
+
+
+void test_connection_failure(void)
+{
+    /*
+     * Test when 2 invalid Open messages are received that a
+     * PCC_CONNECTION_FAILURE event is generated.
+     */
+    create_message_for_test(PCEP_TYPE_OPEN, false, false);
+    reset_mock_socket_comm_info();
+    struct pcep_object_open *open_object = pcep_obj_create_open(1, 1, 1, NULL);
+    /* Make the Open message invalid */
+    open_object->open_deadtimer = session.pcc_config.max_dead_timer_seconds + 1;
+    dll_append(message->obj_list, open_object);
+    session.pce_open_received = false;
+    session.pce_open_accepted = false;
+    session.pce_open_rejected = false;
+    session.session_state = SESSION_STATE_PCEP_CONNECTING;
+
+    handle_socket_comm_event(&event);
+
+    CU_ASSERT_TRUE(session.pce_open_received);
+    CU_ASSERT_TRUE(session.pce_open_rejected);
+    CU_ASSERT_FALSE(session.pce_open_accepted);
+    CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_PCEP_CONNECTING);
+    /* An error response should be sent, rejecting the Open */
+    verify_socket_comm_times_called(0, 0, 0, 1, 0, 0, 0);
+    CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 1);
+    pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
+    CU_ASSERT_EQUAL(PCC_RCVD_INVALID_OPEN, e->event_type);
+    free(e);
+    destroy_message_for_test();
+
+    /* Send the same erroneous Open again */
+    create_message_for_test(PCEP_TYPE_OPEN, false, false);
+    reset_mock_socket_comm_info();
+    open_object = pcep_obj_create_open(1, 1, 1, NULL);
+    /* Make the Open message invalid */
+    open_object->open_deadtimer = session.pcc_config.max_dead_timer_seconds + 1;
+    dll_append(message->obj_list, open_object);
+
+    handle_socket_comm_event(&event);
+
+    CU_ASSERT_TRUE(session.pce_open_received);
+    CU_ASSERT_TRUE(session.pce_open_rejected);
+    CU_ASSERT_FALSE(session.pce_open_accepted);
+    CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_INITIALIZED);
+    /* An error response should be sent, rejecting the Open */
+    verify_socket_comm_times_called(0, 0, 0, 1, 1, 0, 0);
+    CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 2);
+    e = queue_dequeue(session_logic_event_queue_->event_queue);
+    CU_ASSERT_EQUAL(PCC_RCVD_INVALID_OPEN, e->event_type);
+    free(e);
+    e = queue_dequeue(session_logic_event_queue_->event_queue);
+    CU_ASSERT_EQUAL(PCC_CONNECTION_FAILURE, e->event_type);
+    free(e);
+
+    destroy_message_for_test();
+
+    /*
+     * Test when 2 invalid Open messages are sent that a
+     * PCC_CONNECTION_FAILURE event is generated.
+     */
+    create_message_for_test(PCEP_TYPE_ERROR, false, false);
+    reset_mock_socket_comm_info();
+    struct pcep_object_error* error_object = pcep_obj_create_error(PCEP_ERRT_SESSION_FAILURE, PCEP_ERRV_UNACCEPTABLE_OPEN_MSG_NEG);
+    dll_append(message->obj_list, error_object);
+    session.pcc_open_accepted = false;
+    session.pcc_open_rejected = false;
+    session.session_state = SESSION_STATE_PCEP_CONNECTING;
+
+    handle_socket_comm_event(&event);
+
+    CU_ASSERT_TRUE(session.pcc_open_rejected);
+    CU_ASSERT_FALSE(session.pcc_open_accepted);
+    CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_PCEP_CONNECTING);
+    /* Another Open should be sent */
+    verify_socket_comm_times_called(0, 0, 0, 1, 0, 0, 0);
+    CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 2);
+    e = queue_dequeue(session_logic_event_queue_->event_queue);
+    CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
+    CU_ASSERT_EQUAL(PCEP_TYPE_ERROR, e->message->msg_header->type);
+    free(e);
+    e = queue_dequeue(session_logic_event_queue_->event_queue);
+    CU_ASSERT_EQUAL(PCC_SENT_INVALID_OPEN, e->event_type);
+    free(e);
+    destroy_message_for_test();
+
+    /* Send a socket close while connecting, which should
+     * generate a PCC_CONNECTION_FAILURE event */
+    reset_mock_socket_comm_info();
+    event.socket_closed = true;
+    event.received_msg_list = NULL;
+
+    handle_socket_comm_event(&event);
+
+    CU_ASSERT_TRUE(session.pcc_open_rejected);
+    CU_ASSERT_FALSE(session.pcc_open_accepted);
+    CU_ASSERT_EQUAL(session.session_state, SESSION_STATE_INITIALIZED);
+    verify_socket_comm_times_called(0, 0, 0, 0, 0, 1, 0);
+    CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 2);
+    e = queue_dequeue(session_logic_event_queue_->event_queue);
+    CU_ASSERT_EQUAL(PCE_CLOSED_SOCKET, e->event_type);
+    free(e);
+    e = queue_dequeue(session_logic_event_queue_->event_queue);
+    CU_ASSERT_EQUAL(PCC_CONNECTION_FAILURE, e->event_type);
+    free(e);
 }
