@@ -18,6 +18,7 @@
  * Notice:
  * All of these TLV Unit Tests encode the created TLVs by explicitly calling
  * pcep_encode_tlv() thus testing the TLV creation and the TLV encoding.
+ * All APIs expect IPs to be in network byte order.
  */
 
 static struct pcep_versioning *versioning = NULL;
@@ -276,10 +277,10 @@ void test_pcep_tlv_create_ipv4_lsp_identifiers()
     CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_IPV4_LSP_IDENTIFIERS);
     CU_ASSERT_EQUAL(tlv->header.encoded_tlv_length, sizeof(uint32_t) * 4);
     uint32_t *uint32_ptr = (uint32_t *)tlv->header.encoded_tlv;
-    CU_ASSERT_EQUAL(uint32_ptr[1], htonl(sender_ip.s_addr));
+    CU_ASSERT_EQUAL(uint32_ptr[1], sender_ip.s_addr);
     CU_ASSERT_EQUAL(uint32_ptr[2], (htons(tunnel_id) << 16) | htons(lsp_id));
-    CU_ASSERT_EQUAL(uint32_ptr[3], htonl(extended_tunnel_id.s_addr));
-    CU_ASSERT_EQUAL(uint32_ptr[4], htonl(endpoint_ip.s_addr));
+    CU_ASSERT_EQUAL(uint32_ptr[3], extended_tunnel_id.s_addr);
+    CU_ASSERT_EQUAL(uint32_ptr[4], endpoint_ip.s_addr);
     pcep_obj_free_tlv(&tlv->header);
 
     reset_tlv_buffer();
@@ -291,10 +292,10 @@ void test_pcep_tlv_create_ipv4_lsp_identifiers()
     CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_IPV4_LSP_IDENTIFIERS);
     CU_ASSERT_EQUAL(tlv->header.encoded_tlv_length, sizeof(uint32_t) * 4);
     uint32_ptr = (uint32_t *)tlv->header.encoded_tlv;
-    CU_ASSERT_EQUAL(uint32_ptr[1], htonl(sender_ip.s_addr));
+    CU_ASSERT_EQUAL(uint32_ptr[1], sender_ip.s_addr);
     CU_ASSERT_EQUAL(uint32_ptr[2], (htons(tunnel_id) << 16) | htons(lsp_id));
     CU_ASSERT_EQUAL(uint32_ptr[3], INADDR_ANY);
-    CU_ASSERT_EQUAL(uint32_ptr[4], htonl(endpoint_ip.s_addr));
+    CU_ASSERT_EQUAL(uint32_ptr[4], endpoint_ip.s_addr);
     pcep_obj_free_tlv(&tlv->header);
 }
 

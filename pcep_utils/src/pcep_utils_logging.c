@@ -38,6 +38,21 @@ void pcep_log(int priority, const char *format, ...)
     va_end(va);
 }
 
+void pcep_log_hexbytes(int priority, const char *message, const uint8_t *bytes, uint8_t bytes_len)
+{
+    char byte_str[2048];
+    int i = 0;
+
+    sprintf(byte_str, "%s ", message);
+    for (; i < bytes_len; i++)
+    {
+        sprintf(byte_str, "%02x ", bytes[i]);
+    }
+    sprintf(byte_str, "\n");
+
+    pcep_log(priority, "%s", byte_str);
+}
+
 /* Defined with a return type to match the FRR logging signature.
  * Assuming glibc printf() is thread-safe. */
 int pcep_stdout_logger(int priority, const char *format, va_list args)

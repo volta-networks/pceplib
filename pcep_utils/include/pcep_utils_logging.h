@@ -10,6 +10,7 @@
 
 #include <syslog.h> /* Logging levels */
 #include <stdarg.h> /* va_list */
+#include <stdint.h> /* uint8_t */
 
 /*
  * The logging defined here i intended to provide the infrastructure to
@@ -43,5 +44,6 @@ int get_logging_level();
 /* Log messages either to a previously registered
  * logger or to the internal default stdout logger. */
 void pcep_log(int priority, const char *format, ...);
+void pcep_log_hexbytes(int priority, const char *message, const uint8_t *bytes, uint8_t bytes_len);
 
 #endif /* PCEP_UTILS_INCLUDE_PCEP_UTILS_LOGGING_H_ */

@@ -223,13 +223,13 @@ void test_pcep_msg_read_pcep_initiate()
     CU_ASSERT_EQUAL(subobj_hdr->ro_subobj_type, RO_SUBOBJ_TYPE_IPV4);
     struct in_addr ero_subobj_ip;
     inet_pton(AF_INET, "10.0.1.1", &ero_subobj_ip);
-    CU_ASSERT_EQUAL(((struct pcep_ro_subobj_ipv4 *) subobj_hdr)->ip_addr.s_addr, ntohl(ero_subobj_ip.s_addr));
+    CU_ASSERT_EQUAL(((struct pcep_ro_subobj_ipv4 *) subobj_hdr)->ip_addr.s_addr, ero_subobj_ip.s_addr);
     CU_ASSERT_EQUAL(((struct pcep_ro_subobj_ipv4 *) subobj_hdr)->prefix_length, 24);
 
     subobj_hdr = (struct pcep_object_ro_subobj *) subobj_node->next_node->data;
     CU_ASSERT_EQUAL(subobj_hdr->ro_subobj_type, RO_SUBOBJ_TYPE_IPV4);
     inet_pton(AF_INET, "10.0.7.4", &ero_subobj_ip);
-    CU_ASSERT_EQUAL(((struct pcep_ro_subobj_ipv4 *) subobj_hdr)->ip_addr.s_addr, ntohl(ero_subobj_ip.s_addr));
+    CU_ASSERT_EQUAL(((struct pcep_ro_subobj_ipv4 *) subobj_hdr)->ip_addr.s_addr, ero_subobj_ip.s_addr);
     CU_ASSERT_EQUAL(((struct pcep_ro_subobj_ipv4 *) subobj_hdr)->prefix_length, 24);
 
     pcep_msg_free_message_list(msg_list);
@@ -565,7 +565,7 @@ void test_pcep_msg_read_pcep_update_cisco_pce()
     CU_ASSERT_FALSE(sr_subobj_ipv4_node->flag_f);
     CU_ASSERT_FALSE(sr_subobj_ipv4_node->flag_s);
     CU_ASSERT_EQUAL(sr_subobj_ipv4_node->sid, 73748480);
-    CU_ASSERT_EQUAL(*((uint32_t *) sr_subobj_ipv4_node->nai_list->head->data), 0x0a0a0a05);
+    CU_ASSERT_EQUAL(*((uint32_t *) sr_subobj_ipv4_node->nai_list->head->data), htonl(0x0a0a0a05));
 
     ero_subobj_node = ero_subobj_node->next_node;
     sr_subobj_ipv4_node = (struct pcep_ro_subobj_sr *) ero_subobj_node->data;
@@ -577,7 +577,7 @@ void test_pcep_msg_read_pcep_update_cisco_pce()
     CU_ASSERT_FALSE(sr_subobj_ipv4_node->flag_f);
     CU_ASSERT_FALSE(sr_subobj_ipv4_node->flag_s);
     CU_ASSERT_EQUAL(sr_subobj_ipv4_node->sid, 73736192);
-    CU_ASSERT_EQUAL(*((uint32_t *) sr_subobj_ipv4_node->nai_list->head->data), 0x0a0a0a02);
+    CU_ASSERT_EQUAL(*((uint32_t *) sr_subobj_ipv4_node->nai_list->head->data), htonl(0x0a0a0a02));
 
     ero_subobj_node = ero_subobj_node->next_node;
     sr_subobj_ipv4_node = (struct pcep_ro_subobj_sr *) ero_subobj_node->data;
@@ -589,7 +589,7 @@ void test_pcep_msg_read_pcep_update_cisco_pce()
     CU_ASSERT_FALSE(sr_subobj_ipv4_node->flag_f);
     CU_ASSERT_FALSE(sr_subobj_ipv4_node->flag_s);
     CU_ASSERT_EQUAL(sr_subobj_ipv4_node->sid, 73732096);
-    CU_ASSERT_EQUAL(*((uint32_t *) sr_subobj_ipv4_node->nai_list->head->data), 0x0a0a0a01);
+    CU_ASSERT_EQUAL(*((uint32_t *) sr_subobj_ipv4_node->nai_list->head->data), htonl(0x0a0a0a01));
 
     /* Metric object */
     obj_node = obj_node->next_node;
@@ -662,9 +662,9 @@ void test_pcep_msg_read_pcep_report_cisco_pcc()
             (struct pcep_object_tlv_ipv4_lsp_identifier *) tlv_node->data;
     CU_ASSERT_EQUAL(ipv4_lsp_id->header.type, PCEP_OBJ_TLV_TYPE_IPV4_LSP_IDENTIFIERS);
     CU_ASSERT_EQUAL(ipv4_lsp_id->header.encoded_tlv_length, 16);
-    CU_ASSERT_EQUAL(ipv4_lsp_id->ipv4_tunnel_sender.s_addr, 0x0a0a0a06);
-    CU_ASSERT_EQUAL(ipv4_lsp_id->ipv4_tunnel_endpoint.s_addr, 0x0a0a0a01);
-    CU_ASSERT_EQUAL(ipv4_lsp_id->extended_tunnel_id.s_addr, 0x0a0a0a06);
+    CU_ASSERT_EQUAL(ipv4_lsp_id->ipv4_tunnel_sender.s_addr, htonl(0x0a0a0a06));
+    CU_ASSERT_EQUAL(ipv4_lsp_id->ipv4_tunnel_endpoint.s_addr, htonl(0x0a0a0a01));
+    CU_ASSERT_EQUAL(ipv4_lsp_id->extended_tunnel_id.s_addr, htonl(0x0a0a0a06));
     CU_ASSERT_EQUAL(ipv4_lsp_id->tunnel_id, 15);
     CU_ASSERT_EQUAL(ipv4_lsp_id->lsp_id, 2);
 

@@ -274,7 +274,7 @@ uint16_t pcep_encode_obj_association(struct pcep_object_header *hdr, struct pcep
         obj_body_buf[3] = (ipv4->R_flag == true ? OBJECT_ASSOCIATION_FLAG_R : 0x00);
         uint16_ptr[2] = htons(ipv4->association_type);
         uint16_ptr[3] = htons(ipv4->association_id);
-        uint32_ptr[2] = htonl(ipv4->src.s_addr);
+        uint32_ptr[2] = ipv4->src.s_addr;
 
         return LENGTH_3WORDS;
     }
@@ -284,37 +284,38 @@ uint16_t pcep_encode_obj_association(struct pcep_object_header *hdr, struct pcep
         obj_body_buf[3] = (ipv6->R_flag == true ? OBJECT_ASSOCIATION_FLAG_R : 0x00);
         uint16_ptr[2] = htons(ipv6->association_type);
         uint16_ptr[3] = htons(ipv6->association_id);
-        uint32_ptr[2] = htonl(ipv6->src.__in6_u.__u6_addr32[0]);
-        uint32_ptr[3] = htonl(ipv6->src.__in6_u.__u6_addr32[1]);
-        uint32_ptr[4] = htonl(ipv6->src.__in6_u.__u6_addr32[2]);
-        uint32_ptr[5] = htonl(ipv6->src.__in6_u.__u6_addr32[3]);
+        uint32_ptr[2] = ipv6->src.__in6_u.__u6_addr32[0];
+        uint32_ptr[3] = ipv6->src.__in6_u.__u6_addr32[1];
+        uint32_ptr[4] = ipv6->src.__in6_u.__u6_addr32[2];
+        uint32_ptr[5] = ipv6->src.__in6_u.__u6_addr32[3];
 
         return LENGTH_6WORDS;
     }
 }
+
 uint16_t pcep_encode_obj_endpoints(struct pcep_object_header *hdr, struct pcep_versioning *versioning, uint8_t *obj_body_buf)
 {
     uint32_t *uint32_ptr = (uint32_t *) obj_body_buf;
     if (hdr->object_type == PCEP_OBJ_TYPE_ENDPOINT_IPV4)
     {
         struct pcep_object_endpoints_ipv4 *ipv4 = (struct pcep_object_endpoints_ipv4 *) hdr;
-        uint32_ptr[0] = htonl(ipv4->src_ipv4.s_addr);
-        uint32_ptr[1] = htonl(ipv4->dst_ipv4.s_addr);
+        uint32_ptr[0] = ipv4->src_ipv4.s_addr;
+        uint32_ptr[1] = ipv4->dst_ipv4.s_addr;
 
         return LENGTH_2WORDS;
     }
     else
     {
         struct pcep_object_endpoints_ipv6 *ipv6 = (struct pcep_object_endpoints_ipv6 *) hdr;
-        uint32_ptr[0] = htonl(ipv6->src_ipv6.__in6_u.__u6_addr32[0]);
-        uint32_ptr[1] = htonl(ipv6->src_ipv6.__in6_u.__u6_addr32[1]);
-        uint32_ptr[2] = htonl(ipv6->src_ipv6.__in6_u.__u6_addr32[2]);
-        uint32_ptr[3] = htonl(ipv6->src_ipv6.__in6_u.__u6_addr32[3]);
+        uint32_ptr[0] = ipv6->src_ipv6.__in6_u.__u6_addr32[0];
+        uint32_ptr[1] = ipv6->src_ipv6.__in6_u.__u6_addr32[1];
+        uint32_ptr[2] = ipv6->src_ipv6.__in6_u.__u6_addr32[2];
+        uint32_ptr[3] = ipv6->src_ipv6.__in6_u.__u6_addr32[3];
 
-        uint32_ptr[4] = htonl(ipv6->dst_ipv6.__in6_u.__u6_addr32[0]);
-        uint32_ptr[5] = htonl(ipv6->dst_ipv6.__in6_u.__u6_addr32[1]);
-        uint32_ptr[6] = htonl(ipv6->dst_ipv6.__in6_u.__u6_addr32[2]);
-        uint32_ptr[7] = htonl(ipv6->dst_ipv6.__in6_u.__u6_addr32[3]);
+        uint32_ptr[4] = ipv6->dst_ipv6.__in6_u.__u6_addr32[0];
+        uint32_ptr[5] = ipv6->dst_ipv6.__in6_u.__u6_addr32[1];
+        uint32_ptr[6] = ipv6->dst_ipv6.__in6_u.__u6_addr32[2];
+        uint32_ptr[7] = ipv6->dst_ipv6.__in6_u.__u6_addr32[3];
 
         return LENGTH_8WORDS;
     }
@@ -470,7 +471,7 @@ uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioni
         case RO_SUBOBJ_TYPE_IPV4:
         {
             struct pcep_ro_subobj_ipv4 *ipv4 = (struct pcep_ro_subobj_ipv4*) ro_subobj;
-            uint32_ptr[0] = htonl(ipv4->ip_addr.s_addr);
+            uint32_ptr[0] = ipv4->ip_addr.s_addr;
             index += LENGTH_1WORD;
             obj_body_buf[index++] = ipv4->prefix_length;
             obj_body_buf[index++] = (ipv4->flag_local_protection == true ? OBJECT_SUBOBJ_IP_FLAG_LOCAL_PROT : 0x00);
@@ -506,7 +507,7 @@ uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioni
             struct pcep_ro_subobj_unnum *unum = (struct pcep_ro_subobj_unnum*) ro_subobj;
             index += 2; /* increment past 2 reserved bytes */
             uint32_ptr = (uint32_t *) (obj_body_buf + index);
-            uint32_ptr[0] = htonl(unum->router_id.s_addr);
+            uint32_ptr[0] = unum->router_id.s_addr;
             uint32_ptr[1] = htonl(unum->interface_id);
             *length_ptr = LENGTH_3WORDS;
             index += LENGTH_2WORDS;
@@ -575,7 +576,7 @@ uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioni
             switch (sr_subobj->nai_type)
             {
             case PCEP_SR_SUBOBJ_NAI_IPV4_NODE:
-                uint32_ptr[0] = htonl(((struct in_addr *) nai_node->data)->s_addr);
+                uint32_ptr[0] = ((struct in_addr *) nai_node->data)->s_addr;
                 *length_ptr = sr_base_length + LENGTH_1WORD;
                 index += LENGTH_1WORD;
                 break;
@@ -587,21 +588,21 @@ uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioni
                 break;
 
             case PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY:
-                uint32_ptr[0] = htonl(((struct in_addr *) nai_node->data)->s_addr);
+                uint32_ptr[0] = ((struct in_addr *) nai_node->data)->s_addr;
                 nai_node = nai_node->next_node;
-                uint32_ptr[1] = htonl(((struct in_addr *) nai_node->data)->s_addr);
+                uint32_ptr[1] = ((struct in_addr *) nai_node->data)->s_addr;
                 nai_node = nai_node->next_node;
-                uint32_ptr[2] = htonl(((struct in_addr *) nai_node->data)->s_addr);
+                uint32_ptr[2] = ((struct in_addr *) nai_node->data)->s_addr;
                 nai_node = nai_node->next_node;
-                uint32_ptr[3] = htonl(((struct in_addr *) nai_node->data)->s_addr);
+                uint32_ptr[3] = ((struct in_addr *) nai_node->data)->s_addr;
                 *length_ptr = sr_base_length + LENGTH_4WORDS;
                 index += LENGTH_4WORDS;
                 break;
 
             case PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY:
-                uint32_ptr[0] = htonl(((struct in_addr *) nai_node->data)->s_addr);
+                uint32_ptr[0] = ((struct in_addr *) nai_node->data)->s_addr;
                 nai_node = nai_node->next_node;
-                uint32_ptr[1] = htonl(((struct in_addr *) nai_node->data)->s_addr);
+                uint32_ptr[1] = ((struct in_addr *) nai_node->data)->s_addr;
                 *length_ptr = sr_base_length + LENGTH_2WORDS;
                 index += LENGTH_2WORDS;
                 break;
@@ -617,11 +618,11 @@ uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioni
             case PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY:
                 encode_ipv6((struct in6_addr *) nai_node->data, uint32_ptr);
                 nai_node = nai_node->next_node;
-                uint32_ptr[4] = htonl(((struct in_addr *) nai_node->data)->s_addr);
+                uint32_ptr[4] = ((struct in_addr *) nai_node->data)->s_addr;
                 nai_node = nai_node->next_node;
                 encode_ipv6((struct in6_addr *) nai_node->data, uint32_ptr + 5);
                 nai_node = nai_node->next_node;
-                uint32_ptr[9] = htonl(((struct in_addr *) nai_node->data)->s_addr);
+                uint32_ptr[9] = ((struct in_addr *) nai_node->data)->s_addr;
                 *length_ptr = sr_base_length + LENGTH_10WORDS;
                 index += LENGTH_10WORDS;
                 break;
@@ -642,10 +643,10 @@ uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioni
 
 void encode_ipv6(struct in6_addr *src_ipv6, uint32_t *dst)
 {
-    dst[0] = htonl(src_ipv6->__in6_u.__u6_addr32[0]);
-    dst[1] = htonl(src_ipv6->__in6_u.__u6_addr32[1]);
-    dst[2] = htonl(src_ipv6->__in6_u.__u6_addr32[2]);
-    dst[3] = htonl(src_ipv6->__in6_u.__u6_addr32[3]);
+    dst[0] = src_ipv6->__in6_u.__u6_addr32[0];
+    dst[1] = src_ipv6->__in6_u.__u6_addr32[1];
+    dst[2] = src_ipv6->__in6_u.__u6_addr32[2];
+    dst[3] = src_ipv6->__in6_u.__u6_addr32[3];
 }
 
 /*
@@ -826,7 +827,7 @@ struct pcep_object_header *pcep_decode_obj_association(struct pcep_object_header
         obj->R_flag = (obj_buf[3] & OBJECT_ASSOCIATION_FLAG_R);
         obj->association_type = ntohs(uint16_ptr[2]);
         obj->association_id = ntohs(uint16_ptr[3]);
-        obj->src.s_addr = ntohl(uint32_ptr[2]);
+        obj->src.s_addr = uint32_ptr[2];
 
         return (struct pcep_object_header *) obj;
     }
@@ -838,11 +839,10 @@ struct pcep_object_header *pcep_decode_obj_association(struct pcep_object_header
         obj->R_flag = (obj_buf[3] & OBJECT_ASSOCIATION_FLAG_R);
         obj->association_type = ntohs(uint16_ptr[2]);
         obj->association_id = ntohs(uint16_ptr[3]);
-        obj->src.__in6_u.__u6_addr32[0] = ntohl(uint32_ptr[2]);
-        obj->src.__in6_u.__u6_addr32[1] = ntohl(uint32_ptr[3]);
-        obj->src.__in6_u.__u6_addr32[2] = ntohl(uint32_ptr[4]);
-        obj->src.__in6_u.__u6_addr32[3] = ntohl(uint32_ptr[5]);
-
+        obj->src.__in6_u.__u6_addr32[0] = uint32_ptr[2];
+        obj->src.__in6_u.__u6_addr32[1] = uint32_ptr[3];
+        obj->src.__in6_u.__u6_addr32[2] = uint32_ptr[4];
+        obj->src.__in6_u.__u6_addr32[3] = uint32_ptr[5];
 
         return (struct pcep_object_header *) obj;
     }
@@ -857,8 +857,8 @@ struct pcep_object_header *pcep_decode_obj_endpoints(struct pcep_object_header *
     {
         struct pcep_object_endpoints_ipv4 *obj = (struct pcep_object_endpoints_ipv4 *)
                 common_object_create(hdr, sizeof(struct pcep_object_endpoints_ipv4));
-        obj->src_ipv4.s_addr = ntohl(uint32_ptr[0]);
-        obj->dst_ipv4.s_addr = ntohl(uint32_ptr[1]);
+        obj->src_ipv4.s_addr = uint32_ptr[0];
+        obj->dst_ipv4.s_addr = uint32_ptr[1];
 
         return (struct pcep_object_header *) obj;
     }
@@ -867,15 +867,15 @@ struct pcep_object_header *pcep_decode_obj_endpoints(struct pcep_object_header *
         struct pcep_object_endpoints_ipv6 *obj = (struct pcep_object_endpoints_ipv6 *)
                 common_object_create(hdr, sizeof(struct pcep_object_endpoints_ipv6));
 
-        obj->src_ipv6.__in6_u.__u6_addr32[0] = ntohl(uint32_ptr[0]);
-        obj->src_ipv6.__in6_u.__u6_addr32[1] = ntohl(uint32_ptr[1]);
-        obj->src_ipv6.__in6_u.__u6_addr32[2] = ntohl(uint32_ptr[2]);
-        obj->src_ipv6.__in6_u.__u6_addr32[3] = ntohl(uint32_ptr[3]);
+        obj->src_ipv6.__in6_u.__u6_addr32[0] = uint32_ptr[0];
+        obj->src_ipv6.__in6_u.__u6_addr32[1] = uint32_ptr[1];
+        obj->src_ipv6.__in6_u.__u6_addr32[2] = uint32_ptr[2];
+        obj->src_ipv6.__in6_u.__u6_addr32[3] = uint32_ptr[3];
 
-        obj->dst_ipv6.__in6_u.__u6_addr32[0] = ntohl(uint32_ptr[4]);
-        obj->dst_ipv6.__in6_u.__u6_addr32[1] = ntohl(uint32_ptr[5]);
-        obj->dst_ipv6.__in6_u.__u6_addr32[2] = ntohl(uint32_ptr[6]);
-        obj->dst_ipv6.__in6_u.__u6_addr32[3] = ntohl(uint32_ptr[7]);
+        obj->dst_ipv6.__in6_u.__u6_addr32[0] = uint32_ptr[4];
+        obj->dst_ipv6.__in6_u.__u6_addr32[1] = uint32_ptr[5];
+        obj->dst_ipv6.__in6_u.__u6_addr32[2] = uint32_ptr[6];
+        obj->dst_ipv6.__in6_u.__u6_addr32[3] = uint32_ptr[7];
 
         return (struct pcep_object_header *) obj;
     }
@@ -1002,10 +1002,10 @@ void set_ro_subobj_fields(struct pcep_object_ro_subobj *subobj, bool flag_l, uin
 
 void decode_ipv6(uint32_t *src, struct in6_addr *dst_ipv6)
 {
-    dst_ipv6->__in6_u.__u6_addr32[0] = ntohl(src[0]);
-    dst_ipv6->__in6_u.__u6_addr32[1] = ntohl(src[1]);
-    dst_ipv6->__in6_u.__u6_addr32[2] = ntohl(src[2]);
-    dst_ipv6->__in6_u.__u6_addr32[3] = ntohl(src[3]);
+    dst_ipv6->__in6_u.__u6_addr32[0] = src[0];
+    dst_ipv6->__in6_u.__u6_addr32[1] = src[1];
+    dst_ipv6->__in6_u.__u6_addr32[2] = src[2];
+    dst_ipv6->__in6_u.__u6_addr32[3] = src[3];
 }
 struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, uint8_t *obj_buf)
 {
@@ -1050,7 +1050,7 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
             ipv4->ro_subobj.flag_subobj_loose_hop = flag_l;
             ipv4->ro_subobj.ro_subobj_type = subobj_type;
             uint32_ptr = (uint32_t *) (obj_buf + read_count);
-            ipv4->ip_addr.s_addr = ntohl(*uint32_ptr);
+            ipv4->ip_addr.s_addr = *uint32_ptr;
             read_count += LENGTH_1WORD;
             ipv4->prefix_length = obj_buf[read_count++];
             ipv4->flag_local_protection = (obj_buf[read_count++] & OBJECT_SUBOBJ_IP_FLAG_LOCAL_PROT);
@@ -1095,7 +1095,7 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
             set_ro_subobj_fields((struct pcep_object_ro_subobj *) unum, flag_l, subobj_type);
             uint32_ptr = (uint32_t *) (obj_buf + read_count);
             unum->interface_id = ntohl(uint32_ptr[0]);
-            unum->router_id.s_addr = ntohl(uint32_ptr[1]);
+            unum->router_id.s_addr = uint32_ptr[1];
             read_count += 2;
 
             dll_append(obj->sub_objects, unum);
@@ -1159,7 +1159,7 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
             case PCEP_SR_SUBOBJ_NAI_IPV4_NODE:
             {
                 struct in_addr *ipv4 = malloc(sizeof(struct in_addr));
-                ipv4->s_addr = ntohl(*uint32_ptr);
+                ipv4->s_addr = *uint32_ptr;
                 dll_append(sr_subobj->nai_list, ipv4);
                 read_count += LENGTH_1WORD;
             }
@@ -1177,19 +1177,19 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
             case PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY:
             {
                 struct in_addr *ipv4 = malloc(sizeof(struct in_addr));
-                ipv4->s_addr = ntohl(uint32_ptr[0]);
+                ipv4->s_addr = uint32_ptr[0];
                 dll_append(sr_subobj->nai_list, ipv4);
 
                 ipv4 = malloc(sizeof(struct in_addr));
-                ipv4->s_addr = ntohl(uint32_ptr[1]);
+                ipv4->s_addr = uint32_ptr[1];
                 dll_append(sr_subobj->nai_list, ipv4);
 
                 ipv4 = malloc(sizeof(struct in_addr));
-                ipv4->s_addr = ntohl(uint32_ptr[2]);
+                ipv4->s_addr = uint32_ptr[2];
                 dll_append(sr_subobj->nai_list, ipv4);
 
                 ipv4 = malloc(sizeof(struct in_addr));
-                ipv4->s_addr = ntohl(uint32_ptr[3]);
+                ipv4->s_addr = uint32_ptr[3];
                 dll_append(sr_subobj->nai_list, ipv4);
 
                 read_count += LENGTH_4WORDS;
@@ -1199,11 +1199,11 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
             case PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY:
             {
                 struct in_addr *ipv4 = malloc(sizeof(struct in_addr));
-                ipv4->s_addr = ntohl(uint32_ptr[0]);
+                ipv4->s_addr = uint32_ptr[0];
                 dll_append(sr_subobj->nai_list, ipv4);
 
                 ipv4 = malloc(sizeof(struct in_addr));
-                ipv4->s_addr = ntohl(uint32_ptr[1]);
+                ipv4->s_addr = uint32_ptr[1];
                 dll_append(sr_subobj->nai_list, ipv4);
 
                 read_count += LENGTH_2WORDS;
@@ -1231,7 +1231,7 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
                 dll_append(sr_subobj->nai_list, ipv6);
 
                 struct in_addr *ipv4 = malloc(sizeof(struct in_addr));
-                ipv4->s_addr = ntohl(uint32_ptr[LENGTH_4WORDS]);
+                ipv4->s_addr = uint32_ptr[LENGTH_4WORDS];
                 dll_append(sr_subobj->nai_list, ipv4);
 
                 ipv6 = malloc(sizeof(struct in6_addr));
@@ -1239,7 +1239,7 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
                 dll_append(sr_subobj->nai_list, ipv6);
 
                 ipv4 = malloc(sizeof(struct in_addr));
-                ipv4->s_addr = ntohl(uint32_ptr[LENGTH_9WORDS]);
+                ipv4->s_addr = uint32_ptr[LENGTH_9WORDS];
                 dll_append(sr_subobj->nai_list, ipv4);
 
                 read_count += LENGTH_10WORDS;

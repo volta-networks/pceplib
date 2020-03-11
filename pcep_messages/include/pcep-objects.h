@@ -541,7 +541,9 @@ struct pcep_ro_subobj_sr
 #define GET_SR_ERO_SID_TTL(SID)     ((SID & 0x000000ff))
 
 /*
- * All created objects will be in Host byte order.
+ * All created objects will be in Host byte order, except for IPs.
+ * All IP addresses are expected to be passed-in in Network byte order,
+ * and any objects received will have their IPs in Network byte order.
  * The message containing the objects should be converted to Network byte order
  * with pcep_encode_msg_header() before sending, which will also convert the
  * Objects, TLVs, and sub-objects.

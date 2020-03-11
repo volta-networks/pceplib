@@ -211,10 +211,10 @@ uint16_t pcep_encode_tlv_ipv4_lsp_identifiers(struct pcep_object_tlv_header *tlv
 {
     struct pcep_object_tlv_ipv4_lsp_identifier *ipv4_lsp = (struct pcep_object_tlv_ipv4_lsp_identifier *) tlv;
     uint32_t *uint32_ptr = (uint32_t *) tlv_body_buf;
-    uint32_ptr[0] = htonl(ipv4_lsp->ipv4_tunnel_sender.s_addr);
+    uint32_ptr[0] = ipv4_lsp->ipv4_tunnel_sender.s_addr;
     /* uint32_t[1] is lsp_id and tunnel_id, below */
-    uint32_ptr[2] = htonl(ipv4_lsp->extended_tunnel_id.s_addr);
-    uint32_ptr[3] = htonl(ipv4_lsp->ipv4_tunnel_endpoint.s_addr);
+    uint32_ptr[2] = ipv4_lsp->extended_tunnel_id.s_addr;
+    uint32_ptr[3] = ipv4_lsp->ipv4_tunnel_endpoint.s_addr;
 
     uint16_t *uint16_ptr = (uint16_t *) (tlv_body_buf + LENGTH_1WORD);
     uint16_ptr[0] = htons(ipv4_lsp->lsp_id);
@@ -288,7 +288,7 @@ uint16_t pcep_encode_tlv_rsvp_error_spec(struct pcep_object_tlv_header *tlv, str
     if (rsvp_hdr->c_type == RSVP_ERROR_SPEC_IPV4_CTYPE)
     {
         *length_ptr = htons(LENGTH_3WORDS);
-        *uint32_ptr = htonl(rsvp_hdr->error_spec_ip.ipv4_error_node_address.s_addr);
+        *uint32_ptr = rsvp_hdr->error_spec_ip.ipv4_error_node_address.s_addr;
         tlv_body_buf[LENGTH_2WORDS + 1] = rsvp_hdr->error_code;
         uint16_t *uint16_ptr = (uint16_t *)(tlv_body_buf + LENGTH_2WORDS + 2);
         *uint16_ptr = htons(rsvp_hdr->error_value);
@@ -401,7 +401,7 @@ uint16_t pcep_encode_tlv_pol_id(struct pcep_object_tlv_header *tlv, struct pcep_
     struct pcep_object_tlv_srpag_pol_id *ipv4 = (struct pcep_object_tlv_srpag_pol_id *) tlv;
     if(ipv4->is_ipv4){
         uint32_ptr[0]=htonl(ipv4->color);
-        uint32_ptr[1] =htonl(ipv4->end_point.ipv4.s_addr);
+        uint32_ptr[1] =ipv4->end_point.ipv4.s_addr;
         return LENGTH_2WORDS;
     }else{
         struct pcep_object_tlv_srpag_pol_id *ipv6 = (struct pcep_object_tlv_srpag_pol_id *) tlv;
@@ -553,10 +553,10 @@ struct pcep_object_tlv_header *pcep_decode_tlv_ipv4_lsp_identifiers(struct pcep_
         common_tlv_create(tlv_hdr, sizeof(struct pcep_object_tlv_ipv4_lsp_identifier));
 
     uint32_t *uint32_ptr = (uint32_t *) tlv_body_buf;
-    tlv->ipv4_tunnel_sender.s_addr   = ntohl(uint32_ptr[0]);
+    tlv->ipv4_tunnel_sender.s_addr   = uint32_ptr[0];
     /* uint32_t[1] is lsp_id and tunnel_id, below */
-    tlv->extended_tunnel_id.s_addr   = ntohl(uint32_ptr[2]);
-    tlv->ipv4_tunnel_endpoint.s_addr = ntohl(uint32_ptr[3]);
+    tlv->extended_tunnel_id.s_addr   = uint32_ptr[2];
+    tlv->ipv4_tunnel_endpoint.s_addr = uint32_ptr[3];
 
     uint16_t *uint16_ptr = (uint16_t *) (tlv_body_buf + LENGTH_1WORD);
     tlv->lsp_id    = ntohs(uint16_ptr[0]);
@@ -618,7 +618,7 @@ struct pcep_object_tlv_header *pcep_decode_tlv_rsvp_error_spec(struct pcep_objec
     uint32_t *uint32_ptr = (uint32_t *) (tlv_body_buf + LENGTH_1WORD);
     if (ctype == RSVP_ERROR_SPEC_IPV4_CTYPE)
     {
-        tlv->error_spec_ip.ipv4_error_node_address.s_addr = ntohl(*uint32_ptr);
+        tlv->error_spec_ip.ipv4_error_node_address.s_addr = *uint32_ptr;
         tlv->error_code = tlv_body_buf[LENGTH_2WORDS + 1];
         tlv->error_value = ntohs(*((uint16_t *) (tlv_body_buf + LENGTH_2WORDS + 2)));
     }
@@ -742,7 +742,7 @@ struct pcep_object_tlv_header *pcep_decode_tlv_pol_id(struct pcep_object_tlv_hea
     if(tlv_hdr->encoded_tlv_length==8){
         ipv4->is_ipv4=true;
         ipv4->color=ntohl(uint32_ptr[0]);
-        ipv4->end_point.ipv4.s_addr=ntohl(uint32_ptr[1]);
+        ipv4->end_point.ipv4.s_addr=uint32_ptr[1];
         return (struct pcep_object_tlv_header *) ipv4;
     }else{
         ipv4->is_ipv4=false;
