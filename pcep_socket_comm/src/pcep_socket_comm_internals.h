@@ -27,6 +27,7 @@ typedef struct pcep_socket_comm_handle_
     ordered_list_handle *read_list;
     /* ordered_list of socket_descriptors to write to */
     ordered_list_handle *write_list;
+    ordered_list_handle *session_list;
     int num_active_sessions;
 
 } pcep_socket_comm_handle;

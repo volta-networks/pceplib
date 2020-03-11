@@ -54,6 +54,7 @@ bool initialize_socket_comm_loop()
     socket_comm_handle_->num_active_sessions = 0;
     socket_comm_handle_->read_list = ordered_list_initialize(socket_fd_node_compare);
     socket_comm_handle_->write_list = ordered_list_initialize(socket_fd_node_compare);
+    socket_comm_handle_->session_list = ordered_list_initialize(pointer_compare_function);
 
     if (pthread_mutex_init(&(socket_comm_handle_->socket_comm_mutex), NULL) != 0)
     {
@@ -78,6 +79,7 @@ bool destroy_socket_comm_loop()
     pthread_join(socket_comm_handle_->socket_comm_thread, NULL);
     ordered_list_destroy(socket_comm_handle_->read_list);
     ordered_list_destroy(socket_comm_handle_->write_list);
+    ordered_list_destroy(socket_comm_handle_->session_list);
     pthread_mutex_destroy(&(socket_comm_handle_->socket_comm_mutex));
 
     free(socket_comm_handle_);
@@ -200,6 +202,11 @@ socket_comm_session_initialize_with_src(message_received_handler message_handler
 
         return NULL;
     }
+
+    /* Register the session as active with the Socket Comm Loop */
+    pthread_mutex_lock(&(socket_comm_handle_->socket_comm_mutex));
+    ordered_list_add_node(socket_comm_handle_->session_list, socket_comm_session);
+    pthread_mutex_unlock(&(socket_comm_handle_->socket_comm_mutex));
 
     /* dont connect to the destination yet, since the PCE will have a timer
      * for max time between TCP connect and PCEP open. we'll connect later
@@ -351,6 +358,7 @@ bool socket_comm_session_teardown(pcep_socket_comm_session *socket_comm_session)
 
     pthread_mutex_lock(&(socket_comm_handle_->socket_comm_mutex));
     queue_destroy(socket_comm_session->message_queue);
+    ordered_list_remove_first_node_equals(socket_comm_handle_->session_list, socket_comm_session);
     ordered_list_remove_first_node_equals(socket_comm_handle_->read_list, socket_comm_session);
     ordered_list_remove_first_node_equals(socket_comm_handle_->write_list, socket_comm_session);
     socket_comm_handle_->num_active_sessions--;

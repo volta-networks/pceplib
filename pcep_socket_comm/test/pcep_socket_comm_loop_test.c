@@ -58,12 +58,14 @@ void pcep_socket_comm_loop_test_setup()
     test_socket_comm_handle->active = false;
     test_socket_comm_handle->read_list = ordered_list_initialize(socket_fd_node_compare);
     test_socket_comm_handle->write_list = ordered_list_initialize(socket_fd_node_compare);
+    test_socket_comm_handle->session_list = ordered_list_initialize(pointer_compare_function);
     pthread_mutex_init(&test_socket_comm_handle->socket_comm_mutex, NULL);
     test_socket_comm_handle->num_active_sessions = 0;
 
     test_comm_session = malloc(sizeof(pcep_socket_comm_session));
     bzero(test_comm_session, sizeof(pcep_socket_comm_session));
     test_comm_session->message_ready_to_read_handler = test_loop_message_ready_to_read_handler;
+    ordered_list_add_node(test_socket_comm_handle->session_list, test_comm_session);
 
     read_handler_info.handler_called = false;
     read_handler_info.except_handler_called = false;
@@ -78,6 +80,7 @@ void pcep_socket_comm_loop_test_teardown()
     pthread_mutex_destroy(&test_socket_comm_handle->socket_comm_mutex);
     ordered_list_destroy(test_socket_comm_handle->read_list);
     ordered_list_destroy(test_socket_comm_handle->write_list);
+    ordered_list_destroy(test_socket_comm_handle->session_list);
     free(test_socket_comm_handle);
     test_socket_comm_handle = NULL;
 

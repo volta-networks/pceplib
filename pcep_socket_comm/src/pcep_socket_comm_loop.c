@@ -19,6 +19,32 @@
 #include "pcep_utils_logging.h"
 
 
+bool comm_session_exists(pcep_socket_comm_handle *socket_comm_handle, pcep_socket_comm_session *socket_comm_session)
+{
+    if (socket_comm_handle == NULL)
+    {
+        return false;
+    }
+
+    return (ordered_list_find(socket_comm_handle->session_list, socket_comm_session) != NULL);
+}
+
+
+bool comm_session_exists_locking(pcep_socket_comm_handle *socket_comm_handle, pcep_socket_comm_session *socket_comm_session)
+{
+    if (socket_comm_handle == NULL)
+    {
+        return false;
+    }
+
+    pthread_mutex_lock(&(socket_comm_handle->socket_comm_mutex));
+    bool exists = comm_session_exists(socket_comm_handle, socket_comm_session);
+    pthread_mutex_unlock(&(socket_comm_handle->socket_comm_mutex));
+
+    return exists;
+}
+
+
 void write_message(int socket_fd, const char *message, unsigned int msg_length)
 {
     int bytes_sent = 0;
@@ -129,7 +155,17 @@ void handle_reads(pcep_socket_comm_handle *socket_comm_handle)
 
         pthread_mutex_lock(&(socket_comm_handle->socket_comm_mutex));
         node = node->next_node;
+        if (!comm_session_exists(socket_comm_handle, comm_session))
+        {
+            /* This comm_session has been deleted, move on to the next one */
+            pthread_mutex_unlock(&(socket_comm_handle->socket_comm_mutex));
+            continue;
+        }
+
         int is_set = FD_ISSET(comm_session->socket_fd, &(socket_comm_handle->read_master_set));
+        /* Upon read failure, the comm_session might be free'd, so we cant store the
+         * received_bytes in the comm_session, until we know the read was successful. */
+        int received_bytes = 0;
         pthread_mutex_unlock(&(socket_comm_handle->socket_comm_mutex));
 
         if (is_set)
@@ -137,14 +173,15 @@ void handle_reads(pcep_socket_comm_handle *socket_comm_handle)
             /* either read the message locally, or call the message_ready_handler to read it */
             if (comm_session->message_handler != NULL)
             {
-                comm_session->received_bytes =
+                received_bytes =
                         read_message(
                                 comm_session->socket_fd,
                                 comm_session->received_message,
                                 MAX_RECVD_MSG_SIZE);
-                if (comm_session->received_bytes > 0)
+                if (received_bytes > 0)
                 {
-                    /* send the received message to the handler */
+                    /* Send the received message to the handler */
+                    comm_session->received_bytes = received_bytes;
                     comm_session->message_handler(
                             comm_session->session_data,
                             comm_session->received_message,
@@ -153,36 +190,46 @@ void handle_reads(pcep_socket_comm_handle *socket_comm_handle)
             }
             else
             {
-                /* tell the handler a message is ready to be read */
-                comm_session->received_bytes =
+                /* Tell the handler a message is ready to be read.
+                 * The comm_session may be destroyed in this call, if
+                 * there is an error reading or if the socket is closed. */
+                received_bytes =
                         comm_session->message_ready_to_read_handler(
                                 comm_session->session_data,
                                 comm_session->socket_fd);
             }
 
             /* handle the read results */
-            if (comm_session->received_bytes == 0)
+            if (received_bytes == 0)
             {
-                /* the socket was closed */
-                /* TODO should we define a socket except enum? or will the only
-                 *      time we call this is when the socket is closed?? */
-                if (comm_session->conn_except_notifier != NULL)
+                if (comm_session_exists_locking(socket_comm_handle, comm_session))
                 {
-                    comm_session->conn_except_notifier(
-                            comm_session->session_data,
-                            comm_session->socket_fd);
-                }
+                    comm_session->received_bytes = 0;
+                    /* the socket was closed */
+                    /* TODO should we define a socket except enum? or will the only
+                     *      time we call this is when the socket is closed?? */
+                    if (comm_session->conn_except_notifier != NULL)
+                    {
+                        comm_session->conn_except_notifier(
+                                comm_session->session_data,
+                                comm_session->socket_fd);
+                    }
 
-                /* stop reading from the socket if its closed */
-                pthread_mutex_lock(&(socket_comm_handle->socket_comm_mutex));
-                ordered_list_remove_first_node_equals(socket_comm_handle->read_list, comm_session);
-                pthread_mutex_unlock(&(socket_comm_handle->socket_comm_mutex));
+                    /* stop reading from the socket if its closed */
+                    pthread_mutex_lock(&(socket_comm_handle->socket_comm_mutex));
+                    ordered_list_remove_first_node_equals(socket_comm_handle->read_list, comm_session);
+                    pthread_mutex_unlock(&(socket_comm_handle->socket_comm_mutex));
+                }
             }
-            else if (comm_session->received_bytes < 0)
+            else if (received_bytes < 0)
             {
                 /* TODO should we call conn_except_notifier() here ? */
                 pcep_log(LOG_WARNING, "Error on socket [%d] : errno [%d][%s]",
                         comm_session->socket_fd, errno, strerror(errno));
+            }
+            else
+            {
+                comm_session->received_bytes = received_bytes;
             }
         }
     }
@@ -205,6 +252,13 @@ void handle_writes(pcep_socket_comm_handle *socket_comm_handle)
     {
         comm_session = (pcep_socket_comm_session *) node->data;
         node = node->next_node;
+
+        if (!comm_session_exists(socket_comm_handle, comm_session))
+        {
+            /* This comm_session has been deleted, move on to the next one */
+            pthread_mutex_unlock(&(socket_comm_handle->socket_comm_mutex));
+            continue;
+        }
 
         if (FD_ISSET(comm_session->socket_fd, &(socket_comm_handle->write_master_set))) {
             /* only remove the entry from the list, if it is written to */

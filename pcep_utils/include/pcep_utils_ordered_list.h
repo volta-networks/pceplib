@@ -26,6 +26,9 @@ typedef struct ordered_list_node_
  */
 typedef int (*ordered_compare_function)(void *list_entry, void *new_entry);
 
+/* Compare function that compares pointers */
+int pointer_compare_function(void *list_entry, void *new_entry);
+
 typedef struct ordered_list_handle_
 {
     ordered_list_node *head;

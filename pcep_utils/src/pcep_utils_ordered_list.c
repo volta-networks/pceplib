@@ -14,6 +14,17 @@
 #include "pcep_utils_logging.h"
 #include "pcep_utils_ordered_list.h"
 
+/* Compare function that simply compares pointers.
+ * return:
+ *   < 0  if new_entry  < list_entry
+ *   == 0 if new_entry == list_entry (new_entry will be inserted after list_entry)
+ *   > 0  if new_entry  > list_entry
+ */
+int pointer_compare_function(void *list_entry, void *new_entry)
+{
+    return new_entry - list_entry;
+}
+
 ordered_list_handle *ordered_list_initialize(ordered_compare_function func_ptr)
 {
     ordered_list_handle *handle = malloc(sizeof(ordered_list_handle));
