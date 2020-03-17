@@ -213,6 +213,7 @@ int main(int argc, char **argv)
 
     pcep_configuration *config = create_default_pcep_configuration();
     config->pcep_msg_versioning->draft_ietf_pce_segment_routing_07 = true;
+    //config->pcep_msg_versioning->draft_ietf_pce_segment_routing_07 = false;
     config->src_pcep_port = 4999;
     session = connect_pce(config, &host_address);
     if (session == NULL)

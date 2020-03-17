@@ -169,7 +169,7 @@ void test_pcep_tlv_create_path_setup_type_capability()
     /* Now test populating both the pst_list and the sub_tlv_list */
     reset_tlv_buffer();
     struct pcep_object_tlv_header *sub_tlv = (struct pcep_object_tlv_header *)
-            pcep_tlv_create_stateful_pce_capability(true, true, true, true, true, true);
+            pcep_tlv_create_sr_pce_capability(true, true, 0);
     pst_list = dll_initialize();
     sub_tlv_list = dll_initialize();
     pst1 = malloc(1);
@@ -185,9 +185,18 @@ void test_pcep_tlv_create_path_setup_type_capability()
             sizeof(uint32_t) * 2 + TLV_HEADER_LENGTH + sub_tlv->encoded_tlv_length);
     CU_ASSERT_PTR_NOT_NULL(tlv->pst_list);
     CU_ASSERT_PTR_NOT_NULL(tlv->sub_tlv_list);
-    uint32_ptr = (uint32_t *)tlv->header.encoded_tlv;
+    uint32_ptr = (uint32_t *) tlv->header.encoded_tlv;
+    uint16_t *uint16_ptr = (uint16_t *) tlv->header.encoded_tlv;
+    CU_ASSERT_EQUAL(uint16_ptr[0], htons(PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY));
+    CU_ASSERT_EQUAL(uint16_ptr[1], htons(tlv->header.encoded_tlv_length));
     CU_ASSERT_EQUAL(uint32_ptr[1], htonl(0x00000001));
     CU_ASSERT_EQUAL(uint32_ptr[2], htonl(0x01000000));
+    /* Verify the Sub-TLV */
+    uint16_ptr = (uint16_t *) (tlv->header.encoded_tlv + 12);
+    CU_ASSERT_EQUAL(uint16_ptr[0], htons(PCEP_OBJ_TLV_TYPE_SR_PCE_CAPABILITY));
+    CU_ASSERT_EQUAL(uint16_ptr[1], htons(4));
+    CU_ASSERT_EQUAL(uint16_ptr[2], 0);
+    CU_ASSERT_EQUAL(uint16_ptr[3], htons(0x0300));
 
     pcep_obj_free_tlv(&tlv->header);
 }
@@ -197,13 +206,12 @@ void test_pcep_tlv_create_sr_pce_capability()
     struct pcep_object_tlv_sr_pce_capability *tlv = pcep_tlv_create_sr_pce_capability(true, true, 8);
     CU_ASSERT_PTR_NOT_NULL(tlv);
 
-    /* This is necessary so the TLV wont get encapsulated
-     * in a path_setup_type_capability TLV */
-    versioning->draft_ietf_pce_segment_routing_07 = true;
-
     pcep_encode_tlv(&tlv->header, versioning, tlv_buf);
     CU_ASSERT_EQUAL(tlv->header.type, PCEP_OBJ_TLV_TYPE_SR_PCE_CAPABILITY);
     CU_ASSERT_EQUAL(tlv->header.encoded_tlv_length, sizeof(uint32_t));
+    uint16_t *uint16_ptr = (uint16_t *) tlv->header.encoded_tlv;
+    CU_ASSERT_EQUAL(uint16_ptr[0], htons(PCEP_OBJ_TLV_TYPE_SR_PCE_CAPABILITY));
+    CU_ASSERT_EQUAL(uint16_ptr[1], htons(tlv->header.encoded_tlv_length));
     uint32_t *uint32_ptr = (uint32_t *)tlv->header.encoded_tlv;
     CU_ASSERT_EQUAL(uint32_ptr[1], htonl(0x00000308));
 

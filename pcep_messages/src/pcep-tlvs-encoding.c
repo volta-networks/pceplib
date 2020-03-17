@@ -156,20 +156,8 @@ uint16_t pcep_encode_tlv(struct pcep_object_tlv_header* tlv_hdr, struct pcep_ver
 void write_tlv_header(struct pcep_object_tlv_header *tlv_hdr, uint16_t tlv_length, struct pcep_versioning *versioning, uint8_t *buf)
 {
     uint16_t *uint16_ptr = (uint16_t *) buf;
+    uint16_ptr[0] = htons(tlv_hdr->type);
     uint16_ptr[1] = htons(tlv_length);
-
-    /* With draft07: send the sr_pce_cap_tlv as a normal TLV
-     * With draft16: send the sr_pce_cap_tlv as a sub-TLV in the
-     *               path_setup_type_capability TLV */
-    if (tlv_hdr->type == PCEP_OBJ_TLV_TYPE_SR_PCE_CAPABILITY &&
-        versioning->draft_ietf_pce_segment_routing_07 == false)
-    {
-        uint16_ptr[0] = htons(PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY);
-    }
-    else
-    {
-        uint16_ptr[0] = htons(tlv_hdr->type);
-    }
 }
 
 /*
