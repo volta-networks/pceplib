@@ -453,8 +453,11 @@ uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioni
     for (; node != NULL; node = node->next_node)
     {
         struct pcep_object_ro_subobj *ro_subobj = node->data;
+        uint8_t ro_subobj_type =
+                (ro_subobj->ro_subobj_type == RO_SUBOBJ_TYPE_SR && versioning->draft_ietf_pce_segment_routing_07)
+                ? RO_SUBOBJ_TYPE_SR_DRAFT07 : ro_subobj->ro_subobj_type;
         obj_body_buf[index++] = ((ro_subobj->flag_subobj_loose_hop == true ? 0x80 : 0x00) |
-                                 (ro_subobj->ro_subobj_type));
+                                 (ro_subobj_type));
         /* The length will be written below, depending on the subobj type */
         uint8_t *length_ptr = &(obj_body_buf[index++]);
         uint32_t *uint32_ptr = (uint32_t *) (obj_body_buf + index);
