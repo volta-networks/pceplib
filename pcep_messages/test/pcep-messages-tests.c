@@ -45,6 +45,7 @@ extern void test_pcep_tlv_create_srpag_pol_name(void);
 extern void test_pcep_tlv_create_srpag_cp_id(void);
 extern void test_pcep_tlv_create_srpag_cp_pref(void);
 extern void test_pcep_tlv_create_nopath_vector(void);
+extern void test_pcep_tlv_create_arbitrary(void);
 
 /* functions to be tested from pcep-objects.c */
 extern void pcep_objects_test_setup(void);
@@ -138,6 +139,7 @@ int main(int argc, char **argv)
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_rsvp_ipv4_error_spec", test_pcep_tlv_create_rsvp_ipv4_error_spec);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_rsvp_ipv6_error_spec", test_pcep_tlv_create_rsvp_ipv6_error_spec);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_nopath_vector", test_pcep_tlv_create_nopath_vector);
+    CU_add_test(tlvs_suite, "test_pcep_tlv_create_arbitrary", test_pcep_tlv_create_arbitrary);
 
     CU_pSuite objects_suite = CU_add_suite_with_setup_and_teardown(
             "PCEP Objects Test Suite",

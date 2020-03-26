@@ -541,3 +541,40 @@ void test_pcep_tlv_create_nopath_vector()
 
     pcep_obj_free_tlv(&tlv->header);
 }
+
+void test_pcep_tlv_create_arbitrary()
+{
+    char data[16] = "Some Data";
+    uint16_t data_length = 9;
+    uint16_t tlv_id_unknown = 1;// 65505; // Whatever id to be created
+    struct pcep_object_tlv_arbitrary *tlv =
+            pcep_tlv_create_tlv_arbitrary(data, data_length, tlv_id_unknown);
+    CU_ASSERT_PTR_NOT_NULL(tlv);
+
+    pcep_encode_tlv(&tlv->header, versioning, tlv_buf);
+    CU_ASSERT_EQUAL(tlv->header.type, tlv_id_unknown);
+    CU_ASSERT_EQUAL(tlv->header.encoded_tlv_length, data_length);
+    /* Test the padding is correct */
+    CU_ASSERT_EQUAL(0, strncmp((char *) &(tlv->header.encoded_tlv[4]), &data[0], 4));
+    CU_ASSERT_EQUAL(0, strncmp((char *) &(tlv->header.encoded_tlv[8]), &data[4], 4));
+    CU_ASSERT_EQUAL(tlv->header.encoded_tlv[11], 't');
+    CU_ASSERT_EQUAL(tlv->header.encoded_tlv[12], 'a');
+    CU_ASSERT_EQUAL(tlv->header.encoded_tlv[13], 0);
+    CU_ASSERT_EQUAL(tlv->header.encoded_tlv[14], 0);
+    pcep_obj_free_tlv(&tlv->header);
+
+    reset_tlv_buffer();
+    tlv = pcep_tlv_create_tlv_arbitrary(data, 3, tlv_id_unknown);
+    CU_ASSERT_PTR_NOT_NULL(tlv);
+    pcep_encode_tlv(&tlv->header, versioning, tlv_buf);
+    CU_ASSERT_EQUAL(tlv->header.type, tlv_id_unknown);
+    CU_ASSERT_EQUAL(tlv->header.encoded_tlv_length, 3);
+    CU_ASSERT_EQUAL(tlv->header.encoded_tlv[4], 'S');
+    CU_ASSERT_EQUAL(tlv->header.encoded_tlv[5], 'o');
+    CU_ASSERT_EQUAL(tlv->header.encoded_tlv[6], 'm');
+    CU_ASSERT_EQUAL(tlv->header.encoded_tlv[7], 0);
+
+    pcep_obj_free_tlv(&tlv->header);
+}
+
+

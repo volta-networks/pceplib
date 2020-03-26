@@ -386,3 +386,27 @@ pcep_tlv_create_srpag_cp_pref(uint32_t pref)
 
     return tlv;
 }
+
+struct pcep_object_tlv_arbitrary*
+pcep_tlv_create_tlv_arbitrary(char *data, uint16_t data_length, int tlv_id)
+{
+    if (data == NULL || data_length == 0)
+    {
+        return NULL;
+    }
+
+    struct pcep_object_tlv_arbitrary *tlv =
+            (struct pcep_object_tlv_arbitrary *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_ARBITRARY,
+                    sizeof(struct pcep_object_tlv_arbitrary));
+
+    uint16_t length =(data_length > MAX_ARBITRARY_SIZE) ?
+            MAX_ARBITRARY_SIZE : data_length;
+    memcpy(tlv->data, data, data_length);
+    tlv->data_length = length;
+    tlv->arbitraty_type=tlv_id;
+
+    return tlv;
+}
+
+

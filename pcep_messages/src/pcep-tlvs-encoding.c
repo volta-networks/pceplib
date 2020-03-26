@@ -33,9 +33,10 @@ uint16_t pcep_encode_tlv_pol_name(struct pcep_object_tlv_header *tlv, struct pce
 uint16_t pcep_encode_tlv_cpath_id(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf);
 uint16_t pcep_encode_tlv_cpath_preference(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf);
 uint16_t pcep_encode_tlv_vendor_info(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf);
+uint16_t pcep_encode_tlv_arbitrary(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf);
 typedef uint16_t (*tlv_encoder_funcptr)(struct pcep_object_tlv_header *, struct pcep_versioning *versioning, uint8_t *tlv_body_buf);
 
-#define MAX_TLV_ENCODER_INDEX 64
+#define MAX_TLV_ENCODER_INDEX 65533+1 // 65
 tlv_encoder_funcptr tlv_encoders[MAX_TLV_ENCODER_INDEX];
 
 /*
@@ -58,6 +59,7 @@ struct pcep_object_tlv_header *pcep_decode_tlv_pol_name(struct pcep_object_tlv_h
 struct pcep_object_tlv_header *pcep_decode_tlv_cpath_id(struct pcep_object_tlv_header *tlv_hdr, uint8_t *tlv_body_buf);
 struct pcep_object_tlv_header *pcep_decode_tlv_cpath_preference(struct pcep_object_tlv_header *tlv_hdr, uint8_t *tlv_body_buf);
 struct pcep_object_tlv_header *pcep_decode_tlv_vendor_info(struct pcep_object_tlv_header *tlv_hdr, uint8_t *tlv_body_buf);
+struct pcep_object_tlv_header *pcep_decode_tlv_arbitrary(struct pcep_object_tlv_header *tlv_hdr, uint8_t *tlv_body_buf);
 typedef struct pcep_object_tlv_header* (*tlv_decoder_funcptr)(struct pcep_object_tlv_header *tlv_hdr, uint8_t *tlv_body_buf);
 
 tlv_decoder_funcptr tlv_decoders[MAX_TLV_ENCODER_INDEX];
@@ -93,6 +95,7 @@ static void initialize_tlv_coders()
     tlv_encoders[PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_ID]           =  pcep_encode_tlv_cpath_id;
     tlv_encoders[PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_PREFERENCE]   =  pcep_encode_tlv_cpath_preference;
     tlv_encoders[PCEP_OBJ_TLV_TYPE_VENDOR_INFO]                 =  pcep_encode_tlv_vendor_info;
+    tlv_encoders[PCEP_OBJ_TLV_TYPE_ARBITRARY]                   =  pcep_encode_tlv_arbitrary;
 
     /* Decoders */
     memset(tlv_decoders, 0, sizeof(tlv_decoder_funcptr) * MAX_TLV_ENCODER_INDEX);
@@ -113,6 +116,7 @@ static void initialize_tlv_coders()
     tlv_decoders[PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_ID]           =  pcep_decode_tlv_cpath_id;
     tlv_decoders[PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_PREFERENCE]   =  pcep_decode_tlv_cpath_preference;
     tlv_decoders[PCEP_OBJ_TLV_TYPE_VENDOR_INFO]                 =  pcep_decode_tlv_vendor_info;
+    tlv_decoders[PCEP_OBJ_TLV_TYPE_ARBITRARY]                   =  pcep_decode_tlv_arbitrary;
 }
 
 uint16_t pcep_encode_tlv(struct pcep_object_tlv_header* tlv_hdr, struct pcep_versioning *versioning, uint8_t *buf)
@@ -442,6 +446,17 @@ uint16_t pcep_encode_tlv_vendor_info(struct pcep_object_tlv_header *tlv, struct 
 
     return LENGTH_2WORDS;
 }
+
+uint16_t pcep_encode_tlv_arbitrary(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf)
+{
+    struct pcep_object_tlv_arbitrary *tlv_arbitrary =
+            (struct pcep_object_tlv_arbitrary *) tlv;
+    memcpy(tlv_body_buf, tlv_arbitrary->data, tlv_arbitrary->data_length);
+    tlv->type=tlv_arbitrary->arbitraty_type;
+
+    return tlv_arbitrary->data_length;
+}
+
 
 /*
  * Decoding functions
@@ -784,3 +799,25 @@ struct pcep_object_tlv_header *pcep_decode_tlv_vendor_info(struct pcep_object_tl
 
     return (struct pcep_object_tlv_header *) tlv;
 }
+
+struct pcep_object_tlv_header *pcep_decode_tlv_arbitrary(struct pcep_object_tlv_header *tlv_hdr, uint8_t *tlv_body_buf)
+{
+    struct pcep_object_tlv_arbitrary *tlv_arbitrary = (struct pcep_object_tlv_arbitrary *)
+        common_tlv_create(tlv_hdr, sizeof(struct pcep_object_tlv_arbitrary));
+
+    uint16_t length = tlv_hdr->encoded_tlv_length;
+    if (length > MAX_ARBITRARY_SIZE)
+    {
+        /* TODO should we also reset the tlv_hdr->encoded_tlv_length ? */
+        length = MAX_ARBITRARY_SIZE;
+        pcep_log(LOG_INFO, "Decoding Arbitrary TLV , truncate path name from [%d] to [%d].\",",
+                tlv_hdr->encoded_tlv_length, MAX_ARBITRARY_SIZE);
+    }
+
+    tlv_arbitrary->data_length= length;
+    memcpy(tlv_arbitrary->data, tlv_body_buf, length);
+
+    return (struct pcep_object_tlv_header *) tlv_arbitrary;
+}
+
+

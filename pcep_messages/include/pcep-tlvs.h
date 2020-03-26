@@ -49,6 +49,7 @@ enum pcep_object_tlv_types
     PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_NAME = 61,  /*TDB3 draft-barth-pce-segment-routing-policy-cp-04 */
     PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_ID = 62,  /*TDB4 draft-barth-pce-segment-routing-policy-cp-04 */
     PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_PREFERENCE = 63,  /*TDB5 draft-barth-pce-segment-routing-policy-cp-04 */
+    PCEP_OBJ_TLV_TYPE_ARBITRARY = 65533,  /* Max IANA To write arbitrary data */
     PCEP_OBJ_TLV_TYPE_UNKNOWN
 };
 
@@ -246,6 +247,17 @@ struct pcep_object_tlv_vendor_info
     uint32_t enterprise_specific_info;
 };
 
+/* arbitrary TLV 65535 */
+#define MAX_ARBITRARY_SIZE 256
+struct pcep_object_tlv_arbitrary
+{
+    struct pcep_object_tlv_header header;
+    enum pcep_object_tlv_types arbitraty_type;
+    uint16_t data_length;
+    char data[MAX_ARBITRARY_SIZE];
+};
+
+
 /*
  * TLV creation functions
  */
@@ -287,6 +299,9 @@ struct pcep_object_tlv_rsvp_error_spec*            pcep_tlv_create_rsvp_ipv6_err
 struct pcep_object_tlv_nopath_vector*              pcep_tlv_create_nopath_vector(uint32_t error_code);
 struct pcep_object_tlv_vendor_info*                pcep_tlv_create_vendor_info(uint32_t enterprise_number, uint32_t enterprise_specific_info);
 
+struct pcep_object_tlv_arbitrary*                  pcep_tlv_create_tlv_arbitrary(char *data,
+                                                                                      uint16_t data_length,
+                                                                                      int tlv_id);
 /*
  * SRPAG (SR Association Group) TLVs
  */
