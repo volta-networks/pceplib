@@ -815,6 +815,8 @@ struct pcep_object_tlv_header *pcep_decode_tlv_arbitrary(struct pcep_object_tlv_
     }
 
     tlv_arbitrary->data_length= length;
+    tlv_arbitrary->arbitraty_type= tlv_hdr->type;
+    tlv_hdr->type= PCEP_OBJ_TLV_TYPE_ARBITRARY;
     memcpy(tlv_arbitrary->data, tlv_body_buf, length);
 
     return (struct pcep_object_tlv_header *) tlv_arbitrary;
