@@ -49,8 +49,8 @@ enum pcep_object_tlv_types
     PCEP_OBJ_TLV_TYPE_SRPOLICY_POL_NAME = 61,  /*TDB3 draft-barth-pce-segment-routing-policy-cp-04 */
     PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_ID = 62,  /*TDB4 draft-barth-pce-segment-routing-policy-cp-04 */
     PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_PREFERENCE = 63,  /*TDB5 draft-barth-pce-segment-routing-policy-cp-04 */
-    PCEP_OBJ_TLV_TYPE_ARBITRARY = 65533,  /* Max IANA To write arbitrary data */
-    PCEP_OBJ_TLV_TYPE_UNKNOWN
+    PCEP_OBJ_TLV_TYPE_UNKNOWN = 128,
+    PCEP_OBJ_TLV_TYPE_ARBITRARY = 65533  /* Max IANA To write arbitrary data */
 };
 
 struct pcep_object_tlv_header

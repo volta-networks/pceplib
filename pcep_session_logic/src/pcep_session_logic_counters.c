@@ -37,7 +37,7 @@ void create_session_counters(pcep_session *session)
      * Message RX and TX counters
      */
     struct counters_subgroup *rx_msg_subgroup =
-            create_counters_subgroup("RX Message counters", COUNTER_SUBGROUP_ID_RX_MSG, PCEP_TYPE_MAX);
+            create_counters_subgroup("RX Message counters", COUNTER_SUBGROUP_ID_RX_MSG, PCEP_TYPE_MAX + 1);
     create_subgroup_counter(rx_msg_subgroup, PCEP_TYPE_OPEN,       "Message Open");
     create_subgroup_counter(rx_msg_subgroup, PCEP_TYPE_KEEPALIVE,  "Message KeepAlive");
     create_subgroup_counter(rx_msg_subgroup, PCEP_TYPE_PCREQ,      "Message PcReq");
@@ -93,7 +93,7 @@ void create_session_counters(pcep_session *session)
      */
     struct counters_subgroup *rx_subobj_subgroup =
             create_counters_subgroup("RX RO Sub-Object counters",
-                    COUNTER_SUBGROUP_ID_RX_SUBOBJ, RO_SUBOBJ_UNKNOWN + 1);
+                    COUNTER_SUBGROUP_ID_RX_SUBOBJ, RO_SUBOBJ_UNKNOWN + 2);
     create_subgroup_counter(rx_subobj_subgroup, RO_SUBOBJ_TYPE_IPV4,       "RO Sub-Object IPv4");
     create_subgroup_counter(rx_subobj_subgroup, RO_SUBOBJ_TYPE_IPV6,       "RO Sub-Object IPv6");
     create_subgroup_counter(rx_subobj_subgroup, RO_SUBOBJ_TYPE_LABEL,      "RO Sub-Object Label");
@@ -112,7 +112,7 @@ void create_session_counters(pcep_session *session)
      */
     struct counters_subgroup *rx_subobj_sr_nai_subgroup =
             create_counters_subgroup("RX RO SR NAI Sub-Object counters",
-                    COUNTER_SUBGROUP_ID_RX_RO_SR_SUBOBJ, PCEP_SR_SUBOBJ_NAI_UNKNOWN);
+                    COUNTER_SUBGROUP_ID_RX_RO_SR_SUBOBJ, PCEP_SR_SUBOBJ_NAI_UNKNOWN + 1);
     create_subgroup_counter(rx_subobj_sr_nai_subgroup,
             PCEP_SR_SUBOBJ_NAI_ABSENT,                     "RO Sub-Object SR NAI absent");
     create_subgroup_counter(rx_subobj_sr_nai_subgroup,

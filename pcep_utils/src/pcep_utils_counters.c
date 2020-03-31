@@ -49,7 +49,7 @@ struct counters_subgroup *create_counters_subgroup(const char *subgroup_name, ui
 
     if (max_counters > MAX_COUNTERS)
     {
-        pcep_log(LOG_INFO, "Cannot create counters subgroup: max_counters [%d] is larger than max the [%d].",
+        pcep_log(LOG_INFO, "Cannot create counters subgroup: max_counters [%d] is larger than the max [%d].",
                 max_counters, MAX_COUNTERS);
         return NULL;
     }
@@ -122,7 +122,7 @@ bool add_counters_subgroup(struct counters_group *group, struct counters_subgrou
         return false;
     }
 
-    if (subgroup->subgroup_id > group->max_subgroups)
+    if (subgroup->subgroup_id >= group->max_subgroups)
     {
         pcep_log(LOG_INFO, "Cannot add counters subgroup: counters_subgroup id [%d] is larger than the group max_subgroups [%d].",
                 subgroup->subgroup_id, group->max_subgroups);
@@ -143,7 +143,7 @@ bool create_subgroup_counter(struct counters_subgroup *subgroup, uint32_t counte
         return false;
     }
 
-    if (counter_id > subgroup->max_counters)
+    if (counter_id >= subgroup->max_counters)
     {
         pcep_log(LOG_INFO, "Cannot create subgroup counter: counter_id [%d] is larger than the subgroup max_counters [%d].",
                 counter_id, subgroup->max_counters);

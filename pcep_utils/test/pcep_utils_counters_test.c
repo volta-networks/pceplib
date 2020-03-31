@@ -62,8 +62,8 @@ void test_create_counters_subgroup()
 void test_add_counters_subgroup()
 {
     struct counters_group *group = create_counters_group("group", 1);
-    struct counters_subgroup *subgroup1 = create_counters_subgroup("subgroup", 1, 5);
-    struct counters_subgroup *subgroup2 = create_counters_subgroup("subgroup", 2, 5);
+    struct counters_subgroup *subgroup1 = create_counters_subgroup("subgroup", 0, 5);
+    struct counters_subgroup *subgroup2 = create_counters_subgroup("subgroup", 1, 5);
 
     CU_ASSERT_FALSE(add_counters_subgroup(NULL, NULL));
     CU_ASSERT_FALSE(add_counters_subgroup(NULL, subgroup1));
@@ -81,7 +81,7 @@ void test_add_counters_subgroup()
 
 void test_create_subgroup_counter()
 {
-    uint16_t counter_id = 2;
+    uint16_t counter_id = 1;
     char counter_name[] = "my counter";
     struct counters_subgroup *subgroup = create_counters_subgroup("subgroup", 1, 2);
 
