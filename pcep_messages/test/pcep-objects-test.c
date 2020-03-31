@@ -296,6 +296,9 @@ void test_pcep_obj_create_endpoint_ipv6()
 
 void test_pcep_obj_create_bandwidth()
 {
+    /* 1.8 => binary 1.11001101
+     * exponent = 127 => 0111 1111
+     * fraction = 1100 1101 0000 0000 0000 000 */
     float bandwidth = 1.8;
 
     struct pcep_object_bandwidth *bw = pcep_obj_create_bandwidth(bandwidth);
@@ -303,7 +306,10 @@ void test_pcep_obj_create_bandwidth()
     CU_ASSERT_PTR_NOT_NULL(bw);
     pcep_encode_object(&bw->header, versioning, object_buf);
     verify_pcep_obj_header(PCEP_OBJ_CLASS_BANDWIDTH, PCEP_OBJ_TYPE_BANDWIDTH_REQ, &bw->header);
-    CU_ASSERT_EQUAL(*((uint32_t *) (bw->header.encoded_object + 4)), htonl(bandwidth));
+    CU_ASSERT_EQUAL(bw->header.encoded_object[4], 0x3f);
+    CU_ASSERT_EQUAL(bw->header.encoded_object[5], 0xe6);
+    CU_ASSERT_EQUAL(bw->header.encoded_object[6], 0x66);
+    CU_ASSERT_EQUAL(bw->header.encoded_object[7], 0x66);
 
     pcep_obj_free_object((struct pcep_object_header *) bw);
 }
@@ -311,7 +317,13 @@ void test_pcep_obj_create_bandwidth()
 void test_pcep_obj_create_metric()
 {
     uint8_t type = PCEP_METRIC_DISJOINTNESS;
-    float value = 42.24;
+    /* https://en.wikipedia.org/wiki/IEEE_754-1985
+     * 0.15625 = 1/8 + 1/32 = binary 0.00101 = 1.01 x 10^-3
+     * Exponent bias = 127, so exponent = (127-3) = 124 = 0111 1100
+     *            Sign  Exponent   Fraction
+     *                  (8 bits)   (23 bits)
+     * 0.15625 =>  0    0111 1100  010 0000 ... 0000 */
+    float value = 0.15625;
 
     struct pcep_object_metric *metric = pcep_obj_create_metric(type, true, true, value);
 
@@ -323,7 +335,11 @@ void test_pcep_obj_create_metric()
     CU_ASSERT_TRUE(metric->header.encoded_object[6] & OBJECT_METRIC_FLAC_B);
     CU_ASSERT_TRUE(metric->header.encoded_object[6] & OBJECT_METRIC_FLAC_C);
     CU_ASSERT_EQUAL(metric->header.encoded_object[7], type);
-    CU_ASSERT_EQUAL(*((uint32_t *) (metric->header.encoded_object + 8)), htonl(value));
+    /* See comments above for explanation of these values */
+    CU_ASSERT_EQUAL(metric->header.encoded_object[8],  0x3e);
+    CU_ASSERT_EQUAL(metric->header.encoded_object[9],  0x20);
+    CU_ASSERT_EQUAL(metric->header.encoded_object[10], 0x00);
+    CU_ASSERT_EQUAL(metric->header.encoded_object[11], 0x00);
 
     pcep_obj_free_object((struct pcep_object_header *) metric);
 }

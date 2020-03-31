@@ -325,7 +325,9 @@ uint16_t pcep_encode_obj_bandwidth(struct pcep_object_header *hdr, struct pcep_v
 {
     struct pcep_object_bandwidth *bandwidth = (struct pcep_object_bandwidth *) hdr;
     uint32_t *uint32_ptr = (uint32_t *) obj_body_buf;
-    *uint32_ptr = htonl(bandwidth->bandwidth);
+    /* Seems like the compiler doesnt correctly copy the float, so memcpy() it */
+    memcpy(uint32_ptr, &(bandwidth->bandwidth), sizeof(uint32_t));
+    *uint32_ptr = htonl(*uint32_ptr);
 
     return LENGTH_1WORD;
 }
@@ -337,7 +339,9 @@ uint16_t pcep_encode_obj_metric(struct pcep_object_header *hdr, struct pcep_vers
                        (metric->flag_b == true ? OBJECT_METRIC_FLAC_B : 0x00));
     obj_body_buf[3] = metric->type;
     uint32_t *uint32_ptr = (uint32_t *) (obj_body_buf + 4);
-    *uint32_ptr = htonl(metric->value);
+    /* Seems like the compiler doesnt correctly copy the float, so memcpy() it */
+    memcpy(uint32_ptr, &(metric->value), sizeof(uint32_t));
+    *uint32_ptr = htonl(*uint32_ptr);
 
     return LENGTH_2WORDS;
 }
@@ -889,7 +893,10 @@ struct pcep_object_header *pcep_decode_obj_endpoints(struct pcep_object_header *
 struct pcep_object_header *pcep_decode_obj_bandwidth(struct pcep_object_header *hdr, uint8_t *obj_buf)
 {
     struct pcep_object_bandwidth *obj = (struct pcep_object_bandwidth *) common_object_create(hdr, sizeof(struct pcep_object_bandwidth));
-    obj->bandwidth = *((uint32_t *) obj_buf);
+
+    uint32_t value = ntohl(*((uint32_t *) obj_buf));
+    /* Seems like the compiler doesnt correctly copy to the float, so memcpy() it */
+    memcpy(&obj->bandwidth, &value, sizeof(uint32_t));
 
     return (struct pcep_object_header *) obj;
 }
@@ -900,7 +907,9 @@ struct pcep_object_header *pcep_decode_obj_metric(struct pcep_object_header *hdr
     obj->flag_b  =  (obj_buf[2] & OBJECT_METRIC_FLAC_B);
     obj->flag_c  =  (obj_buf[2] & OBJECT_METRIC_FLAC_C);
     obj->type    =  obj_buf[3];
-    obj->value    =  ntohl(*((uint32_t *) (obj_buf + 4)));
+    uint32_t value = ntohl(*((uint32_t *) (obj_buf + 4)));
+    /* Seems like the compiler doesnt correctly copy to the float, so memcpy() it */
+    memcpy(&obj->value, &value, sizeof(uint32_t));
 
     return (struct pcep_object_header *) obj;
 }

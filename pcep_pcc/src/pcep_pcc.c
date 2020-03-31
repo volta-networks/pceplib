@@ -167,6 +167,12 @@ void send_pce_report_message(pcep_session *session)
     }
     dll_append(report_list, obj);
 
+    /*
+     * Create the Metric object
+     */
+    obj = (struct pcep_object_header *) pcep_obj_create_metric(PCEP_METRIC_TE, false, true, 16.0);
+    dll_append(report_list, obj);
+
     /* Create and send the report message */
     struct pcep_message *report_msg = pcep_msg_create_report(report_list);
     send_message(session, report_msg, true);

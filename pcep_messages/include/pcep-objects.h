@@ -199,6 +199,9 @@ struct pcep_object_endpoints_ipv6
     struct in6_addr dst_ipv6;
 };
 
+/* PCEP floats are encoded according to:
+ *   https://en.wikipedia.org/wiki/IEEE_754-1985
+ * Luckily, this is the same encoding used by C */
 struct pcep_object_bandwidth
 {
     struct pcep_object_header header;
@@ -216,6 +219,9 @@ enum pcep_metric_types
 #define OBJECT_METRIC_FLAC_B 0x01
 #define OBJECT_METRIC_FLAC_C 0x02
 
+/* PCEP floats are encoded according to:
+ *   https://en.wikipedia.org/wiki/IEEE_754-1985
+ * Luckily, this is the same encoding used by C */
 struct pcep_object_metric
 {
     struct pcep_object_header header;
