@@ -457,9 +457,11 @@ void test_handle_socket_comm_event_update()
     double_linked_list *ero_subobj_list = dll_initialize();
     dll_append(ero_subobj_list, pcep_obj_create_ro_subobj_asn(0x0102));
     struct pcep_object_ro*  ero = pcep_obj_create_ero(ero_subobj_list);
+    struct pcep_object_metric*  metric = pcep_obj_create_metric(PCEP_METRIC_TE, false, true, 16.0);
     dll_append(message->obj_list, srp);
     dll_append(message->obj_list, lsp);
     dll_append(message->obj_list, ero);
+    dll_append(message->obj_list, metric);
     mock_socket_comm_info *mock_info = get_mock_socket_comm_info();
     mock_info->send_message_save_message = true;
 

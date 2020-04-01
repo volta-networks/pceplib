@@ -439,19 +439,6 @@ bool handle_pcep_update(pcep_session *session, struct pcep_message *upd_msg)
         return false;
     }
 
-    /* Check if there are any additional, unsupported objects */
-    node = node->next_node;
-    if (node != NULL)
-    {
-        struct pcep_object_header *object = node->data;
-        pcep_log(LOG_INFO, "Invalid PcUpd message: Extra PcUpd object: Class [%d] Type [%d] len [%d]",
-                object->object_class, object->object_type, object->encoded_object_length);
-        /* Send the offending object with the error */
-        send_pcep_error_with_object(session, PCEP_ERRT_NOT_SUPPORTED_OBJECT,
-                                    PCEP_ERRV_NOT_SUPPORTED_OBJECT_CLASS, object);
-        return false;
-    }
-
     return true;
 }
 
