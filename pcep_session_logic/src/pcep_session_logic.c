@@ -231,18 +231,12 @@ static int get_next_session_id()
     return session_id_++;
 }
 
-
-pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pce_ip)
+/* Internal util function */
+static pcep_session *create_pcep_session_pre_setup(pcep_configuration *config)
 {
     if (config == NULL)
     {
         pcep_log(LOG_WARNING, "Cannot create pcep session with NULL config");
-        return NULL;
-    }
-
-    if (pce_ip == NULL)
-    {
-        pcep_log(LOG_WARNING, "Cannot create pcep session with NULL pce_ip");
         return NULL;
     }
 
@@ -274,12 +268,52 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
         memcpy(session->pce_config.pcep_msg_versioning, config->pcep_msg_versioning, sizeof(struct pcep_versioning));
     }
 
+    return session;
+}
+
+/* Internal util function */
+static bool create_pcep_session_post_setup(pcep_session *session)
+{
+    if (!socket_comm_session_connect_tcp(session->socket_comm_session))
+    {
+        pcep_log(LOG_WARNING, "Cannot establish TCP socket.");
+        destroy_pcep_session(session);
+
+        return false;
+    }
+
+    session->time_connected = time(NULL);
+    create_session_counters(session);
+
+    send_pcep_open(session);
+
+    session->session_state = SESSION_STATE_PCEP_CONNECTING;
+    session->timer_id_open_keep_wait = create_timer(session->pcc_config.keep_alive_seconds, session);
+    //session->session_state = SESSION_STATE_OPENED;
+
+    return true;
+}
+
+pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pce_ip)
+{
+    if (pce_ip == NULL)
+    {
+        pcep_log(LOG_WARNING, "Cannot create pcep session with NULL pce_ip");
+        return NULL;
+    }
+
+    pcep_session *session = create_pcep_session_pre_setup(config);
+    if (session == NULL)
+    {
+        return NULL;
+    }
+
     session->socket_comm_session = socket_comm_session_initialize_with_src(
             NULL,
             session_logic_msg_ready_handler,
             session_logic_message_sent_handler,
             session_logic_conn_except_notifier,
-            &(config->src_ip),
+            &(config->src_ip.src_ipv4),
             ((config->src_pcep_port == 0) ? PCEP_TCP_PORT : config->src_pcep_port),
             pce_ip,
             ((config->dst_pcep_port == 0) ? PCEP_TCP_PORT : config->dst_pcep_port),
@@ -293,22 +327,51 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
         return NULL;
     }
 
-    if (!socket_comm_session_connect_tcp(session->socket_comm_session))
+    if (create_pcep_session_post_setup(session) == false)
     {
-        pcep_log(LOG_WARNING, "Cannot establish TCP socket.");
+        return NULL;
+    }
+
+    return session;
+}
+
+pcep_session *create_pcep_session_ipv6(pcep_configuration *config, struct in6_addr *pce_ip)
+{
+    if (pce_ip == NULL)
+    {
+        pcep_log(LOG_WARNING, "Cannot create pcep session with NULL pce_ip");
+        return NULL;
+    }
+
+    pcep_session *session = create_pcep_session_pre_setup(config);
+    if (session == NULL)
+    {
+        return NULL;
+    }
+
+    session->socket_comm_session = socket_comm_session_initialize_with_src_ipv6(
+            NULL,
+            session_logic_msg_ready_handler,
+            session_logic_message_sent_handler,
+            session_logic_conn_except_notifier,
+            &(config->src_ip.src_ipv6),
+            ((config->src_pcep_port == 0) ? PCEP_TCP_PORT : config->src_pcep_port),
+            pce_ip,
+            ((config->dst_pcep_port == 0) ? PCEP_TCP_PORT : config->dst_pcep_port),
+            config->socket_connect_timeout_millis,
+            session);
+    if (session->socket_comm_session == NULL)
+    {
+        pcep_log(LOG_WARNING, "Cannot establish ipv6 socket_comm_session.");
         destroy_pcep_session(session);
 
         return NULL;
     }
 
-    session->time_connected = time(NULL);
-    create_session_counters(session);
-
-    send_pcep_open(session);
-
-    session->session_state = SESSION_STATE_PCEP_CONNECTING;
-    session->timer_id_open_keep_wait = create_timer(config->keep_alive_seconds, session);
-    //session->session_state = SESSION_STATE_OPENED;
+    if (create_pcep_session_post_setup(session) == false)
+    {
+        return NULL;
+    }
 
     return session;
 }

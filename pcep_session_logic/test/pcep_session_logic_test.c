@@ -101,6 +101,41 @@ void test_create_destroy_pcep_session()
 }
 
 
+void test_create_destroy_pcep_session_ipv6()
+{
+    pcep_session *session;
+    pcep_configuration config;
+    struct in6_addr pce_ip;
+
+    bzero(&config, sizeof(pcep_configuration));
+    config.keep_alive_seconds = 5;
+    config.dead_timer_seconds = 5;
+    config.request_time_seconds = 5;
+    config.max_unknown_messages = 5;
+    config.max_unknown_requests = 5;
+    config.is_src_ipv6 = true;
+    inet_pton(AF_INET6, "::1", &pce_ip);
+
+    mock_socket_comm_info *mock_info = get_mock_socket_comm_info();
+    mock_info->send_message_save_message = true;
+    session = create_pcep_session_ipv6(&config, &pce_ip);
+    CU_ASSERT_PTR_NOT_NULL(session);
+    CU_ASSERT_TRUE(session->socket_comm_session->is_ipv6);
+    /* What gets saved in the mock is the msg byte buffer. The msg struct was deleted
+     * when it was sent. Instead of inspecting the msg byte buffer, lets just decode it. */
+    uint8_t *encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
+    CU_ASSERT_PTR_NOT_NULL(encoded_msg);
+    struct pcep_message* open_msg = pcep_decode_message(encoded_msg);
+    CU_ASSERT_PTR_NOT_NULL(open_msg);
+    /* Should be an Open, with no TLVs: length = 12 */
+    CU_ASSERT_EQUAL(open_msg->msg_header->type, PCEP_TYPE_OPEN);
+    CU_ASSERT_EQUAL(open_msg->encoded_message_length, 12);
+    destroy_pcep_session(session);
+    pcep_msg_free_message(open_msg);
+    free(encoded_msg);
+}
+
+
 void test_create_pcep_session_open_tlvs()
 {
     pcep_session *session;

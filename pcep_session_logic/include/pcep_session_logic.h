@@ -91,7 +91,11 @@ typedef struct pcep_configuration_
      * This is according to the RFC5440, Section 5 */
     uint16_t src_pcep_port;
 
-    struct in_addr src_ip;
+    union src_ip {
+        struct in_addr  src_ipv4;
+        struct in6_addr src_ipv6;
+    } src_ip;
+    bool is_src_ipv6;
 
     struct pcep_versioning *pcep_msg_versioning;
 
@@ -184,6 +188,7 @@ bool stop_session_logic();
 /* Uses the standard PCEP TCP dest port = 4189 and an ephemeral src port.
  * To use a specific dest or src port, set them other than 0 in the pcep_configuration. */
 pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pce_ip);
+pcep_session *create_pcep_session_ipv6(pcep_configuration *config, struct in6_addr *pce_ip);
 
 /* Send a PCEP close for this pcep_session */
 void close_pcep_session(pcep_session *session);

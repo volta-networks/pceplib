@@ -20,6 +20,108 @@
 bool pcc_active_ = true;
 pcep_session *session = NULL;
 
+static const char DEFAULT_DEST_HOSTNAME[] = "localhost";
+static const char DEFAULT_DEST_HOSTNAME_IPV6[] = "ip6-localhost";
+static const short DEFAULT_SRC_TCP_PORT = 4999;
+
+struct cmd_line_args
+{
+    char src_ip_str[40];
+    char dest_ip_str[40];
+    short src_tcp_port;
+    short dest_tcp_port;
+    bool is_ipv6;
+};
+
+struct cmd_line_args *get_cmdline_args(int argc, char *argv[])
+{
+    /* Allocate and set default values */
+    struct cmd_line_args *cmd_line_args = malloc(sizeof(struct cmd_line_args));
+    memset(cmd_line_args, 0, sizeof(struct cmd_line_args));
+    strcpy(cmd_line_args->dest_ip_str, DEFAULT_DEST_HOSTNAME);
+    cmd_line_args->src_tcp_port = DEFAULT_SRC_TCP_PORT;
+    cmd_line_args->is_ipv6 = false;
+
+    /* Parse the cmd_line args:
+     * -ipv6
+     * -srcip localhost
+     * -destip 192.168.0.2
+     * -srcport 4999
+     * -dstport 4189 */
+    int i = 1;
+    for (; i < argc; ++i)
+    {
+        if (strcmp(argv[i], "-help") == 0)
+        {
+            pcep_log(LOG_INFO, "pcep_pcc [-ipv6] [-srcip localhost] [-destip 192.168.0.1] [-srcport 4999] [-dstport 4189]");
+            return NULL;
+        }
+        else if (strcmp(argv[i], "-ipv6") == 0)
+        {
+            cmd_line_args->is_ipv6 = true;
+            if (argc == 2)
+            {
+                strcpy(cmd_line_args->dest_ip_str, DEFAULT_DEST_HOSTNAME_IPV6);
+            }
+        }
+        else if(strcmp(argv[i], "-srcip") == 0)
+        {
+            if (argc >= i + 2)
+            {
+                strcpy(cmd_line_args->src_ip_str, argv[++i]);
+            }
+            else
+            {
+                pcep_log(LOG_ERR, "Invalid number of cmd_line_args for \"-srcip\"");
+                return NULL;
+            }
+        }
+        else if(strcmp(argv[i], "-destip") == 0)
+        {
+            if (argc >= i + 2)
+            {
+                strcpy(cmd_line_args->dest_ip_str, argv[++i]);
+            }
+            else
+            {
+                pcep_log(LOG_ERR, "Invalid number of cmd_line_args for \"-destip\"");
+                return NULL;
+            }
+        }
+        else if(strcmp(argv[i], "-srcport") == 0)
+        {
+            if (argc >= i + 2)
+            {
+                cmd_line_args->src_tcp_port = atoi(argv[++i]);
+            }
+            else
+            {
+                pcep_log(LOG_ERR, "Invalid number of cmd_line_args for \"-srcport\"");
+                return NULL;
+            }
+        }
+        else if(strcmp(argv[i], "-destport") == 0)
+        {
+            if (argc >= i + 2)
+            {
+                cmd_line_args->dest_tcp_port = atoi(argv[++i]);
+            }
+            else
+            {
+                pcep_log(LOG_ERR, "Invalid number of cmd_line_args for \"-destport\"");
+                return NULL;
+            }
+        }
+        else
+        {
+            pcep_log(LOG_ERR, "Invalid cmd_line_arg[%d] = %s", i, argv[i]);
+            return NULL;
+        }
+    }
+
+    return cmd_line_args;
+}
+
 void handle_signal_action(int sig_number)
 {
     if (sig_number == SIGINT)
@@ -197,6 +299,12 @@ int main(int argc, char **argv)
     pcep_log(LOG_NOTICE, "[%ld-%ld] starting pcc_pcep example client",
             time(NULL), pthread_self());
 
+    struct cmd_line_args *cmd_line_args = get_cmdline_args(argc, argv);
+    if (cmd_line_args == NULL)
+    {
+        return -1;
+    }
+
     setup_signals();
 
     /* blocking call:
@@ -208,20 +316,31 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    struct hostent *host_info = gethostbyname("localhost");
-    if(host_info == NULL) {
+    pcep_configuration *config = create_default_pcep_configuration();
+    config->pcep_msg_versioning->draft_ietf_pce_segment_routing_07 = true;
+    config->src_pcep_port = cmd_line_args->src_tcp_port;
+
+    int af = (cmd_line_args->is_ipv6 ? AF_INET6 : AF_INET);
+    struct hostent *host_info = gethostbyname2(cmd_line_args->dest_ip_str, af);
+    if(host_info == NULL)
+    {
         pcep_log(LOG_ERR, "Error getting IP address.");
         return -1;
     }
 
-    struct in_addr host_address;
-    memcpy(&host_address, host_info->h_addr, host_info->h_length);
+    if (cmd_line_args->is_ipv6)
+    {
+        struct in6_addr host_address;
+        memcpy(&host_address, host_info->h_addr, host_info->h_length);
+        session = connect_pce_ipv6(config, &host_address);
+    }
+    else
+    {
+        struct in_addr host_address;
+        memcpy(&host_address, host_info->h_addr, host_info->h_length);
+        session = connect_pce(config, &host_address);
+    }
 
-    pcep_configuration *config = create_default_pcep_configuration();
-    config->pcep_msg_versioning->draft_ietf_pce_segment_routing_07 = true;
-    //config->pcep_msg_versioning->draft_ietf_pce_segment_routing_07 = false;
-    config->src_pcep_port = 4999;
-    session = connect_pce(config, &host_address);
     if (session == NULL)
     {
         pcep_log(LOG_WARNING, "Error in connect_pce.");
@@ -250,6 +369,7 @@ int main(int argc, char **argv)
     pcep_log(LOG_NOTICE, "Disconnecting from PCE");
     disconnect_pce(session);
     destroy_pcep_configuration(config);
+    free(cmd_line_args);
 
     if (!destroy_pcc())
     {

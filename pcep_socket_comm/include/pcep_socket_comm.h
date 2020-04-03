@@ -42,8 +42,15 @@ typedef struct pcep_socket_comm_session_
     message_ready_to_read_handler message_ready_to_read_handler;
     message_sent_notifier message_sent_handler;
     connection_except_notifier conn_except_notifier;
-    struct sockaddr_in src_sock_addr;
-    struct sockaddr_in dest_sock_addr;
+    union src_sock_addr {
+        struct sockaddr_in src_sock_addr_ipv4;
+        struct sockaddr_in6 src_sock_addr_ipv6;
+    } src_sock_addr;
+    union dest_sock_addr {
+        struct sockaddr_in dest_sock_addr_ipv4;
+        struct sockaddr_in6 dest_sock_addr_ipv6;
+    } dest_sock_addr;
+    bool is_ipv6;
     uint32_t connect_timeout_millis;
     int socket_fd;
     void *session_data;
@@ -70,6 +77,17 @@ socket_comm_session_initialize(message_received_handler msg_rcv_handler,
                             short dst_port,
                             uint32_t connect_timeout_millis,
                             void *session_data);
+
+pcep_socket_comm_session *
+socket_comm_session_initialize_ipv6(message_received_handler msg_rcv_handler,
+                            message_ready_to_read_handler msg_ready_handler,
+                            message_sent_notifier msg_sent_notifier,
+                            connection_except_notifier notifier,
+                            struct in6_addr *dst_ip,
+                            short dst_port,
+                            uint32_t connect_timeout_millis,
+                            void *session_data);
+
 pcep_socket_comm_session *
 socket_comm_session_initialize_with_src(message_received_handler msg_rcv_handler,
                             message_ready_to_read_handler msg_ready_handler,
@@ -78,6 +96,18 @@ socket_comm_session_initialize_with_src(message_received_handler msg_rcv_handler
                             struct in_addr *src_ip,
                             short src_port,
                             struct in_addr *dst_ip,
+                            short dst_port,
+                            uint32_t connect_timeout_millis,
+                            void *session_data);
+
+pcep_socket_comm_session *
+socket_comm_session_initialize_with_src_ipv6(message_received_handler msg_rcv_handler,
+                            message_ready_to_read_handler msg_ready_handler,
+                            message_sent_notifier msg_sent_notifier,
+                            connection_except_notifier notifier,
+                            struct in6_addr *src_ip,
+                            short src_port,
+                            struct in6_addr *dst_ip,
                             short dst_port,
                             uint32_t connect_timeout_millis,
                             void *session_data);

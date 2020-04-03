@@ -15,6 +15,7 @@ extern void pcep_pcc_api_test_setup();
 extern void pcep_pcc_api_test_teardown();
 extern void test_initialize_pcc();
 extern void test_connect_pce();
+extern void test_connect_pce_ipv6();
 extern void test_connect_pce_with_src_ip();
 extern void test_disconnect_pce();
 extern void test_send_message();
@@ -36,6 +37,7 @@ int main(int argc, char **argv)
 
     CU_add_test(test_pcc_api_suite, "test_initialize_pcc", test_initialize_pcc);
     CU_add_test(test_pcc_api_suite, "test_connect_pce", test_connect_pce);
+    CU_add_test(test_pcc_api_suite, "test_connect_pce_ipv6", test_connect_pce_ipv6);
     CU_add_test(test_pcc_api_suite, "test_connect_pce_with_src_ip", test_connect_pce_with_src_ip);
     CU_add_test(test_pcc_api_suite, "test_disconnect_pce", test_disconnect_pce);
     CU_add_test(test_pcc_api_suite, "test_send_message", test_send_message);

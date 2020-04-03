@@ -101,9 +101,40 @@ socket_comm_session_initialize(message_received_handler msg_rcv_handler,
     comm_session->session_data = session_data;
     comm_session->close_after_write = false;
     comm_session->connect_timeout_millis = connect_timeout_millis;
-    comm_session->dest_sock_addr.sin_family = AF_INET;
-    comm_session->dest_sock_addr.sin_port = htons(dst_port);
-    comm_session->dest_sock_addr.sin_addr.s_addr = dst_ip->s_addr;
+    comm_session->is_ipv6 = false;
+    comm_session->dest_sock_addr.dest_sock_addr_ipv4.sin_family = AF_INET;
+    comm_session->dest_sock_addr.dest_sock_addr_ipv4.sin_port = htons(dst_port);
+    comm_session->dest_sock_addr.dest_sock_addr_ipv4.sin_addr.s_addr = dst_ip->s_addr;
+
+    return comm_session;
+}
+
+pcep_socket_comm_session *
+socket_comm_session_initialize_ipv6(message_received_handler msg_rcv_handler,
+                            message_ready_to_read_handler msg_ready_handler,
+                            message_sent_notifier msg_sent_notifier,
+                            connection_except_notifier notifier,
+                            struct in6_addr *dst_ip,
+                            short dst_port,
+                            uint32_t connect_timeout_millis,
+                            void *session_data)
+{
+    mock_socket_metadata.socket_comm_session_initialize_times_called++;
+
+    pcep_socket_comm_session *comm_session = malloc(sizeof(pcep_socket_comm_session));
+    bzero(comm_session, sizeof(pcep_socket_comm_session));
+
+    comm_session->message_handler = msg_rcv_handler;
+    comm_session->message_ready_to_read_handler = msg_ready_handler;
+    comm_session->conn_except_notifier = notifier;
+    comm_session->message_queue = queue_initialize();
+    comm_session->session_data = session_data;
+    comm_session->close_after_write = false;
+    comm_session->connect_timeout_millis = connect_timeout_millis;
+    comm_session->is_ipv6 = true;
+    comm_session->dest_sock_addr.dest_sock_addr_ipv6.sin6_family = AF_INET6;
+    comm_session->dest_sock_addr.dest_sock_addr_ipv6.sin6_port = htons(dst_port);
+    memcpy(&comm_session->dest_sock_addr.dest_sock_addr_ipv6.sin6_addr, dst_ip, sizeof(struct in6_addr));
 
     return comm_session;
 }
@@ -132,12 +163,55 @@ socket_comm_session_initialize_with_src(message_received_handler msg_rcv_handler
     comm_session->session_data = session_data;
     comm_session->close_after_write = false;
     comm_session->connect_timeout_millis = connect_timeout_millis;
-    comm_session->src_sock_addr.sin_family = AF_INET;
-    comm_session->src_sock_addr.sin_port = htons(src_port);
-    comm_session->src_sock_addr.sin_addr.s_addr = ((src_ip == NULL) ? INADDR_ANY : src_ip->s_addr);
-    comm_session->dest_sock_addr.sin_family = AF_INET;
-    comm_session->dest_sock_addr.sin_port = htons(dst_port);
-    comm_session->dest_sock_addr.sin_addr.s_addr = dst_ip->s_addr;
+    comm_session->is_ipv6 = false;
+    comm_session->src_sock_addr.src_sock_addr_ipv4.sin_family = AF_INET;
+    comm_session->src_sock_addr.src_sock_addr_ipv4.sin_port = htons(src_port);
+    comm_session->src_sock_addr.src_sock_addr_ipv4.sin_addr.s_addr = ((src_ip == NULL) ? INADDR_ANY : src_ip->s_addr);
+    comm_session->dest_sock_addr.dest_sock_addr_ipv4.sin_family = AF_INET;
+    comm_session->dest_sock_addr.dest_sock_addr_ipv4.sin_port = htons(dst_port);
+    comm_session->dest_sock_addr.dest_sock_addr_ipv4.sin_addr.s_addr = dst_ip->s_addr;
+
+    return comm_session;
+}
+
+pcep_socket_comm_session *
+socket_comm_session_initialize_with_src_ipv6(message_received_handler msg_rcv_handler,
+                            message_ready_to_read_handler msg_ready_handler,
+                            message_sent_notifier msg_sent_notifier,
+                            connection_except_notifier notifier,
+                            struct in6_addr *src_ip,
+                            short src_port,
+                            struct in6_addr *dst_ip,
+                            short dst_port,
+                            uint32_t connect_timeout_millis,
+                            void *session_data)
+{
+    mock_socket_metadata.socket_comm_session_initialize_src_times_called++;
+
+    pcep_socket_comm_session *comm_session = malloc(sizeof(pcep_socket_comm_session));
+    bzero(comm_session, sizeof(pcep_socket_comm_session));
+
+    comm_session->message_handler = msg_rcv_handler;
+    comm_session->message_ready_to_read_handler = msg_ready_handler;
+    comm_session->conn_except_notifier = notifier;
+    comm_session->message_queue = queue_initialize();
+    comm_session->session_data = session_data;
+    comm_session->close_after_write = false;
+    comm_session->connect_timeout_millis = connect_timeout_millis;
+    comm_session->is_ipv6 = true;
+    comm_session->src_sock_addr.src_sock_addr_ipv6.sin6_family = AF_INET6;
+    comm_session->src_sock_addr.src_sock_addr_ipv6.sin6_port = htons(src_port);
+    if (src_ip == NULL)
+    {
+        comm_session->src_sock_addr.src_sock_addr_ipv6.sin6_addr = in6addr_any;
+    }
+    else
+    {
+        memcpy(&comm_session->src_sock_addr.src_sock_addr_ipv6.sin6_addr, src_ip, sizeof(struct in6_addr));
+    }
+    comm_session->dest_sock_addr.dest_sock_addr_ipv6.sin6_family = AF_INET6;
+    comm_session->dest_sock_addr.dest_sock_addr_ipv6.sin6_port = htons(dst_port);
+    memcpy(&comm_session->dest_sock_addr.dest_sock_addr_ipv6.sin6_addr, dst_ip, sizeof(struct in6_addr));
 
     return comm_session;
 }

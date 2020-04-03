@@ -88,32 +88,12 @@ bool destroy_socket_comm_loop()
     return true;
 }
 
-
-pcep_socket_comm_session *
-socket_comm_session_initialize(message_received_handler message_handler,
+/* Internal common init function */
+static pcep_socket_comm_session *
+socket_comm_session_initialize_pre(message_received_handler message_handler,
                             message_ready_to_read_handler message_ready_handler,
                             message_sent_notifier msg_sent_notifier,
                             connection_except_notifier notifier,
-                            struct in_addr *dest_ip,
-                            short dest_port,
-                            uint32_t connect_timeout_millis,
-                            void *session_data)
-{
-    return socket_comm_session_initialize_with_src(
-            message_handler, message_ready_handler, msg_sent_notifier, notifier,
-            NULL, 0, dest_ip, dest_port, connect_timeout_millis, session_data);
-}
-
-
-pcep_socket_comm_session *
-socket_comm_session_initialize_with_src(message_received_handler message_handler,
-                            message_ready_to_read_handler message_ready_handler,
-                            message_sent_notifier msg_sent_notifier,
-                            connection_except_notifier notifier,
-                            struct in_addr *src_ip,
-                            short src_port,
-                            struct in_addr *dest_ip,
-                            short dest_port,
                             uint32_t connect_timeout_millis,
                             void *session_data)
 {
@@ -128,12 +108,6 @@ socket_comm_session_initialize_with_src(message_received_handler message_handler
     if (message_handler == NULL && message_ready_handler == NULL)
     {
         pcep_log(LOG_WARNING, "At least one of <message_received_handler | message_ready_to_read_handler> must be set.");
-        return NULL;
-    }
-
-    if (dest_ip == NULL)
-    {
-        pcep_log(LOG_WARNING, "dest_ip is NULL");
         return NULL;
     }
 
@@ -166,20 +140,13 @@ socket_comm_session_initialize_with_src(message_received_handler message_handler
     socket_comm_session->conn_except_notifier = notifier;
     socket_comm_session->message_queue = queue_initialize();
     socket_comm_session->connect_timeout_millis = connect_timeout_millis;
-    socket_comm_session->dest_sock_addr.sin_family = AF_INET;
-    socket_comm_session->dest_sock_addr.sin_port = htons(dest_port);
-    memcpy(&(socket_comm_session->dest_sock_addr.sin_addr), dest_ip, sizeof(struct in_addr));
-    socket_comm_session->src_sock_addr.sin_family = AF_INET;
-    socket_comm_session->src_sock_addr.sin_port = htons(src_port);
-    if (src_ip != NULL)
-    {
-        socket_comm_session->src_sock_addr.sin_addr.s_addr = src_ip->s_addr;
-    }
-    else
-    {
-        socket_comm_session->src_sock_addr.sin_addr.s_addr = INADDR_ANY;
-    }
 
+    return socket_comm_session;
+}
+
+/* Internal common init function */
+bool socket_comm_session_initialize_post(pcep_socket_comm_session *socket_comm_session)
+{
     /* If we dont use SO_REUSEADDR, the socket will take 2 TIME_WAIT
      * periods before being closed in the kernel if bind() was called */
     int reuse_addr = 1;
@@ -189,18 +156,22 @@ socket_comm_session_initialize_with_src(message_received_handler message_handler
                 errno, strerror(errno));
         socket_comm_session_teardown(socket_comm_session);
 
-        return NULL;
+        return false;
     }
 
-    if (bind(socket_comm_session->socket_fd,
-         (struct sockaddr *) &(socket_comm_session->src_sock_addr),
-         sizeof(struct sockaddr)) == -1)
+    struct sockaddr *src_sock_addr = (socket_comm_session->is_ipv6 ?
+            (struct sockaddr *) &(socket_comm_session->src_sock_addr.src_sock_addr_ipv6) :
+            (struct sockaddr *) &(socket_comm_session->src_sock_addr.src_sock_addr_ipv4));
+    int addr_len = (socket_comm_session->is_ipv6 ?
+         sizeof(socket_comm_session->src_sock_addr.src_sock_addr_ipv6) :
+         sizeof(socket_comm_session->src_sock_addr.src_sock_addr_ipv4));
+    if (bind(socket_comm_session->socket_fd, src_sock_addr, addr_len) == -1)
     {
         pcep_log(LOG_WARNING, "Cannot bind address to socket errno [%d %s].",
                 errno, strerror(errno));
         socket_comm_session_teardown(socket_comm_session);
 
-        return NULL;
+        return false;
     }
 
     /* Register the session as active with the Socket Comm Loop */
@@ -211,6 +182,160 @@ socket_comm_session_initialize_with_src(message_received_handler message_handler
     /* dont connect to the destination yet, since the PCE will have a timer
      * for max time between TCP connect and PCEP open. we'll connect later
      * when we send the PCEP open. */
+
+    return true;
+}
+
+
+pcep_socket_comm_session *
+socket_comm_session_initialize(message_received_handler message_handler,
+                            message_ready_to_read_handler message_ready_handler,
+                            message_sent_notifier msg_sent_notifier,
+                            connection_except_notifier notifier,
+                            struct in_addr *dest_ip,
+                            short dest_port,
+                            uint32_t connect_timeout_millis,
+                            void *session_data)
+{
+    return socket_comm_session_initialize_with_src(
+            message_handler, message_ready_handler, msg_sent_notifier, notifier,
+            NULL, 0, dest_ip, dest_port, connect_timeout_millis, session_data);
+}
+
+pcep_socket_comm_session *
+socket_comm_session_initialize_ipv6(message_received_handler message_handler,
+                            message_ready_to_read_handler message_ready_handler,
+                            message_sent_notifier msg_sent_notifier,
+                            connection_except_notifier notifier,
+                            struct in6_addr *dest_ip,
+                            short dest_port,
+                            uint32_t connect_timeout_millis,
+                            void *session_data)
+{
+    return socket_comm_session_initialize_with_src_ipv6(
+            message_handler, message_ready_handler, msg_sent_notifier, notifier,
+            NULL, 0, dest_ip, dest_port, connect_timeout_millis, session_data);
+}
+
+
+pcep_socket_comm_session *
+socket_comm_session_initialize_with_src(message_received_handler message_handler,
+                            message_ready_to_read_handler message_ready_handler,
+                            message_sent_notifier msg_sent_notifier,
+                            connection_except_notifier notifier,
+                            struct in_addr *src_ip,
+                            short src_port,
+                            struct in_addr *dest_ip,
+                            short dest_port,
+                            uint32_t connect_timeout_millis,
+                            void *session_data)
+{
+    if (dest_ip == NULL)
+    {
+        pcep_log(LOG_WARNING, "dest_ipv4 is NULL");
+        return NULL;
+    }
+
+    pcep_socket_comm_session *socket_comm_session =
+            socket_comm_session_initialize_pre(message_handler,
+                    message_ready_handler,
+                    msg_sent_notifier,
+                    notifier,
+                    connect_timeout_millis,
+                    session_data);
+    if (socket_comm_session == NULL)
+    {
+        return NULL;
+    }
+
+    socket_comm_session->socket_fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (socket_comm_session->socket_fd == -1) {
+        pcep_log(LOG_WARNING, "Cannot create ipv4 socket errno [%d %s].", errno, strerror(errno));
+        socket_comm_session_teardown(socket_comm_session);//socket_comm_session freed inside fn so NOLINT next.
+
+        return NULL;//NOLINT(clang-analyzer-unix.Malloc)
+    }
+
+    socket_comm_session->is_ipv6 = false;
+    socket_comm_session->dest_sock_addr.dest_sock_addr_ipv4.sin_family = AF_INET;
+    socket_comm_session->src_sock_addr.src_sock_addr_ipv4.sin_family = AF_INET;
+    socket_comm_session->dest_sock_addr.dest_sock_addr_ipv4.sin_port = htons(dest_port);
+    socket_comm_session->src_sock_addr.src_sock_addr_ipv4.sin_port = htons(src_port);
+    socket_comm_session->dest_sock_addr.dest_sock_addr_ipv4.sin_addr.s_addr = dest_ip->s_addr;
+    if (src_ip != NULL)
+    {
+        socket_comm_session->src_sock_addr.src_sock_addr_ipv4.sin_addr.s_addr = src_ip->s_addr;
+    }
+    else
+    {
+        socket_comm_session->src_sock_addr.src_sock_addr_ipv4.sin_addr.s_addr = INADDR_ANY;
+    }
+
+    if (socket_comm_session_initialize_post(socket_comm_session) == false)
+    {
+        return NULL;
+    }
+
+    return socket_comm_session;
+}
+
+pcep_socket_comm_session *
+socket_comm_session_initialize_with_src_ipv6(message_received_handler message_handler,
+                            message_ready_to_read_handler message_ready_handler,
+                            message_sent_notifier msg_sent_notifier,
+                            connection_except_notifier notifier,
+                            struct in6_addr *src_ip,
+                            short src_port,
+                            struct in6_addr *dest_ip,
+                            short dest_port,
+                            uint32_t connect_timeout_millis,
+                            void *session_data)
+{
+    if (dest_ip == NULL)
+    {
+        pcep_log(LOG_WARNING, "dest_ipv6 is NULL");
+        return NULL;
+    }
+
+    pcep_socket_comm_session *socket_comm_session =
+            socket_comm_session_initialize_pre(message_handler,
+                    message_ready_handler,
+                    msg_sent_notifier,
+                    notifier,
+                    connect_timeout_millis,
+                    session_data);
+    if (socket_comm_session == NULL)
+    {
+        return NULL;
+    }
+
+    socket_comm_session->socket_fd = socket(PF_INET6, SOCK_STREAM, IPPROTO_TCP);
+    if (socket_comm_session->socket_fd == -1) {
+        pcep_log(LOG_WARNING, "Cannot create ipv6 socket errno [%d %s].", errno, strerror(errno));
+        socket_comm_session_teardown(socket_comm_session);//socket_comm_session freed inside fn so NOLINT next.
+
+        return NULL;//NOLINT(clang-analyzer-unix.Malloc)
+    }
+
+    socket_comm_session->is_ipv6 = true;
+    socket_comm_session->dest_sock_addr.dest_sock_addr_ipv6.sin6_family = AF_INET6;
+    socket_comm_session->src_sock_addr.src_sock_addr_ipv6.sin6_family = AF_INET6;
+    socket_comm_session->dest_sock_addr.dest_sock_addr_ipv6.sin6_port = htons(dest_port);
+    socket_comm_session->src_sock_addr.src_sock_addr_ipv6.sin6_port = htons(src_port);
+    memcpy(&socket_comm_session->dest_sock_addr.dest_sock_addr_ipv6.sin6_addr, dest_ip, sizeof(struct in6_addr));
+    if (src_ip != NULL)
+    {
+        memcpy(&socket_comm_session->src_sock_addr.src_sock_addr_ipv6.sin6_addr, src_ip, sizeof(struct in6_addr));
+    }
+    else
+    {
+        socket_comm_session->src_sock_addr.src_sock_addr_ipv6.sin6_addr = in6addr_any;
+    }
+
+    if (socket_comm_session_initialize_post(socket_comm_session) == false)
+    {
+        return NULL;
+    }
 
     return socket_comm_session;
 }
@@ -239,9 +364,19 @@ bool socket_comm_session_connect_tcp(pcep_socket_comm_session *socket_comm_sessi
         return false;
     }
 
-    int connect_result = connect(socket_comm_session->socket_fd,
-            (struct sockaddr *) &(socket_comm_session->dest_sock_addr),
-            sizeof(struct sockaddr));
+    int connect_result = 0;
+    if (socket_comm_session->is_ipv6)
+    {
+        connect_result = connect(socket_comm_session->socket_fd,
+                (struct sockaddr *) &(socket_comm_session->dest_sock_addr.dest_sock_addr_ipv6),
+                sizeof(socket_comm_session->dest_sock_addr.dest_sock_addr_ipv6));
+    }
+    else
+    {
+        connect_result = connect(socket_comm_session->socket_fd,
+                (struct sockaddr *) &(socket_comm_session->dest_sock_addr.dest_sock_addr_ipv4),
+                sizeof(socket_comm_session->dest_sock_addr.dest_sock_addr_ipv4));
+    }
 
     if (connect_result < 0)
     {

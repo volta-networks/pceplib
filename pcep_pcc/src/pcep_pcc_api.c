@@ -92,7 +92,8 @@ pcep_configuration *create_default_pcep_configuration()
     config->max_sid_depth = 0;
     config->dst_pcep_port = 0;
     config->src_pcep_port = 0;
-    config->src_ip.s_addr = INADDR_ANY;
+    config->src_ip.src_ipv4.s_addr = INADDR_ANY;
+    config->is_src_ipv6 = false;
     config->pcep_msg_versioning = create_default_pcep_versioning();
 
     return config;
@@ -107,6 +108,11 @@ void destroy_pcep_configuration(pcep_configuration *config)
 pcep_session *connect_pce(pcep_configuration *config, struct in_addr *pce_ip)
 {
     return create_pcep_session(config, pce_ip);
+}
+
+pcep_session *connect_pce_ipv6(pcep_configuration *config, struct in6_addr *pce_ip)
+{
+    return create_pcep_session_ipv6(config, pce_ip);
 }
 
 void disconnect_pce(pcep_session *session)
@@ -249,8 +255,15 @@ void dump_pcep_session_counters(pcep_session *session)
     /* Update the counters group name so that the PCE session connected time is accurate */
     time_t now = time(NULL);
     char counters_name[MAX_COUNTER_STR_LENGTH];
-    char ip_str[20];
-    inet_ntop(AF_INET, &session->socket_comm_session->dest_sock_addr.sin_addr, ip_str, 20);
+    char ip_str[40];
+    if (session->socket_comm_session->is_ipv6)
+    {
+        inet_ntop(AF_INET6, &session->socket_comm_session->dest_sock_addr.dest_sock_addr_ipv6.sin6_addr, ip_str, 40);
+    }
+    else
+    {
+        inet_ntop(AF_INET, &session->socket_comm_session->dest_sock_addr.dest_sock_addr_ipv4.sin_addr, ip_str, 40);
+    }
     sprintf(counters_name, "PCEP Session [%d], connected to [%s] for [%ld seconds]",
             session->session_id, ip_str, (now - session->time_connected));
     strcpy(session->pcep_session_counters->counters_group_name, counters_name);

@@ -17,7 +17,11 @@ extern pcep_socket_comm_handle *socket_comm_handle_;
 
 static pcep_socket_comm_session *test_session = NULL;
 static struct in_addr test_host_ip;
+static struct in_addr test_src_ip;
+static struct in6_addr test_host_ipv6;
+static struct in6_addr test_src_ipv6;
 static short test_port = 4789;
+static short test_src_port = 4999;
 static uint32_t connect_timeout_millis = 500;
 
 /*
@@ -54,6 +58,9 @@ static void test_connection_except_notifier(void *session_data, int socket_fd)
 void pcep_socket_comm_test_setup()
 {
     inet_pton(AF_INET, "127.0.0.1", &(test_host_ip));
+    inet_pton(AF_INET, "127.0.0.1", &(test_src_ip));
+    inet_pton(AF_INET6, "::1", &(test_host_ipv6));
+    inet_pton(AF_INET6, "::1", &(test_src_ipv6));
 }
 
 void pcep_socket_comm_test_teardown()
@@ -76,6 +83,20 @@ void test_pcep_socket_comm_initialize()
             test_connection_except_notifier,
             &test_host_ip, test_port, connect_timeout_millis, NULL);
     CU_ASSERT_PTR_NOT_NULL(test_session);
+    CU_ASSERT_FALSE(test_session->is_ipv6);
+}
+
+
+void test_pcep_socket_comm_initialize_ipv6()
+{
+    test_session = socket_comm_session_initialize_ipv6(
+            test_message_received_handler,
+            NULL,
+            NULL,
+            test_connection_except_notifier,
+            &test_host_ipv6, test_port, connect_timeout_millis, NULL);
+    CU_ASSERT_PTR_NOT_NULL(test_session);
+    CU_ASSERT_TRUE(test_session->is_ipv6);
 }
 
 
@@ -90,7 +111,52 @@ void test_pcep_socket_comm_initialize_with_src()
             NULL, 0,
             &test_host_ip, test_port, connect_timeout_millis, NULL);
     CU_ASSERT_PTR_NOT_NULL(test_session);
-    CU_ASSERT_EQUAL(test_session->src_sock_addr.sin_addr.s_addr, INADDR_ANY);
+    CU_ASSERT_EQUAL(test_session->src_sock_addr.src_sock_addr_ipv4.sin_addr.s_addr, INADDR_ANY);
+    CU_ASSERT_FALSE(test_session->is_ipv6);
+
+    socket_comm_session_teardown(test_session);
+    test_session = socket_comm_session_initialize_with_src(
+            test_message_received_handler,
+            NULL,
+            NULL,
+            test_connection_except_notifier,
+            &test_src_ip, test_src_port,
+            &test_host_ip, test_port, connect_timeout_millis, NULL);
+    CU_ASSERT_PTR_NOT_NULL(test_session);
+    CU_ASSERT_EQUAL(test_session->src_sock_addr.src_sock_addr_ipv4.sin_addr.s_addr, test_src_ip.s_addr);
+    CU_ASSERT_EQUAL(test_session->src_sock_addr.src_sock_addr_ipv4.sin_port, ntohs(test_src_port));
+    CU_ASSERT_FALSE(test_session->is_ipv6);
+}
+
+
+void test_pcep_socket_comm_initialize_with_src_ipv6()
+{
+    /* Test that INADDR6_ANY will be used when src_ip is NULL */
+    test_session = socket_comm_session_initialize_with_src_ipv6(
+            test_message_received_handler,
+            NULL,
+            NULL,
+            test_connection_except_notifier,
+            NULL, 0,
+            &test_host_ipv6, test_port, connect_timeout_millis, NULL);
+    CU_ASSERT_PTR_NOT_NULL(test_session);
+    CU_ASSERT_EQUAL(memcmp(&test_session->src_sock_addr.src_sock_addr_ipv6.sin6_addr,
+                           &in6addr_any, sizeof(struct in6_addr)), 0);
+    CU_ASSERT_TRUE(test_session->is_ipv6);
+
+    socket_comm_session_teardown(test_session);
+    test_session = socket_comm_session_initialize_with_src_ipv6(
+            test_message_received_handler,
+            NULL,
+            NULL,
+            test_connection_except_notifier,
+            &test_src_ipv6, test_src_port,
+            &test_host_ipv6, test_port, connect_timeout_millis, NULL);
+    CU_ASSERT_PTR_NOT_NULL(test_session);
+    CU_ASSERT_EQUAL(memcmp(&test_session->src_sock_addr.src_sock_addr_ipv6.sin6_addr,
+                           &test_src_ipv6, sizeof(struct in6_addr)), 0);
+    CU_ASSERT_EQUAL(test_session->src_sock_addr.src_sock_addr_ipv6.sin6_port, ntohs(test_src_port));
+    CU_ASSERT_TRUE(test_session->is_ipv6);
 }
 
 

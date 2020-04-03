@@ -73,6 +73,34 @@ void test_connect_pce()
     free(encoded_msg);
 }
 
+void test_connect_pce_ipv6()
+{
+    pcep_configuration *config = create_default_pcep_configuration();
+    struct hostent *host_info = gethostbyname2("ip6-localhost", AF_INET6);
+    struct in6_addr dest_address;
+    memcpy(&dest_address, host_info->h_addr, host_info->h_length);
+    mock_socket_comm_info *mock_info = get_mock_socket_comm_info();
+    mock_info->send_message_save_message = true;
+
+    pcep_session *session = connect_pce_ipv6(config, &dest_address);
+
+    CU_ASSERT_PTR_NOT_NULL(session);
+    CU_ASSERT_TRUE(session->socket_comm_session->is_ipv6);
+    CU_ASSERT_EQUAL(mock_info->sent_message_list->num_entries, 1);
+    /* What gets saved in the mock is the msg byte buffer. The msg struct was deleted
+     * when it was sent. Instead of inspecting the msg byte buffer, lets just decode it. */
+    uint8_t *encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
+    CU_ASSERT_PTR_NOT_NULL(encoded_msg);
+    struct pcep_message* open_msg = pcep_decode_message(encoded_msg);
+    CU_ASSERT_PTR_NOT_NULL(open_msg);
+    CU_ASSERT_EQUAL(open_msg->msg_header->type, PCEP_TYPE_OPEN);
+
+    pcep_msg_free_message(open_msg);
+    destroy_pcep_session(session);
+    destroy_pcep_configuration(config);
+    free(encoded_msg);
+}
+
 void test_connect_pce_with_src_ip()
 {
     pcep_configuration *config = create_default_pcep_configuration();
@@ -81,7 +109,7 @@ void test_connect_pce_with_src_ip()
     memcpy(&dest_address, host_info->h_addr, host_info->h_length);
     mock_socket_comm_info *mock_info = get_mock_socket_comm_info();
     mock_info->send_message_save_message = true;
-    config->src_ip.s_addr = 0x0a0a0102;
+    config->src_ip.src_ipv4.s_addr = 0x0a0a0102;
 
     pcep_session *session = connect_pce(config, &dest_address);
 

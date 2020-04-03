@@ -205,8 +205,15 @@ void create_session_counters(pcep_session *session)
      */
     time_t now = time(NULL);
     char counters_name[MAX_COUNTER_STR_LENGTH];
-    char ip_str[20];
-    inet_ntop(AF_INET, &session->socket_comm_session->dest_sock_addr.sin_addr, ip_str, 20);
+    char ip_str[40];
+    if (session->socket_comm_session->is_ipv6)
+    {
+        inet_ntop(AF_INET6, &session->socket_comm_session->dest_sock_addr.dest_sock_addr_ipv6.sin6_addr, ip_str, 40);
+    }
+    else
+    {
+        inet_ntop(AF_INET, &session->socket_comm_session->dest_sock_addr.dest_sock_addr_ipv4.sin_addr, ip_str, 40);
+    }
     sprintf(counters_name, "PCEP Session [%d], connected to [%s] for [%ld seconds]",
             session->session_id, ip_str, (now - session->time_connected));
     /* The (time(NULL) - session->time_connected) will probably be 0,
