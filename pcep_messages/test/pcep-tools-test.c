@@ -738,7 +738,7 @@ void test_pcep_msg_read_pcep_report_cisco_pcc()
     CU_ASSERT_PTR_NULL(metric->header.tlv_list);
     CU_ASSERT_TRUE(metric->flag_b);
     CU_ASSERT_FALSE(metric->flag_c);
-    CU_ASSERT_EQUAL(metric->type, PCEP_METRIC_DISJOINTNESS);
+    CU_ASSERT_EQUAL(metric->type, PCEP_METRIC_AGGREGATE_BW);
     CU_ASSERT_EQUAL(metric->value, 16.0);
 
     pcep_msg_free_message_list(msg_list);

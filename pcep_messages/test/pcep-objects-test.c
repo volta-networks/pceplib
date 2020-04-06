@@ -316,7 +316,7 @@ void test_pcep_obj_create_bandwidth()
 
 void test_pcep_obj_create_metric()
 {
-    uint8_t type = PCEP_METRIC_DISJOINTNESS;
+    uint8_t type = PCEP_METRIC_BORDER_NODE_COUNT;
     /* https://en.wikipedia.org/wiki/IEEE_754-1985
      * 0.15625 = 1/8 + 1/32 = binary 0.00101 = 1.01 x 10^-3
      * Exponent bias = 127, so exponent = (127-3) = 124 = 0111 1100
