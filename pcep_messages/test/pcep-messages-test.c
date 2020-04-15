@@ -70,6 +70,7 @@ void test_pcep_msg_create_request()
     struct pcep_message *message = pcep_msg_create_request(NULL, NULL, NULL);
     CU_ASSERT_PTR_NULL(message);
 
+    /* Test IPv4 */
     struct pcep_object_rp *rp_obj = pcep_obj_create_rp(0, false, false, false, 10, NULL);
     struct in_addr src_addr, dst_addr;
     struct pcep_object_endpoints_ipv4 *ipv4_obj = pcep_obj_create_endpoint_ipv4(&src_addr, &dst_addr);
@@ -84,6 +85,25 @@ void test_pcep_msg_create_request()
             MESSAGE_HEADER_LENGTH +
             pcep_object_get_length_by_hdr(&rp_obj->header) +
             pcep_object_get_length_by_hdr(&ipv4_obj->header));
+    CU_ASSERT_EQUAL(message->msg_header->type, PCEP_TYPE_PCREQ);
+    CU_ASSERT_EQUAL(message->msg_header->pcep_version, PCEP_MESSAGE_HEADER_VERSION);
+    pcep_msg_free_message(message);
+
+    /* Test IPv6 */
+    rp_obj = pcep_obj_create_rp(0, false, false, false, 10, NULL);
+    struct in6_addr src_addr_ipv6, dst_addr_ipv6;
+    struct pcep_object_endpoints_ipv6 *ipv6_obj = pcep_obj_create_endpoint_ipv6(&src_addr_ipv6, &dst_addr_ipv6);
+    message = pcep_msg_create_request_ipv6(rp_obj, ipv6_obj, NULL);
+
+    CU_ASSERT_PTR_NOT_NULL(message);
+    pcep_encode_message(message, versioning);
+    CU_ASSERT_PTR_NOT_NULL(message->msg_header);
+    CU_ASSERT_PTR_NOT_NULL(message->obj_list);
+    CU_ASSERT_EQUAL(message->obj_list->num_entries, 2);
+    CU_ASSERT_EQUAL(message->encoded_message_length,
+            MESSAGE_HEADER_LENGTH +
+            pcep_object_get_length_by_hdr(&rp_obj->header) +
+            pcep_object_get_length_by_hdr(&ipv6_obj->header));
     CU_ASSERT_EQUAL(message->msg_header->type, PCEP_TYPE_PCREQ);
     CU_ASSERT_EQUAL(message->msg_header->pcep_version, PCEP_MESSAGE_HEADER_VERSION);
     pcep_msg_free_message(message);

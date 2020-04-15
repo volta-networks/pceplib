@@ -65,6 +65,7 @@ struct pcep_message
 struct pcep_message*  pcep_msg_create_open            (uint8_t keepalive, uint8_t deadtimer, uint8_t sid);
 struct pcep_message*  pcep_msg_create_open_with_tlvs  (uint8_t keepalive, uint8_t deadtimer, uint8_t sid, double_linked_list *tlv_list);
 struct pcep_message*  pcep_msg_create_request         (struct pcep_object_rp *rp,  struct pcep_object_endpoints_ipv4 *endpoints, double_linked_list *object_list);
+struct pcep_message*  pcep_msg_create_request_ipv6    (struct pcep_object_rp *rp,  struct pcep_object_endpoints_ipv6 *endpoints, double_linked_list *object_list);
 struct pcep_message*  pcep_msg_create_reply           (struct pcep_object_rp *rp,  double_linked_list *object_list);
 struct pcep_message*  pcep_msg_create_close           (uint8_t reason);
 struct pcep_message*  pcep_msg_create_error           (uint8_t error_type, uint8_t error_value);

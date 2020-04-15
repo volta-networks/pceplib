@@ -71,6 +71,21 @@ pcep_msg_create_request(struct pcep_object_rp *rp,  struct pcep_object_endpoints
 }
 
 struct pcep_message*
+pcep_msg_create_request_ipv6(struct pcep_object_rp *rp,  struct pcep_object_endpoints_ipv6 *endpoints, double_linked_list *object_list)
+{
+    if((rp == NULL) || (endpoints == NULL))
+    {
+        return NULL;
+    }
+
+    struct pcep_message *message = pcep_msg_create_common_with_obj_list(PCEP_TYPE_PCREQ, object_list);
+    dll_prepend(message->obj_list, endpoints);
+    dll_prepend(message->obj_list, rp);
+
+    return message;
+}
+
+struct pcep_message*
 pcep_msg_create_reply(struct pcep_object_rp *rp, double_linked_list *object_list)
 {
     struct pcep_message *message = pcep_msg_create_common_with_obj_list(PCEP_TYPE_PCREP, object_list);
