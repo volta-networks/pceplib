@@ -76,9 +76,11 @@ void test_connect_pce()
 void test_connect_pce_ipv6()
 {
     pcep_configuration *config = create_default_pcep_configuration();
-    struct hostent *host_info = gethostbyname2("ip6-localhost", AF_INET6);
     struct in6_addr dest_address;
-    memcpy(&dest_address, host_info->h_addr, host_info->h_length);
+    dest_address.__in6_u.__u6_addr32[0] = 0;
+    dest_address.__in6_u.__u6_addr32[1] = 0;
+    dest_address.__in6_u.__u6_addr32[2] = 0;
+    dest_address.__in6_u.__u6_addr32[3] = htonl(1);
     mock_socket_comm_info *mock_info = get_mock_socket_comm_info();
     mock_info->send_message_save_message = true;
 
