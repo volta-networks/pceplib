@@ -37,6 +37,9 @@ extern void test_increment_subgroup_counter(void);
 extern void test_dump_counters_group_to_log(void);
 extern void test_dump_counters_subgroup_to_log(void);
 
+extern void test_memory_internal_impl(void);
+extern void test_memory_external_impl(void);
+
 int main(int argc, char **argv)
 {
     CU_initialize_registry();
@@ -79,6 +82,10 @@ int main(int argc, char **argv)
     CU_add_test(test_counters_suite, "test_increment_subgroup_counter", test_increment_subgroup_counter);
     CU_add_test(test_counters_suite, "test_dump_counters_group_to_log", test_dump_counters_group_to_log);
     CU_add_test(test_counters_suite, "test_dump_counters_subgroup_to_log", test_dump_counters_subgroup_to_log);
+
+    CU_pSuite test_memory_suite = CU_add_suite("PCEP Utils Memory Test Suite", NULL, NULL);
+    CU_add_test(test_memory_suite, "test_memory_internal_impl", test_memory_internal_impl);
+    CU_add_test(test_memory_suite, "test_memory_external_impl", test_memory_external_impl);
 
     CU_basic_set_mode(CU_BRM_VERBOSE);
     CU_basic_run_tests();

@@ -8,15 +8,15 @@
  */
 
 #include <limits.h>
-#include <malloc.h>
 #include <pthread.h>
 #include <stddef.h>
 #include <stdbool.h>
-#include <strings.h>
+#include <string.h>
 
 #include "pcep_timer_internals.h"
 #include "pcep_timers.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 #include "pcep_utils_ordered_list.h"
 
 /* TODO should we just return this from initialize_timers
@@ -51,8 +51,8 @@ static pcep_timers_context *create_timers_context_()
 {
     if (timers_context_ == NULL)
     {
-        timers_context_ = malloc(sizeof(pcep_timers_context));
-        bzero(timers_context_, sizeof(pcep_timers_context));
+        timers_context_ = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_timers_context));
+        memset(timers_context_, 0, sizeof(pcep_timers_context));
         timers_context_->active = false;
     }
 
@@ -111,7 +111,7 @@ void free_all_timers(pcep_timers_context *timers_context)
     {
         if (timer_node->data != NULL)
         {
-            free(timer_node->data);
+            pceplib_free(PCEPLIB_INFRA, timer_node->data);
         }
         timer_node = timer_node->next_node;
     }
@@ -158,7 +158,7 @@ bool teardown_timers()
         pcep_log(LOG_WARNING, "Trying to teardown the timers, cannot destroy the mutex");
     }
 
-    free(timers_context_);
+    pceplib_free(PCEPLIB_INFRA, timers_context_);
     timers_context_ = NULL;
 
     return true;
@@ -183,8 +183,8 @@ int create_timer(uint16_t sleep_seconds, void *data)
         return -1;
     }
 
-    pcep_timer *timer = malloc(sizeof(pcep_timer));
-    bzero(timer, sizeof(pcep_timer));
+    pcep_timer *timer = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_timer));
+    memset(timer, 0, sizeof(pcep_timer));
     timer->data = data;
     timer->sleep_seconds = sleep_seconds;
     timer->expire_time = time(NULL) + sleep_seconds;
@@ -195,7 +195,7 @@ int create_timer(uint16_t sleep_seconds, void *data)
     /* implemented in pcep_utils_ordered_list.c */
     if (ordered_list_add_node(timers_context_->timer_list, timer) == NULL)
     {
-        free(timer);
+        pceplib_free(PCEPLIB_INFRA, timer);
         pthread_mutex_unlock(&timers_context_->timer_list_lock);
         pcep_log(LOG_WARNING, "Trying to create a timer, cannot add the timer to the timer list");
 
@@ -229,7 +229,7 @@ bool cancel_timer(int timer_id)
         pcep_log(LOG_WARNING, "Trying to cancel a timer [%d] that does not exist", timer_id);
         return false;
     }
-    free(timer_toRemove);
+    pceplib_free(PCEPLIB_INFRA, timer_toRemove);
 
     pthread_mutex_unlock(&timers_context_->timer_list_lock);
 
@@ -263,7 +263,7 @@ bool reset_timer(int timer_id)
     timer_toReset->expire_time = time(NULL) + timer_toReset->sleep_seconds;
     if (ordered_list_add_node(timers_context_->timer_list, timer_toReset) == NULL)
     {
-        free(timer_toReset);
+        pceplib_free(PCEPLIB_INFRA, timer_toReset);
         pthread_mutex_unlock(&timers_context_->timer_list_lock);
         pcep_log(LOG_WARNING, "Trying to reset a timer, cannot add the timer to the timer list");
 

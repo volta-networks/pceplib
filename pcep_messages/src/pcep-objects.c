@@ -4,10 +4,8 @@
  * Author : Brady Johnson <brady@voltanet.io>
  */
 
-#include <strings.h>
 #include <string.h>
 #include <arpa/inet.h>
-#include <malloc.h>
 #include <stdarg.h>
 #include <unistd.h>
 
@@ -15,13 +13,14 @@
 #include "pcep-tlvs.h"
 #include "pcep_utils_double_linked_list.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 /* Internal common function used to create a pcep_object and populate the header */
 static struct pcep_object_header*
 pcep_obj_create_common_with_tlvs(uint8_t obj_length, enum pcep_object_classes object_class, enum pcep_object_types object_type, double_linked_list *tlv_list)
 {
-    uint8_t *buffer = malloc(obj_length);
-    bzero(buffer, obj_length);
+    uint8_t *buffer = pceplib_malloc(PCEPLIB_MESSAGES, obj_length);
+    memset(buffer, 0, obj_length);
 
     /* The flag_p and flag_i flags will be set externally */
     struct pcep_object_header *hdr = (struct pcep_object_header *) buffer;
@@ -393,8 +392,8 @@ pcep_obj_create_rro(double_linked_list* rro_list)
 static struct pcep_object_ro_subobj*
 pcep_obj_create_ro_subobj_common(uint8_t subobj_size, enum pcep_ro_subobj_types ro_subobj_type, bool flag_subobj_loose_hop)
 {
-    struct pcep_object_ro_subobj *ro_subobj = malloc(subobj_size);
-    bzero(ro_subobj, subobj_size);
+    struct pcep_object_ro_subobj *ro_subobj = pceplib_malloc(PCEPLIB_MESSAGES, subobj_size);
+    memset(ro_subobj, 0, subobj_size);
     ro_subobj->flag_subobj_loose_hop = flag_subobj_loose_hop;
     ro_subobj->ro_subobj_type = ro_subobj_type;
 
@@ -551,7 +550,7 @@ pcep_obj_create_ro_subobj_sr_ipv4_node(bool loose_hop, bool sid_absent, bool c_f
     /* Since the IP has to be stored in the list, copy it so the caller doesnt
      * have any restrictions about the type of memory used externally for the IP.
      * This memory will be freed with the object is freed. */
-    struct in_addr *ipv4_node_id_copy = malloc(sizeof(struct in_addr));
+    struct in_addr *ipv4_node_id_copy = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in_addr));
     ipv4_node_id_copy->s_addr = ipv4_node_id->s_addr;
     dll_append(obj->nai_list, ipv4_node_id_copy);
 
@@ -578,7 +577,7 @@ pcep_obj_create_ro_subobj_sr_ipv6_node(bool loose_hop, bool sid_absent, bool c_f
         obj->sid = sid;
     }
     obj->nai_list = dll_initialize();
-    struct in6_addr *ipv6_node_id_copy = malloc(sizeof(struct in6_addr));
+    struct in6_addr *ipv6_node_id_copy = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in6_addr));
     memcpy(ipv6_node_id_copy, ipv6_node_id, sizeof(struct in6_addr));
     dll_append(obj->nai_list, ipv6_node_id_copy);
 
@@ -605,8 +604,8 @@ pcep_obj_create_ro_subobj_sr_ipv4_adj(bool loose_hop, bool sid_absent, bool c_fl
         obj->sid = sid;
     }
     obj->nai_list = dll_initialize();
-    struct in_addr *local_ipv4_copy = malloc(sizeof(struct in_addr));
-    struct in_addr *remote_ipv4_copy = malloc(sizeof(struct in_addr));
+    struct in_addr *local_ipv4_copy = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in_addr));
+    struct in_addr *remote_ipv4_copy = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in_addr));
     local_ipv4_copy->s_addr = local_ipv4->s_addr;
     remote_ipv4_copy->s_addr = remote_ipv4->s_addr;
     dll_append(obj->nai_list, local_ipv4_copy);
@@ -635,8 +634,8 @@ pcep_obj_create_ro_subobj_sr_ipv6_adj(bool loose_hop, bool sid_absent, bool c_fl
         obj->sid = sid;
     }
     obj->nai_list = dll_initialize();
-    struct in6_addr *local_ipv6_copy = malloc(sizeof(struct in6_addr));
-    struct in6_addr *remote_ipv6_copy = malloc(sizeof(struct in6_addr));
+    struct in6_addr *local_ipv6_copy = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in6_addr));
+    struct in6_addr *remote_ipv6_copy = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in6_addr));
     memcpy(local_ipv6_copy, local_ipv6, sizeof(struct in6_addr));
     memcpy(remote_ipv6_copy, remote_ipv6, sizeof(struct in6_addr));
     dll_append(obj->nai_list, local_ipv6_copy);
@@ -663,19 +662,19 @@ pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(
     }
 
     obj->nai_list = dll_initialize();
-    uint32_t *local_node_id_copy = malloc(sizeof(uint32_t));
+    uint32_t *local_node_id_copy = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(uint32_t));
     *local_node_id_copy = local_node_id;
     dll_append(obj->nai_list, local_node_id_copy);
 
-    uint32_t *local_if_id_copy = malloc(sizeof(uint32_t));
+    uint32_t *local_if_id_copy = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(uint32_t));
     *local_if_id_copy = local_if_id;
     dll_append(obj->nai_list, local_if_id_copy);
 
-    uint32_t *remote_node_id_copy = malloc(sizeof(uint32_t));
+    uint32_t *remote_node_id_copy = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(uint32_t));
     *remote_node_id_copy = remote_node_id;
     dll_append(obj->nai_list, remote_node_id_copy);
 
-    uint32_t *remote_if_id_copy = malloc(sizeof(uint32_t));
+    uint32_t *remote_if_id_copy = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(uint32_t));
     *remote_if_id_copy = remote_if_id;
     dll_append(obj->nai_list, remote_if_id_copy);
 
@@ -705,19 +704,19 @@ pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(
         obj->sid = sid;
     }
     obj->nai_list = dll_initialize();
-    struct in6_addr *local_ipv6_copy = malloc(sizeof(struct in6_addr));
+    struct in6_addr *local_ipv6_copy = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in6_addr));
     memcpy(local_ipv6_copy, local_ipv6, sizeof(struct in6_addr));
     dll_append(obj->nai_list, local_ipv6_copy);
 
-    uint32_t *local_if_id_copy = malloc(sizeof(uint32_t));
+    uint32_t *local_if_id_copy = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(uint32_t));
     *local_if_id_copy = local_if_id;
     dll_append(obj->nai_list, local_if_id_copy);
 
-    struct in6_addr *remote_ipv6_copy = malloc(sizeof(struct in6_addr));
+    struct in6_addr *remote_ipv6_copy = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in6_addr));
     memcpy(remote_ipv6_copy, remote_ipv6, sizeof(struct in6_addr));
     dll_append(obj->nai_list, remote_ipv6_copy);
 
-    uint32_t *remote_if_id_copy = malloc(sizeof(uint32_t));
+    uint32_t *remote_if_id_copy = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(uint32_t));
     *remote_if_id_copy = remote_if_id;
     dll_append(obj->nai_list, remote_if_id_copy);
 

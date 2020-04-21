@@ -22,7 +22,6 @@
  */
 
 #include <errno.h>
-#include <malloc.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -30,6 +29,7 @@
 #include "pcep-tools.h"
 #include "pcep-encoding.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 static const char* message_type_strs[] = {
         "NOT_IMPLEMENTED0",
@@ -80,7 +80,7 @@ pcep_msg_read(int sock_fd)
     uint8_t buffer[PCEP_MAX_SIZE];
     uint16_t buffer_read = 0;
 
-    bzero(&buffer, PCEP_MAX_SIZE);
+    memset(&buffer, 0, PCEP_MAX_SIZE);
 
     ret = read(sock_fd, &buffer, PCEP_MAX_SIZE);
 
@@ -272,7 +272,7 @@ pcep_obj_free_tlv(struct pcep_object_tlv_header *tlv)
         break;
     }
 
-    free(tlv);
+    pceplib_free(PCEPLIB_MESSAGES, tlv);
 }
 
 void
@@ -327,7 +327,7 @@ pcep_obj_free_object(struct pcep_object_header *obj)
         break;
     }
 
-    free(obj);
+    pceplib_free(PCEPLIB_MESSAGES, obj);
 }
 
 void
@@ -347,15 +347,15 @@ pcep_msg_free_message(struct pcep_message *message)
 
     if (message->msg_header != NULL)
     {
-        free(message->msg_header);
+        pceplib_free(PCEPLIB_MESSAGES, message->msg_header);
     }
 
     if (message->encoded_message != NULL)
     {
-        free(message->encoded_message);
+        pceplib_free(PCEPLIB_MESSAGES, message->encoded_message);
     }
 
-    free(message);
+    pceplib_free(PCEPLIB_MESSAGES, message);
 }
 
 void

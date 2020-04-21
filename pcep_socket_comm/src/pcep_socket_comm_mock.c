@@ -92,7 +92,7 @@ socket_comm_session_initialize(message_received_handler msg_rcv_handler,
     mock_socket_metadata.socket_comm_session_initialize_times_called++;
 
     pcep_socket_comm_session *comm_session = malloc(sizeof(pcep_socket_comm_session));
-    bzero(comm_session, sizeof(pcep_socket_comm_session));
+    memset(comm_session, 0, sizeof(pcep_socket_comm_session));
 
     comm_session->message_handler = msg_rcv_handler;
     comm_session->message_ready_to_read_handler = msg_ready_handler;
@@ -122,7 +122,7 @@ socket_comm_session_initialize_ipv6(message_received_handler msg_rcv_handler,
     mock_socket_metadata.socket_comm_session_initialize_times_called++;
 
     pcep_socket_comm_session *comm_session = malloc(sizeof(pcep_socket_comm_session));
-    bzero(comm_session, sizeof(pcep_socket_comm_session));
+    memset(comm_session, 0, sizeof(pcep_socket_comm_session));
 
     comm_session->message_handler = msg_rcv_handler;
     comm_session->message_ready_to_read_handler = msg_ready_handler;
@@ -154,7 +154,7 @@ socket_comm_session_initialize_with_src(message_received_handler msg_rcv_handler
     mock_socket_metadata.socket_comm_session_initialize_src_times_called++;
 
     pcep_socket_comm_session *comm_session = malloc(sizeof(pcep_socket_comm_session));
-    bzero(comm_session, sizeof(pcep_socket_comm_session));
+    memset(comm_session, 0, sizeof(pcep_socket_comm_session));
 
     comm_session->message_handler = msg_rcv_handler;
     comm_session->message_ready_to_read_handler = msg_ready_handler;
@@ -189,7 +189,7 @@ socket_comm_session_initialize_with_src_ipv6(message_received_handler msg_rcv_ha
     mock_socket_metadata.socket_comm_session_initialize_src_times_called++;
 
     pcep_socket_comm_session *comm_session = malloc(sizeof(pcep_socket_comm_session));
-    bzero(comm_session, sizeof(pcep_socket_comm_session));
+    memset(comm_session, 0, sizeof(pcep_socket_comm_session));
 
     comm_session->message_handler = msg_rcv_handler;
     comm_session->message_ready_to_read_handler = msg_ready_handler;

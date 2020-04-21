@@ -5,7 +5,6 @@
  *      Author: brady
  */
 
-#include <malloc.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -14,6 +13,7 @@
 #include "pcep_session_logic_internals.h"
 #include "pcep_timers.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 /* global var needed for callback handlers */
 extern pcep_session_logic_handle *session_logic_handle_;
@@ -21,7 +21,7 @@ extern pcep_session_logic_handle *session_logic_handle_;
 /* internal util function to create session_event's */
 static pcep_session_event *create_session_event(pcep_session *session)
 {
-    pcep_session_event *event = malloc(sizeof(pcep_session_event));
+    pcep_session_event *event = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_session_event));
     event->session = session;
     event->expired_timer_id = TIMER_ID_NOT_SET;
     event->received_msg_list = NULL;
@@ -241,11 +241,7 @@ void *session_logic_loop(void *data)
                 handle_socket_comm_event(event);
             }
 
-            /* TODO use this as the API to create sessions, etc
-            handle_nbi(session_logic_handle);
-             */
-
-            free(event);
+            pceplib_free(PCEPLIB_INFRA, event);
             event = queue_dequeue(session_logic_handle->session_event_queue);
         }
 

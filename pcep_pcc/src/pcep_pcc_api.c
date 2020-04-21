@@ -5,17 +5,16 @@
  *      Author: brady
  */
 
-#include <malloc.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <strings.h>
 
 #include "pcep-messages.h"
 #include "pcep_pcc_api.h"
 #include "pcep_utils_counters.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 /* Not using an array here since the enum pcep_event_type indeces go into the 100's */
 const char MESSAGE_RECEIVED_STR[] = "MESSAGE_RECEIVED";
@@ -45,6 +44,27 @@ bool initialize_pcc()
 }
 
 
+bool initialize_pcc_infra(struct pceplib_infra_config *infra_config)
+{
+    if (infra_config == NULL)
+    {
+        return initialize_pcc();
+    }
+
+    /* Initialize the memory infrastructure */
+    pceplib_memory_initialize(
+            infra_config->pceplib_infra_mt,
+            infra_config->pceplib_messages_mt,
+            infra_config->mfunc,
+            infra_config->cfunc,
+            infra_config->rfunc,
+            infra_config->sfunc,
+            infra_config->ffunc);
+
+    return initialize_pcc();
+}
+
+
 /* this function is blocking */
 bool initialize_pcc_wait_for_completion()
 {
@@ -66,7 +86,7 @@ bool destroy_pcc()
 
 pcep_configuration *create_default_pcep_configuration()
 {
-    pcep_configuration *config = malloc(sizeof(pcep_configuration));
+    pcep_configuration *config = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_configuration));
     config->keep_alive_seconds = DEFAULT_CONFIG_KEEP_ALIVE;
     config->min_keep_alive_seconds = DEFAULT_MIN_CONFIG_KEEP_ALIVE;
     config->max_keep_alive_seconds = DEFAULT_MAX_CONFIG_KEEP_ALIVE;
@@ -102,7 +122,7 @@ pcep_configuration *create_default_pcep_configuration()
 void destroy_pcep_configuration(pcep_configuration *config)
 {
     destroy_pcep_versioning(config->pcep_msg_versioning);
-    free(config);
+    pceplib_free(PCEPLIB_INFRA, config);
 }
 
 pcep_session *connect_pce(pcep_configuration *config, struct in_addr *pce_ip)
@@ -207,7 +227,7 @@ void destroy_pcep_event(struct pcep_event *event)
         pcep_msg_free_message(event->message);
     }
 
-    free(event);
+    pceplib_free(PCEPLIB_INFRA, event);
 }
 
 const char *get_event_type_str(int event_type)

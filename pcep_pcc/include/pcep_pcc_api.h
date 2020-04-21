@@ -11,6 +11,7 @@
 #include <stdbool.h>
 
 #include "pcep_session_logic.h"
+#include "pcep_utils_memory.h"
 
 #define DEFAULT_PCEP_TCP_PORT 4189
 #define DEFAULT_CONFIG_KEEP_ALIVE 30
@@ -27,12 +28,25 @@
 #define DEFAULT_MIN_CONFIG_DEAD_TIMER DEFAULT_MIN_CONFIG_KEEP_ALIVE * 4
 #define DEFAULT_MAX_CONFIG_DEAD_TIMER DEFAULT_MAX_CONFIG_KEEP_ALIVE * 4
 
+struct pceplib_infra_config
+{
+    void *pceplib_infra_mt;
+    void *pceplib_messages_mt;
+    pceplib_malloc_func mfunc;
+    pceplib_calloc_func cfunc;
+    pceplib_realloc_func rfunc;
+    pceplib_strdup_func sfunc;
+    pceplib_free_func ffunc;
+};
 
 /*
  * PCEP PCC library initialization/teardown functions
  */
 
+/* Later when this is integrated with FRR pathd, it will be changed
+ * to just initialize_pcc(struct pceplib_infra_config *infra_config) */
 bool initialize_pcc();
+bool initialize_pcc_infra(struct pceplib_infra_config *infra_config);
 /* this function is blocking */
 bool initialize_pcc_wait_for_completion();
 bool destroy_pcc();

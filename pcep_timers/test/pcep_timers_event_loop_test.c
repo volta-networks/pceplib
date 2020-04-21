@@ -46,7 +46,7 @@ static void test_timer_expire_handler(void *data, int timerId)
 void pcep_timers_event_loop_test_setup()
 {
     test_timers_context = malloc(sizeof(pcep_timers_context));
-    bzero(test_timers_context, sizeof(pcep_timers_context));
+    memset(test_timers_context, 0, sizeof(pcep_timers_context));
     if (pthread_mutex_init(&(test_timers_context->timer_list_lock), NULL) != 0)
     {
         fprintf(stderr, "ERROR initializing timers, cannot initialize the mutex\n");

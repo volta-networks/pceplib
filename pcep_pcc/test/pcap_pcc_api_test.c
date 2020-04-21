@@ -198,7 +198,7 @@ void test_event_queue()
 
     /* Create an empty event and put it on the queue */
     pcep_event *event = malloc(sizeof(pcep_event));
-    bzero(event, sizeof(pcep_event));
+    memset(event, 0, sizeof(pcep_event));
     pthread_mutex_lock(&session_logic_event_queue_->event_queue_mutex);
     queue_enqueue(session_logic_event_queue_->event_queue, event);
     pthread_mutex_unlock(&session_logic_event_queue_->event_queue_mutex);

@@ -10,11 +10,9 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <malloc.h>
 #include <netdb.h> // gethostbyname
 #include <stdbool.h>
 #include <string.h>
-#include <strings.h>
 #include <unistd.h>  // close
 
 #include <arpa/inet.h>  // sockets etc.
@@ -24,6 +22,7 @@
 #include "pcep_socket_comm.h"
 #include "pcep_socket_comm_internals.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 #include "pcep_utils_ordered_list.h"
 #include "pcep_utils_queue.h"
 
@@ -47,8 +46,8 @@ bool initialize_socket_comm_loop()
         return true;
     }
 
-    socket_comm_handle_ = malloc(sizeof(pcep_socket_comm_handle));
-    bzero(socket_comm_handle_, sizeof(pcep_socket_comm_handle));
+    socket_comm_handle_ = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_socket_comm_handle));
+    memset(socket_comm_handle_, 0, sizeof(pcep_socket_comm_handle));
 
     socket_comm_handle_->active = true;
     socket_comm_handle_->num_active_sessions = 0;
@@ -82,7 +81,7 @@ bool destroy_socket_comm_loop()
     ordered_list_destroy(socket_comm_handle_->session_list);
     pthread_mutex_destroy(&(socket_comm_handle_->socket_comm_mutex));
 
-    free(socket_comm_handle_);
+    pceplib_free(PCEPLIB_INFRA, socket_comm_handle_);
     socket_comm_handle_ = NULL;
 
     return true;
@@ -120,8 +119,8 @@ socket_comm_session_initialize_pre(message_received_handler message_handler,
 
     /* initialize everything for a pcep_session socket_comm */
 
-    pcep_socket_comm_session *socket_comm_session = malloc(sizeof(pcep_socket_comm_session));
-    bzero(socket_comm_session, sizeof(pcep_socket_comm_session));
+    pcep_socket_comm_session *socket_comm_session = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_socket_comm_session));
+    memset(socket_comm_session, 0, sizeof(pcep_socket_comm_session));
 
     socket_comm_session->socket_fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (socket_comm_session->socket_fd == -1) {
@@ -504,7 +503,7 @@ bool socket_comm_session_teardown(pcep_socket_comm_session *socket_comm_session)
             socket_comm_session->socket_fd,
             socket_comm_handle_->num_active_sessions);
 
-    free(socket_comm_session);
+    pceplib_free(PCEPLIB_INFRA, socket_comm_session);
 
     /* It would be nice to call destroy_socket_comm_loop() here if
      * socket_comm_handle_->num_active_sessions == 0, but this function
@@ -528,7 +527,7 @@ void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_sess
         return;
     }
 
-    pcep_socket_comm_queued_message *queued_message = malloc(sizeof(pcep_socket_comm_queued_message));
+    pcep_socket_comm_queued_message *queued_message = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(pcep_socket_comm_queued_message));
     queued_message->unmarshalled_message = message;
     queued_message->msg_length = msg_length;
     queued_message->free_after_send = free_after_send;

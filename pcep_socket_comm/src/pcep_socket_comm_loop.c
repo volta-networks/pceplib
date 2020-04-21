@@ -6,17 +6,16 @@
  */
 
 #include <errno.h>
-#include <malloc.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
-#include <strings.h>
 #include <unistd.h>
 
 #include "pcep_socket_comm_internals.h"
 #include "pcep_utils_logging.h"
 #include "pcep_utils_ordered_list.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 
 bool comm_session_exists(pcep_socket_comm_handle *socket_comm_handle, pcep_socket_comm_session *socket_comm_session)
@@ -274,9 +273,9 @@ void handle_writes(pcep_socket_comm_handle *socket_comm_handle)
                         queued_message->msg_length);
                 if (queued_message->free_after_send)
                 {
-                    free(queued_message->unmarshalled_message);
+                    pceplib_free(PCEPLIB_MESSAGES, queued_message->unmarshalled_message);
                 }
-                free(queued_message);
+                pceplib_free(PCEPLIB_MESSAGES, queued_message);
                 queued_message = queue_dequeue(comm_session->message_queue);
             }
         }

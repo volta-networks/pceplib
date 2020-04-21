@@ -7,7 +7,6 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <malloc.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -21,6 +20,7 @@
 #include "pcep_utils_counters.h"
 #include "pcep_utils_ordered_list.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 /*
  * public API function implementations for the session_logic
@@ -52,8 +52,8 @@ bool run_session_logic()
         return false;
     }
 
-    session_logic_handle_ = malloc(sizeof(pcep_session_logic_handle));
-    bzero(session_logic_handle_, sizeof(pcep_session_logic_handle));
+    session_logic_handle_ = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_session_logic_handle));
+    memset(session_logic_handle_, 0, sizeof(pcep_session_logic_handle));
 
     session_logic_handle_->active = true;
     session_logic_handle_->session_logic_condition = false;
@@ -61,7 +61,7 @@ bool run_session_logic()
     session_logic_handle_->session_event_queue = queue_initialize();
 
     /* Initialize the event queue */
-    session_logic_event_queue_ = malloc(sizeof(pcep_event_queue));
+    session_logic_event_queue_ = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_event_queue));
     session_logic_event_queue_->event_queue = queue_initialize();
     if (pthread_mutex_init(&(session_logic_event_queue_->event_queue_mutex), NULL) != 0)
     {
@@ -131,12 +131,12 @@ bool stop_session_logic()
     /* destroy the event_queue */
     pthread_mutex_destroy(&(session_logic_event_queue_->event_queue_mutex));
     queue_destroy(session_logic_event_queue_->event_queue);
-    free(session_logic_event_queue_);
+    pceplib_free(PCEPLIB_INFRA, session_logic_event_queue_);
 
     /* Explicitly stop the socket comm loop started by the pcep_sessions */
     destroy_socket_comm_loop();
 
-    free(session_logic_handle_);
+    pceplib_free(PCEPLIB_INFRA, session_logic_handle_);
     session_logic_handle_ = NULL;
 
     return true;
@@ -181,15 +181,15 @@ void destroy_pcep_session(pcep_session *session)
 
     if (session->pcc_config.pcep_msg_versioning != NULL)
     {
-        free(session->pcc_config.pcep_msg_versioning);
+        pceplib_free(PCEPLIB_INFRA, session->pcc_config.pcep_msg_versioning);
     }
 
     if (session->pce_config.pcep_msg_versioning != NULL)
     {
-        free(session->pce_config.pcep_msg_versioning);
+        pceplib_free(PCEPLIB_INFRA, session->pce_config.pcep_msg_versioning);
     }
 
-    free(session);
+    pceplib_free(PCEPLIB_INFRA, session);
 }
 
 void pcep_session_cancel_timers(pcep_session *session)
@@ -240,7 +240,7 @@ static pcep_session *create_pcep_session_pre_setup(pcep_configuration *config)
         return NULL;
     }
 
-    pcep_session *session = malloc(sizeof(pcep_session));
+    pcep_session *session = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_session));
     memset(session, 0, sizeof(pcep_session));
     session->session_id = get_next_session_id();
     session->session_state = SESSION_STATE_INITIALIZED;
@@ -262,9 +262,9 @@ static pcep_session *create_pcep_session_pre_setup(pcep_configuration *config)
     memcpy(&(session->pce_config), config, sizeof(pcep_configuration));
     if (config->pcep_msg_versioning != NULL)
     {
-        session->pcc_config.pcep_msg_versioning = malloc(sizeof(struct pcep_versioning));
+        session->pcc_config.pcep_msg_versioning = pceplib_malloc(PCEPLIB_INFRA, sizeof(struct pcep_versioning));
         memcpy(session->pcc_config.pcep_msg_versioning, config->pcep_msg_versioning, sizeof(struct pcep_versioning));
-        session->pce_config.pcep_msg_versioning = malloc(sizeof(struct pcep_versioning));
+        session->pce_config.pcep_msg_versioning = pceplib_malloc(PCEPLIB_INFRA, sizeof(struct pcep_versioning));
         memcpy(session->pce_config.pcep_msg_versioning, config->pcep_msg_versioning, sizeof(struct pcep_versioning));
     }
 
@@ -458,7 +458,7 @@ struct pcep_message *create_pcep_open(pcep_session *session)
             dll_append(sub_tlv_list, sr_pce_cap_tlv);
         }
 
-        uint8_t *pst = malloc(sizeof(uint8_t));
+        uint8_t *pst = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(uint8_t));
         *pst = SR_TE_PST;
         double_linked_list *pst_list = dll_initialize();
         dll_append(pst_list, pst);

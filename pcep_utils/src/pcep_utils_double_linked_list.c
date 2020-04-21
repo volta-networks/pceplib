@@ -5,18 +5,19 @@
  *      Author: brady
  */
 
-#include <malloc.h>
-#include <strings.h>
+#include <stddef.h>
+#include <string.h>
 
 #include "pcep_utils_double_linked_list.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 double_linked_list *dll_initialize()
 {
-    double_linked_list *handle = malloc(sizeof(double_linked_list));
+    double_linked_list *handle = pceplib_malloc(PCEPLIB_INFRA, sizeof(double_linked_list));
     if (handle != NULL)
     {
-        bzero(handle, sizeof(double_linked_list));
+        memset(handle, 0, sizeof(double_linked_list));
         handle->num_entries = 0;
         handle->head = NULL;
         handle->tail = NULL;
@@ -44,10 +45,10 @@ void dll_destroy(double_linked_list *handle)
     {
         double_linked_list_node *node_to_delete = node;
         node = node->next_node;
-        free(node_to_delete);
+        pceplib_free(PCEPLIB_INFRA, node_to_delete);
     }
 
-    free(handle);
+    pceplib_free(PCEPLIB_INFRA, handle);
 }
 
 
@@ -63,12 +64,12 @@ void dll_destroy_with_data(double_linked_list *handle)
     while(node != NULL)
     {
         double_linked_list_node *node_to_delete = node;
-        free(node->data);
+        pceplib_free(PCEPLIB_INFRA, node->data);
         node = node->next_node;
-        free(node_to_delete);
+        pceplib_free(PCEPLIB_INFRA, node_to_delete);
     }
 
-    free(handle);
+    pceplib_free(PCEPLIB_INFRA, handle);
 }
 
 
@@ -82,8 +83,8 @@ double_linked_list_node *dll_prepend(double_linked_list *handle, void *data)
     }
 
     /* Create the new node */
-    double_linked_list_node *new_node = malloc(sizeof(double_linked_list_node));
-    bzero(new_node, sizeof(double_linked_list_node));
+    double_linked_list_node *new_node = pceplib_malloc(PCEPLIB_INFRA, sizeof(double_linked_list_node));
+    memset(new_node, 0, sizeof(double_linked_list_node));
     new_node->data = data;
 
     if (handle->head == NULL)
@@ -114,8 +115,8 @@ double_linked_list_node *dll_append(double_linked_list *handle, void *data)
     }
 
     /* Create the new node */
-    double_linked_list_node *new_node = malloc(sizeof(double_linked_list_node));
-    bzero(new_node, sizeof(double_linked_list_node));
+    double_linked_list_node *new_node = pceplib_malloc(PCEPLIB_INFRA, sizeof(double_linked_list_node));
+    memset(new_node, 0, sizeof(double_linked_list_node));
     new_node->data = data;
 
     if (handle->head == NULL)
@@ -165,7 +166,7 @@ void *dll_delete_first_node(double_linked_list *handle)
         handle->head->prev_node = NULL;
     }
 
-    free(delete_node);
+    pceplib_free(PCEPLIB_INFRA, delete_node);
     (handle->num_entries)--;
 
     return data;
@@ -201,7 +202,7 @@ void *dll_delete_last_node(double_linked_list *handle)
         handle->tail->next_node = NULL;
     }
 
-    free(delete_node);
+    pceplib_free(PCEPLIB_INFRA, delete_node);
     (handle->num_entries)--;
 
     return data;
@@ -252,7 +253,7 @@ void *dll_delete_node(double_linked_list *handle, double_linked_list_node *node)
         node->prev_node->next_node = node->next_node;
     }
 
-    free(node);
+    pceplib_free(PCEPLIB_INFRA, node);
     (handle->num_entries)--;
 
     return data;

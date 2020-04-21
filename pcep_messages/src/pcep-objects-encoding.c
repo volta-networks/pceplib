@@ -10,6 +10,7 @@
 #include "pcep-objects.h"
 #include "pcep-encoding.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 void write_object_header(struct pcep_object_header *object_hdr, uint16_t object_length, uint8_t *buf);
 
@@ -662,7 +663,7 @@ void encode_ipv6(struct in6_addr *src_ipv6, uint32_t *dst)
 
 void pcep_decode_object_hdr(uint8_t *obj_buf, struct pcep_object_header *obj_hdr)
 {
-    bzero(obj_hdr, sizeof(struct pcep_object_header));
+    memset(obj_hdr, 0, sizeof(struct pcep_object_header));
 
     obj_hdr->object_class = obj_buf[0];
     obj_hdr->object_type = (obj_buf[1] >> 4) & 0x0f;
@@ -766,7 +767,7 @@ struct pcep_object_header *pcep_decode_object(uint8_t *obj_buf)
 
 static struct pcep_object_header *common_object_create(struct pcep_object_header *hdr, uint16_t new_obj_length)
 {
-    struct pcep_object_header *new_object = malloc(new_obj_length);
+    struct pcep_object_header *new_object = pceplib_malloc(PCEPLIB_MESSAGES, new_obj_length);
     memset(new_object, 0, new_obj_length);
     memcpy(new_object, hdr, sizeof(struct pcep_object_header));
 
@@ -944,7 +945,7 @@ struct pcep_object_header *pcep_decode_obj_svec(struct pcep_object_header *hdr, 
         uint32_t *uint32_ptr = (uint32_t *) obj_buf;
         for (; index < ((hdr->encoded_object_length - LENGTH_2WORDS) / 4); index++)
         {
-            uint32_t *req_id_ptr = malloc(sizeof(uint32_t));
+            uint32_t *req_id_ptr = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(uint32_t));
             *req_id_ptr = uint32_ptr[index];
             dll_append(obj->request_id_list, req_id_ptr);
         }
@@ -1050,7 +1051,7 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
         {
             pcep_log(LOG_INFO, "Invalid ro subobj type [%d] length [%d]",
                      subobj_type, subobj_length);
-            free(obj);
+            pceplib_free(PCEPLIB_MESSAGES, obj);
             return NULL;
         }
 
@@ -1058,7 +1059,7 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
         {
         case RO_SUBOBJ_TYPE_IPV4:
         {
-            struct pcep_ro_subobj_ipv4 *ipv4 = malloc(sizeof(struct pcep_ro_subobj_ipv4));
+            struct pcep_ro_subobj_ipv4 *ipv4 = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_ro_subobj_ipv4));
             ipv4->ro_subobj.flag_subobj_loose_hop = flag_l;
             ipv4->ro_subobj.ro_subobj_type = subobj_type;
             uint32_ptr = (uint32_t *) (obj_buf + read_count);
@@ -1073,7 +1074,7 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
 
         case RO_SUBOBJ_TYPE_IPV6:
         {
-            struct pcep_ro_subobj_ipv6 *ipv6 = malloc(sizeof(struct pcep_ro_subobj_ipv6));
+            struct pcep_ro_subobj_ipv6 *ipv6 = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_ro_subobj_ipv6));
             ipv6->ro_subobj.flag_subobj_loose_hop = flag_l;
             ipv6->ro_subobj.ro_subobj_type = subobj_type;
             decode_ipv6((uint32_t *) obj_buf, &ipv6->ip_addr);
@@ -1087,7 +1088,7 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
 
         case RO_SUBOBJ_TYPE_LABEL:
         {
-            struct pcep_ro_subobj_32label *label = malloc(sizeof(struct pcep_ro_subobj_32label));
+            struct pcep_ro_subobj_32label *label = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_ro_subobj_32label));
             label->ro_subobj.flag_subobj_loose_hop = flag_l;
             label->ro_subobj.ro_subobj_type = subobj_type;
             label->flag_global_label = (obj_buf[read_count++] & OBJECT_SUBOBJ_LABEL_FLAG_GLOGAL);
@@ -1101,7 +1102,7 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
 
         case RO_SUBOBJ_TYPE_UNNUM:
         {
-            struct pcep_ro_subobj_unnum *unum = malloc(sizeof(struct pcep_ro_subobj_unnum));
+            struct pcep_ro_subobj_unnum *unum = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_ro_subobj_unnum));
             unum->ro_subobj.flag_subobj_loose_hop = flag_l;
             unum->ro_subobj.ro_subobj_type = subobj_type;
             set_ro_subobj_fields((struct pcep_object_ro_subobj *) unum, flag_l, subobj_type);
@@ -1116,7 +1117,7 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
 
         case RO_SUBOBJ_TYPE_ASN:
         {
-            struct pcep_ro_subobj_asn *asn = malloc(sizeof(struct pcep_ro_subobj_asn));
+            struct pcep_ro_subobj_asn *asn = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_ro_subobj_asn));
             asn->ro_subobj.flag_subobj_loose_hop = flag_l;
             asn->ro_subobj.ro_subobj_type = subobj_type;
             uint16_t *uint16_ptr = (uint16_t *) (obj_buf + read_count);
@@ -1143,7 +1144,7 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
              * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
              */
 
-            struct pcep_ro_subobj_sr *sr_subobj = malloc(sizeof(struct pcep_ro_subobj_sr));
+            struct pcep_ro_subobj_sr *sr_subobj = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_ro_subobj_sr));
             sr_subobj->ro_subobj.flag_subobj_loose_hop = flag_l;
             /* Overwrite RO_SUBOBJ_TYPE_SR_DRAFT07 with RO_SUBOBJ_TYPE_SR */
             sr_subobj->ro_subobj.ro_subobj_type = RO_SUBOBJ_TYPE_SR;
@@ -1170,7 +1171,7 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
             {
             case PCEP_SR_SUBOBJ_NAI_IPV4_NODE:
             {
-                struct in_addr *ipv4 = malloc(sizeof(struct in_addr));
+                struct in_addr *ipv4 = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in_addr));
                 ipv4->s_addr = *uint32_ptr;
                 dll_append(sr_subobj->nai_list, ipv4);
                 read_count += LENGTH_1WORD;
@@ -1179,7 +1180,7 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
 
             case PCEP_SR_SUBOBJ_NAI_IPV6_NODE:
             {
-                struct in6_addr *ipv6 = malloc(sizeof(struct in6_addr));
+                struct in6_addr *ipv6 = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in6_addr));
                 decode_ipv6(uint32_ptr, ipv6);
                 dll_append(sr_subobj->nai_list, ipv6);
                 read_count += LENGTH_4WORDS;
@@ -1188,19 +1189,19 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
 
             case PCEP_SR_SUBOBJ_NAI_UNNUMBERED_IPV4_ADJACENCY:
             {
-                struct in_addr *ipv4 = malloc(sizeof(struct in_addr));
+                struct in_addr *ipv4 = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in_addr));
                 ipv4->s_addr = uint32_ptr[0];
                 dll_append(sr_subobj->nai_list, ipv4);
 
-                ipv4 = malloc(sizeof(struct in_addr));
+                ipv4 = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in_addr));
                 ipv4->s_addr = uint32_ptr[1];
                 dll_append(sr_subobj->nai_list, ipv4);
 
-                ipv4 = malloc(sizeof(struct in_addr));
+                ipv4 = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in_addr));
                 ipv4->s_addr = uint32_ptr[2];
                 dll_append(sr_subobj->nai_list, ipv4);
 
-                ipv4 = malloc(sizeof(struct in_addr));
+                ipv4 = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in_addr));
                 ipv4->s_addr = uint32_ptr[3];
                 dll_append(sr_subobj->nai_list, ipv4);
 
@@ -1210,11 +1211,11 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
 
             case PCEP_SR_SUBOBJ_NAI_IPV4_ADJACENCY:
             {
-                struct in_addr *ipv4 = malloc(sizeof(struct in_addr));
+                struct in_addr *ipv4 = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in_addr));
                 ipv4->s_addr = uint32_ptr[0];
                 dll_append(sr_subobj->nai_list, ipv4);
 
-                ipv4 = malloc(sizeof(struct in_addr));
+                ipv4 = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in_addr));
                 ipv4->s_addr = uint32_ptr[1];
                 dll_append(sr_subobj->nai_list, ipv4);
 
@@ -1224,11 +1225,11 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
 
             case PCEP_SR_SUBOBJ_NAI_IPV6_ADJACENCY:
             {
-                struct in6_addr *ipv6 = malloc(sizeof(struct in6_addr));
+                struct in6_addr *ipv6 = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in6_addr));
                 decode_ipv6(uint32_ptr, ipv6);
                 dll_append(sr_subobj->nai_list, ipv6);
 
-                ipv6 = malloc(sizeof(struct in6_addr));
+                ipv6 = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in6_addr));
                 decode_ipv6(uint32_ptr + LENGTH_4WORDS, ipv6);
                 dll_append(sr_subobj->nai_list, ipv6);
 
@@ -1238,19 +1239,19 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, ui
 
             case PCEP_SR_SUBOBJ_NAI_LINK_LOCAL_IPV6_ADJACENCY:
             {
-                struct in6_addr *ipv6 = malloc(sizeof(struct in6_addr));
+                struct in6_addr *ipv6 = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in6_addr));
                 decode_ipv6(uint32_ptr, ipv6);
                 dll_append(sr_subobj->nai_list, ipv6);
 
-                struct in_addr *ipv4 = malloc(sizeof(struct in_addr));
+                struct in_addr *ipv4 = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in_addr));
                 ipv4->s_addr = uint32_ptr[LENGTH_4WORDS];
                 dll_append(sr_subobj->nai_list, ipv4);
 
-                ipv6 = malloc(sizeof(struct in6_addr));
+                ipv6 = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in6_addr));
                 decode_ipv6(uint32_ptr + LENGTH_5WORDS, ipv6);
                 dll_append(sr_subobj->nai_list, ipv6);
 
-                ipv4 = malloc(sizeof(struct in_addr));
+                ipv4 = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct in_addr));
                 ipv4->s_addr = uint32_ptr[LENGTH_9WORDS];
                 dll_append(sr_subobj->nai_list, ipv4);
 
