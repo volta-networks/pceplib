@@ -11,7 +11,7 @@
 #include <stdbool.h>
 
 #include "pcep_session_logic.h"
-#include "pcep_utils_memory.h"
+#include "pcep_timers.h"
 
 #define DEFAULT_PCEP_TCP_PORT 4189
 #define DEFAULT_CONFIG_KEEP_ALIVE 30
@@ -27,17 +27,6 @@
 #define DEFAULT_MAX_CONFIG_KEEP_ALIVE 120
 #define DEFAULT_MIN_CONFIG_DEAD_TIMER DEFAULT_MIN_CONFIG_KEEP_ALIVE * 4
 #define DEFAULT_MAX_CONFIG_DEAD_TIMER DEFAULT_MAX_CONFIG_KEEP_ALIVE * 4
-
-struct pceplib_infra_config
-{
-    void *pceplib_infra_mt;
-    void *pceplib_messages_mt;
-    pceplib_malloc_func mfunc;
-    pceplib_calloc_func cfunc;
-    pceplib_realloc_func rfunc;
-    pceplib_strdup_func sfunc;
-    pceplib_free_func ffunc;
-};
 
 /*
  * PCEP PCC library initialization/teardown functions

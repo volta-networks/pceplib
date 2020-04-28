@@ -52,6 +52,10 @@ ordered_list_node *ordered_list_add_node(ordered_list_handle *handle, void *data
  */
 ordered_list_node *ordered_list_find(ordered_list_handle *handle, void *data);
 
+/* The same as the previous function, but with a specific orderedComparefunction */
+ordered_list_node *ordered_list_find2(ordered_list_handle *handle, void *data,
+        ordered_compare_function compare_func);
+
 /* Remove the first entry in the list and return the data it points to.
  * Will return NULL if the handle is NULL or if the list is empty.
  */
@@ -72,5 +76,11 @@ void *ordered_list_remove_first_node_equals2(ordered_list_handle *handle, void *
  * Will return NULL if the handle is NULL or if the list is empty.
  */
 void *ordered_list_remove_node(ordered_list_handle *handle, ordered_list_node *prev_node, ordered_list_node *node_to_remove);
+
+/* Remove the node "node_to_remove" by searching for it in the entire list,
+ * returning the data pointed to by "node_to_remove".
+ * Will return NULL if the handle is NULL or if the list is empty.
+ */
+void *ordered_list_remove_node2(ordered_list_handle *handle, ordered_list_node *node_to_remove);
 
 #endif /* INCLUDE_PCEPUTILSORDEREDLIST_H_ */

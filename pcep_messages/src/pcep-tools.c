@@ -252,19 +252,25 @@ pcep_obj_free_tlv(struct pcep_object_tlv_header *tlv)
     case PCEP_OBJ_TLV_TYPE_SPEAKER_ENTITY_ID:
         if (((struct pcep_object_tlv_speaker_entity_identifier *) tlv)->speaker_entity_id_list != NULL)
         {
-            dll_destroy_with_data(((struct pcep_object_tlv_speaker_entity_identifier *) tlv)->speaker_entity_id_list);
+            dll_destroy_with_data_memtype(
+                    ((struct pcep_object_tlv_speaker_entity_identifier *) tlv)->speaker_entity_id_list,
+                    PCEPLIB_MESSAGES);
         }
         break;
 
     case PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY:
         if (((struct pcep_object_tlv_path_setup_type_capability *) tlv)->pst_list != NULL)
         {
-            dll_destroy_with_data(((struct pcep_object_tlv_path_setup_type_capability *) tlv)->pst_list);
+            dll_destroy_with_data_memtype(
+                    ((struct pcep_object_tlv_path_setup_type_capability *) tlv)->pst_list,
+                    PCEPLIB_MESSAGES);
         }
 
         if (((struct pcep_object_tlv_path_setup_type_capability *) tlv)->sub_tlv_list != NULL)
         {
-            dll_destroy_with_data(((struct pcep_object_tlv_path_setup_type_capability *) tlv)->sub_tlv_list);
+            dll_destroy_with_data_memtype(
+                    ((struct pcep_object_tlv_path_setup_type_capability *) tlv)->sub_tlv_list,
+                    PCEPLIB_MESSAGES);
         }
         break;
 
@@ -307,11 +313,15 @@ pcep_obj_free_object(struct pcep_object_header *obj)
                 {
                     if (((struct pcep_ro_subobj_sr *) ro_subobj)->nai_list != NULL)
                     {
-                        dll_destroy_with_data(((struct pcep_ro_subobj_sr *) ro_subobj)->nai_list);
+                        dll_destroy_with_data_memtype(
+                                ((struct pcep_ro_subobj_sr *) ro_subobj)->nai_list,
+                                PCEPLIB_MESSAGES);
                     }
                 }
             }
-            dll_destroy_with_data(((struct pcep_object_ro *) obj)->sub_objects);
+            dll_destroy_with_data_memtype(
+                    ((struct pcep_object_ro *) obj)->sub_objects,
+                    PCEPLIB_MESSAGES);
         }
     }
     break;
@@ -319,7 +329,9 @@ pcep_obj_free_object(struct pcep_object_header *obj)
     case PCEP_OBJ_CLASS_SVEC:
         if (((struct pcep_object_svec *) obj)->request_id_list != NULL)
         {
-            dll_destroy_with_data(((struct pcep_object_svec *) obj)->request_id_list);
+            dll_destroy_with_data_memtype(
+                    ((struct pcep_object_svec *) obj)->request_id_list,
+                    PCEPLIB_MESSAGES);
         }
         break;
 

@@ -52,7 +52,7 @@ void dll_destroy(double_linked_list *handle)
 }
 
 
-void dll_destroy_with_data(double_linked_list *handle)
+void dll_destroy_with_data_memtype(double_linked_list *handle, void *data_memory_type)
 {
     if (handle == NULL)
     {
@@ -64,12 +64,19 @@ void dll_destroy_with_data(double_linked_list *handle)
     while(node != NULL)
     {
         double_linked_list_node *node_to_delete = node;
-        pceplib_free(PCEPLIB_INFRA, node->data);
+        pceplib_free(data_memory_type, node->data);
         node = node->next_node;
         pceplib_free(PCEPLIB_INFRA, node_to_delete);
     }
 
     pceplib_free(PCEPLIB_INFRA, handle);
+}
+
+
+void dll_destroy_with_data(double_linked_list *handle)
+{
+    /* Default to destroying the data with the INFRA mem type */
+    dll_destroy_with_data_memtype(handle, PCEPLIB_INFRA);
 }
 
 

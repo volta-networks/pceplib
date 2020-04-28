@@ -150,7 +150,7 @@ void pceplib_free(void *mem_type, void *ptr)
             if (((struct pceplib_memory_type *) mem_type)->num_allocates <
                 ((struct pceplib_memory_type *) mem_type)->num_frees)
             {
-                pcep_log(LOG_ERR, "ERRORRRRRRRRRRRRRRRRRRRRR MT N_Alloc < N_Free: MemType [%s] NumAllocates [%d] NumFrees [%d]",
+                pcep_log(LOG_ERR, "pceplib_free MT N_Alloc < N_Free: MemType [%s] NumAllocates [%d] NumFrees [%d]",
                         ((struct pceplib_memory_type *) mem_type)->memory_type_name,
                         ((struct pceplib_memory_type *) mem_type)->num_allocates,
                         ((struct pceplib_memory_type *) mem_type)->num_frees);

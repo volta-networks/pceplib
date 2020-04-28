@@ -394,12 +394,12 @@ int main(int argc, char **argv)
     destroy_pcep_configuration(config);
     free(cmd_line_args);
 
-    dump_memory_stats();
-
     if (!destroy_pcc())
     {
         pcep_log(LOG_NOTICE, "Error stopping PCC.");
     }
+
+    dump_memory_stats();
 
     return 0;
 }

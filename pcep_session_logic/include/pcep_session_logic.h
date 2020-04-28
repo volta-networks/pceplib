@@ -14,7 +14,9 @@
 #include "pcep_socket_comm.h"
 #include "pcep-objects.h"
 #include "pcep-tools.h"
+#include "pcep_timers.h"
 #include "pcep_utils_queue.h"
+#include "pcep_utils_memory.h"
 
 #define PCEP_TCP_PORT 4189
 
@@ -102,6 +104,21 @@ typedef struct pcep_configuration_
 } pcep_configuration;
 
 
+typedef struct pceplib_infra_config
+{
+    void *pceplib_infra_mt;
+    void *pceplib_messages_mt;
+    pceplib_malloc_func malloc_func;
+    pceplib_calloc_func calloc_func;
+    pceplib_realloc_func realloc_func;
+    pceplib_strdup_func strdup_func;
+    pceplib_free_func free_func;
+    void *external_timer_infra_data;
+    ext_timer_create timer_create_func;
+    ext_timer_cancel timer_cancel_func;
+} pceplib_infra_config;
+
+
 typedef enum pcep_session_state_
 {
     SESSION_STATE_UNKNOWN = 0,
@@ -180,6 +197,7 @@ typedef struct pcep_event_queue
 
 
 bool run_session_logic();
+bool run_session_logic_with_infra(pceplib_infra_config *infra_config);
 
 bool run_session_logic_wait_for_completion();
 

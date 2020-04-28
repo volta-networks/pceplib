@@ -119,11 +119,12 @@ ordered_list_node *ordered_list_add_node(ordered_list_handle *handle, void *data
 }
 
 
-ordered_list_node *ordered_list_find(ordered_list_handle *handle, void *data)
+ordered_list_node *ordered_list_find2(ordered_list_handle *handle, void *data,
+        ordered_compare_function compare_func)
 {
     if (handle == NULL)
     {
-        pcep_log(LOG_WARNING, "ordered_list_find, the list has not been initialized");
+        pcep_log(LOG_WARNING, "ordered_list_find2, the list has not been initialized");
         return NULL;
     }
 
@@ -132,7 +133,7 @@ ordered_list_node *ordered_list_find(ordered_list_handle *handle, void *data)
 
     while(node != NULL)
     {
-        compare_result = handle->compare_function(node->data, data);
+        compare_result = compare_func(node->data, data);
         if (compare_result == 0)
         {
             return node;
@@ -144,6 +145,18 @@ ordered_list_node *ordered_list_find(ordered_list_handle *handle, void *data)
     }
 
     return NULL;
+}
+
+
+ordered_list_node *ordered_list_find(ordered_list_handle *handle, void *data)
+{
+    if (handle == NULL)
+    {
+        pcep_log(LOG_WARNING, "ordered_list_find, the list has not been initialized");
+        return NULL;
+    }
+
+    return ordered_list_find2(handle, data, handle->compare_function);
 }
 
 
@@ -267,4 +280,37 @@ void *ordered_list_remove_node(ordered_list_handle *handle, ordered_list_node *p
     pceplib_free(PCEPLIB_INFRA, node_toRemove);
 
     return return_data;
+}
+
+void *ordered_list_remove_node2(ordered_list_handle *handle, ordered_list_node *node_to_remove)
+{
+    if (handle == NULL)
+    {
+        pcep_log(LOG_WARNING, "ordered_list_remove_node2, the list has not been initialized");
+        return NULL;
+    }
+
+    if (handle->head == NULL)
+    {
+        pcep_log(LOG_WARNING, "ordered_list_remove_node2, empty list");
+        return NULL;
+    }
+
+    ordered_list_node *node = handle->head;
+    ordered_list_node *prev_node = handle->head;
+
+    while(node != NULL)
+    {
+        if (node == node_to_remove)
+        {
+            return(ordered_list_remove_node(handle, prev_node, node));
+        }
+        else
+        {
+            prev_node = node;
+            node = node->next_node;
+        }
+    }
+
+    return NULL;
 }

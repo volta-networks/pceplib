@@ -247,10 +247,12 @@ void handle_writes(pcep_socket_comm_handle *socket_comm_handle)
 
     ordered_list_node *node = socket_comm_handle->write_list->head;
     pcep_socket_comm_session *comm_session;
+    bool msg_written;
     while (node != NULL)
     {
         comm_session = (pcep_socket_comm_session *) node->data;
         node = node->next_node;
+        msg_written = false;
 
         if (!comm_session_exists(socket_comm_handle, comm_session))
         {
@@ -267,6 +269,7 @@ void handle_writes(pcep_socket_comm_handle *socket_comm_handle)
             pcep_socket_comm_queued_message *queued_message = queue_dequeue(comm_session->message_queue);
             while (queued_message != NULL)
             {
+                msg_written = true;
                 write_message(
                         comm_session->socket_fd,
                         queued_message->unmarshalled_message,
@@ -293,7 +296,7 @@ void handle_writes(pcep_socket_comm_handle *socket_comm_handle)
             }
         }
 
-        if (comm_session->message_sent_handler != NULL)
+        if (comm_session->message_sent_handler != NULL && msg_written == true)
         {
             /* Unlocking to allow the message_sent_handler to
              * make calls like destroy_socket_comm_session */

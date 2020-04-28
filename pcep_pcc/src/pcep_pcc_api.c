@@ -14,7 +14,6 @@
 #include "pcep_pcc_api.h"
 #include "pcep_utils_counters.h"
 #include "pcep_utils_logging.h"
-#include "pcep_utils_memory.h"
 
 /* Not using an array here since the enum pcep_event_type indeces go into the 100's */
 const char MESSAGE_RECEIVED_STR[] = "MESSAGE_RECEIVED";
@@ -51,17 +50,13 @@ bool initialize_pcc_infra(struct pceplib_infra_config *infra_config)
         return initialize_pcc();
     }
 
-    /* Initialize the memory infrastructure */
-    pceplib_memory_initialize(
-            infra_config->pceplib_infra_mt,
-            infra_config->pceplib_messages_mt,
-            infra_config->mfunc,
-            infra_config->cfunc,
-            infra_config->rfunc,
-            infra_config->sfunc,
-            infra_config->ffunc);
+    if (!run_session_logic_with_infra(infra_config))
+    {
+        pcep_log(LOG_ERR, "Error initializing PCC session logic with infra.");
+        return false;
+    }
 
-    return initialize_pcc();
+    return true;
 }
 
 

@@ -44,7 +44,7 @@ int session_id_compare_function(void *list_entry, void *new_entry)
 }
 
 
-bool run_session_logic()
+static bool run_session_logic_common()
 {
     if (session_logic_handle_ != NULL)
     {
@@ -69,12 +69,6 @@ bool run_session_logic()
         return false;
     }
 
-    if (!initialize_timers(session_logic_timer_expire_handler))
-    {
-        pcep_log(LOG_ERR, "Cannot initialize session_logic timers.");
-        return false;
-    }
-
     pthread_cond_init(&(session_logic_handle_->session_logic_cond_var), NULL);
 
     if (pthread_mutex_init(&(session_logic_handle_->session_logic_mutex), NULL) != 0)
@@ -92,6 +86,65 @@ bool run_session_logic()
     return true;
 }
 
+
+bool run_session_logic()
+{
+    if (!run_session_logic_common())
+    {
+        return false;
+    }
+
+    if (!initialize_timers(session_logic_timer_expire_handler))
+    {
+        pcep_log(LOG_ERR, "Cannot initialize session_logic timers.");
+        return false;
+    }
+
+    return true;
+}
+
+
+bool run_session_logic_with_infra(pceplib_infra_config *infra_config)
+{
+    if (infra_config == NULL)
+    {
+        return run_session_logic();
+    }
+
+    /* Initialize the memory infrastructure before anything gets allocated */
+    if (infra_config->pceplib_infra_mt != NULL &&
+        infra_config->pceplib_messages_mt != NULL)
+    {
+        pceplib_memory_initialize(
+                infra_config->pceplib_infra_mt,
+                infra_config->pceplib_messages_mt,
+                infra_config->malloc_func,
+                infra_config->calloc_func,
+                infra_config->realloc_func,
+                infra_config->strdup_func,
+                infra_config->free_func);
+    }
+
+    if (!run_session_logic_common())
+    {
+        return false;
+    }
+
+    if (!initialize_timers_external_infra(
+            session_logic_timer_expire_handler,
+            infra_config->external_timer_infra_data,
+            infra_config->timer_create_func,
+            infra_config->timer_cancel_func))
+    {
+        pcep_log(LOG_ERR, "Cannot initialize session_logic timers with infra.");
+        return false;
+    }
+
+    /* Later when the socket comm details are passed in, store there here
+     * so they can be used to initialize the socket comm */
+
+    return true;
+}
 
 bool run_session_logic_wait_for_completion()
 {
