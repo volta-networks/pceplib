@@ -13,6 +13,11 @@ before_script:
 compile_debian:
   stage: build
   script: make clean all
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
 
 unittest_debian:
   stage: unittest
@@ -29,6 +34,12 @@ unittest_debian:
       - pcep_utils/core
     when: on_failure
     expire_in: 24 hours
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+
 analyze_debian:
   stage: analyze
   script:
@@ -36,3 +47,8 @@ analyze_debian:
     - ./reports/analyze.sh
     - ./reports/cov.sh
     - sonar-scanner -Dsonar.host.url=$SONARQUBE_ENDPOINT || true # not critical
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
