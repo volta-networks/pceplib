@@ -19,10 +19,7 @@
 #include "pcep_utils_memory.h"
 #include "pcep_utils_ordered_list.h"
 
-/* TODO should we just return this from initialize_timers
- *      instead of storing it globally here??
- *      I guess it just depends on if we will ever need more than one */
-pcep_timers_context *timers_context_ = NULL;
+static pcep_timers_context *timers_context_ = NULL;
 static int timer_id_ = 0;
 
 /* simple compare method callback used by pcep_utils_ordered_list
@@ -112,6 +109,11 @@ bool initialize_timers_external_infra(
         ext_timer_create timer_create_func,
         ext_timer_cancel timer_cancel_func)
 {
+    if (timer_create_func == NULL || timer_cancel_func == NULL)
+    {
+        return initialize_timers(expire_handler);
+    }
+
     if (initialize_timers_common(expire_handler) == false)
     {
         return false;
@@ -236,10 +238,11 @@ int create_timer(uint16_t sleep_seconds, void *data)
 
     if (timers_context_->timer_create_func)
     {
-        timer->external_timer = timers_context_->timer_create_func(
-                timers_context_->external_timer_infra_data,
-                sleep_seconds,
-                timer);
+        timers_context_->timer_create_func(
+            timers_context_->external_timer_infra_data,
+            &timer->external_timer,
+            sleep_seconds,
+            timer);
     }
 
     return timer->timer_id;
@@ -272,7 +275,7 @@ bool cancel_timer(int timer_id)
 
     if (timers_context_->timer_cancel_func)
     {
-        timers_context_->timer_cancel_func(timer_toRemove->external_timer);
+        timers_context_->timer_cancel_func(&timer_toRemove->external_timer);
     }
 
     pceplib_free(PCEPLIB_INFRA, timer_toRemove);
@@ -325,11 +328,10 @@ bool reset_timer(int timer_id)
     }
 
     ordered_list_remove_node2(timers_context_->timer_list, timer_to_reset_node);
-    pceplib_free(PCEPLIB_INFRA, timer_to_reset_node);
 
     if (timers_context_->timer_cancel_func)
     {
-        timers_context_->timer_cancel_func(timer_to_reset->external_timer);
+        timers_context_->timer_cancel_func(&timer_to_reset->external_timer);
     }
 
     timer_to_reset->expire_time = expire_time;
@@ -346,10 +348,11 @@ bool reset_timer(int timer_id)
 
     if (timers_context_->timer_create_func)
     {
-        timer_to_reset->external_timer = timers_context_->timer_create_func(
-                timers_context_->external_timer_infra_data,
-                timer_to_reset->sleep_seconds,
-                timer_to_reset);
+        timers_context_->timer_create_func(
+            timers_context_->external_timer_infra_data,
+            &timer_to_reset->external_timer,
+            timer_to_reset->sleep_seconds,
+            timer_to_reset);
     }
 
     return true;

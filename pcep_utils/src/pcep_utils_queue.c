@@ -96,7 +96,6 @@ void *queue_dequeue(queue_handle *handle)
 
     if (handle->head == NULL)
     {
-        pcep_log(LOG_DEBUG, "queue_dequeue, the queue is empty");
         return NULL;
     }
 

@@ -36,6 +36,10 @@ typedef void (*message_sent_notifier)(void *session_data, int socket_fd);
 /* callback handler called when the socket is closed */
 typedef void (*connection_except_notifier)(void *session_data, int socket_fd);
 
+/* Function pointers when an external socket infrastructure is used */
+typedef int (*ext_socket_write)(void *infra_data, void **infra_socket_data, int fd, void *data);
+typedef int (*ext_socket_read)(void *infra_data, void **infra_socket_data, int fd, void *data);
+
 typedef struct pcep_socket_comm_session_
 {
     message_received_handler message_handler;
@@ -58,6 +62,7 @@ typedef struct pcep_socket_comm_session_
     char received_message[MAX_RECVD_MSG_SIZE];
     int received_bytes;
     bool close_after_write;
+    void *external_socket_data; /* used for external socket infra */
 
 } pcep_socket_comm_session;
 
@@ -65,6 +70,20 @@ typedef struct pcep_socket_comm_session_
 /* Need to document that when the msg_rcv_handler is called, the data needs
  * to be handled in the same function call, else it may be overwritten by
  * the next read from this socket */
+
+
+/* Initialize the Socket Comm infrastructure, with either an internal pthread
+ * or with an external infrastructure.
+ * If an internal pthread infrastructure is to be used, then it is not necessary
+ * to explicitly call initialize_socket_comm_loop() as it will be called internally
+ * when a socket comm session is initialized. */
+
+/* Initialize the Socket Comm infrastructure with an internal pthread */
+bool initialize_socket_comm_loop();
+/* Initialize the Socket Comm infrastructure with an external infrastructure */
+bool initialize_socket_comm_external_infra(void *external_infra_data,
+                                           ext_socket_read socket_read_cb,
+                                           ext_socket_write socket_write_cb);
 
 /* The msg_rcv_handler and msg_ready_handler are mutually exclusive, and only
  * one can be set (as explained above), else NULL will be returned. */
@@ -129,6 +148,12 @@ void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_sess
                                   char *unmarshalled_message,
                                   unsigned int msg_length,
                                   bool free_after_send);
+
+/* If an external Socket infra like FRR is used, then these functions will
+ * be called when a socket is ready to read/write in the external infra.
+ * Implemented in pcep_socket_comm_loop.c */
+int pceplib_external_socket_read(int fd, void *payload);
+int pceplib_external_socket_write(int fd, void *payload);
 
 /* the socket comm loop is started internally by socket_comm_session_initialize()
  * but needs to be explicitly stopped with this call. */

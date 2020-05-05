@@ -23,8 +23,8 @@
 typedef void (*timer_expire_handler)(void *, int);
 
 /* Function pointer when an external timer infrastructure is used */
-typedef void *(*ext_timer_create)(void *infra_data, int seconds, void *data);
-typedef void  (*ext_timer_cancel)(void *timer);
+typedef void (*ext_timer_create)(void *infra_data, void **timer, int seconds, void *data);
+typedef void (*ext_timer_cancel)(void **timer);
 
 /*
  * Initialize the timers module.

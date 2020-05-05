@@ -113,9 +113,12 @@ typedef struct pceplib_infra_config
     pceplib_realloc_func realloc_func;
     pceplib_strdup_func strdup_func;
     pceplib_free_func free_func;
-    void *external_timer_infra_data;
+    void *external_infra_data;
     ext_timer_create timer_create_func;
     ext_timer_cancel timer_cancel_func;
+    ext_socket_write socket_write_func;
+    ext_socket_read socket_read_func;
+
 } pceplib_infra_config;
 
 

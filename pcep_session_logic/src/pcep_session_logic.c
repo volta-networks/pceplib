@@ -100,6 +100,9 @@ bool run_session_logic()
         return false;
     }
 
+    /* No need to call initialize_socket_comm_loop() since it will be
+     * called internally when the first socket_comm_session is created. */
+
     return true;
 }
 
@@ -132,7 +135,7 @@ bool run_session_logic_with_infra(pceplib_infra_config *infra_config)
 
     if (!initialize_timers_external_infra(
             session_logic_timer_expire_handler,
-            infra_config->external_timer_infra_data,
+            infra_config->external_infra_data,
             infra_config->timer_create_func,
             infra_config->timer_cancel_func))
     {
@@ -140,8 +143,18 @@ bool run_session_logic_with_infra(pceplib_infra_config *infra_config)
         return false;
     }
 
-    /* Later when the socket comm details are passed in, store there here
-     * so they can be used to initialize the socket comm */
+    if (infra_config->socket_read_func != NULL &&
+        infra_config->socket_write_func != NULL)
+    {
+        if (!initialize_socket_comm_external_infra(
+                infra_config->external_infra_data,
+                infra_config->socket_read_func,
+                infra_config->socket_write_func))
+        {
+            pcep_log(LOG_ERR, "Cannot initialize session_logic socket comm with infra.");
+            return false;
+        }
+    }
 
     return true;
 }

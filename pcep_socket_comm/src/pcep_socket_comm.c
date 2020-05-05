@@ -38,14 +38,8 @@ int socket_fd_node_compare(void *list_entry, void *new_entry)
 }
 
 
-bool initialize_socket_comm_loop()
+bool initialize_socket_comm_pre()
 {
-    if (socket_comm_handle_ != NULL)
-    {
-        /* already initialized */
-        return true;
-    }
-
     socket_comm_handle_ = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_socket_comm_handle));
     memset(socket_comm_handle_, 0, sizeof(pcep_socket_comm_handle));
 
@@ -54,13 +48,59 @@ bool initialize_socket_comm_loop()
     socket_comm_handle_->read_list = ordered_list_initialize(socket_fd_node_compare);
     socket_comm_handle_->write_list = ordered_list_initialize(socket_fd_node_compare);
     socket_comm_handle_->session_list = ordered_list_initialize(pointer_compare_function);
+    FD_ZERO(&socket_comm_handle_->except_master_set);
+    FD_ZERO(&socket_comm_handle_->read_master_set);
+    FD_ZERO(&socket_comm_handle_->write_master_set);
 
     if (pthread_mutex_init(&(socket_comm_handle_->socket_comm_mutex), NULL) != 0)
     {
         pcep_log(LOG_ERR, "Cannot initialize socket_comm mutex.");
+        pceplib_free(PCEPLIB_INFRA, socket_comm_handle_);
+        socket_comm_handle_ = NULL;
+
         return false;
     }
 
+    return true;
+}
+
+bool initialize_socket_comm_external_infra(
+        void *external_infra_data,
+        ext_socket_read socket_read_cb,
+        ext_socket_write socket_write_cb)
+{
+    if (socket_comm_handle_ != NULL)
+    {
+        /* already initialized */
+        return true;
+    }
+
+    if (initialize_socket_comm_pre() == false)
+    {
+        return false;
+    }
+
+    socket_comm_handle_->external_infra_data  = external_infra_data;
+    socket_comm_handle_->socket_write_func    = socket_write_cb;
+    socket_comm_handle_->socket_read_func     = socket_read_cb;
+
+    return true;
+}
+
+bool initialize_socket_comm_loop()
+{
+    if (socket_comm_handle_ != NULL)
+    {
+        /* already initialized */
+        return true;
+    }
+
+    if (initialize_socket_comm_pre() == false)
+    {
+        return false;
+    }
+
+    /* Launch socket comm loop pthread */
     if(pthread_create(&(socket_comm_handle_->socket_comm_thread), NULL, socket_comm_loop, socket_comm_handle_))
     {
         pcep_log(LOG_ERR, "Cannot initialize socket_comm thread.");
@@ -139,6 +179,7 @@ socket_comm_session_initialize_pre(message_received_handler message_handler,
     socket_comm_session->conn_except_notifier = notifier;
     socket_comm_session->message_queue = queue_initialize();
     socket_comm_session->connect_timeout_millis = connect_timeout_millis;
+    socket_comm_session->external_socket_data = NULL;
 
     return socket_comm_session;
 }
@@ -431,6 +472,15 @@ bool socket_comm_session_connect_tcp(pcep_socket_comm_session *socket_comm_sessi
     ordered_list_add_node(socket_comm_handle_->read_list, socket_comm_session);
     pthread_mutex_unlock(&(socket_comm_handle_->socket_comm_mutex));
 
+    if (socket_comm_handle_->socket_read_func != NULL)
+    {
+        socket_comm_handle_->socket_read_func(
+                socket_comm_handle_->external_infra_data,
+                &socket_comm_session->external_socket_data,
+                socket_comm_session->socket_fd,
+                socket_comm_handle_);
+    }
+
     return true;
 }
 
@@ -536,4 +586,13 @@ void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_sess
     queue_enqueue(socket_comm_session->message_queue, queued_message);
     ordered_list_add_node(socket_comm_handle_->write_list, socket_comm_session);
     pthread_mutex_unlock(&(socket_comm_handle_->socket_comm_mutex));
+
+    if (socket_comm_handle_->socket_write_func != NULL)
+    {
+        socket_comm_handle_->socket_write_func(
+                socket_comm_handle_->external_infra_data,
+                &socket_comm_session->external_socket_data,
+                socket_comm_session->socket_fd,
+                socket_comm_handle_);
+    }
 }
