@@ -93,9 +93,9 @@ The counters can be obtained and reset as explained later in the PCEPlib PCC API
 
 ### PCEP Socket Comm library
 
-All PCEP communication is handled by this simple library. When this library is
-instantiated by the PCEP Session Logic, callbacks are provided to handle
-received messages and error conditions. 
+PCEP communication can be configured to be handled internally in this simple
+library. When this library is instantiated by the PCEP Session Logic, callbacks
+are provided to handle received messages and error conditions. 
 
 The following diagram illustrates how the library works.
 
@@ -104,10 +104,10 @@ The following diagram illustrates how the library works.
 
 ### PCEP Timers library
 
-All PCEP timers are handled internally by this library. When this library is
-instantiated by the PCEP Session Logic, callbacks are provided to handle
-timer expirations. The following timers are implemented and handled, according
-to [RFC 5440](https://tools.ietf.org/html/rfc5440).
+Timers can be configured to be handled internally by this library. When this
+library is instantiated by the PCEP Session Logic, callbacks are provided to
+handle timer expirations. The following timers are implemented and handled,
+according to [RFC 5440](https://tools.ietf.org/html/rfc5440).
 
 * Open KeepWait (fixed at 60 seconds)
     * Set once the PCC sends an Open, and if it expires before receiving a KeepAlive or PCErr, then the PCC should send a PCErr and close the TCP connection
@@ -262,9 +262,17 @@ but that dependency has been reduced to just one source file (pcep-tools.[ch]).
 
 ### PCEPlib Threading model
 
-The following diagram illustrates the PCEPlib threading model.
+The PCEPlib can be run in stand-alone mode whereby a thread is launched for 
+timers and socket comm, as is illustrated in the following diagram.
 
 ![PCEPlib Threading model](images/PCEPlib_threading_model.jpg)
+
+The PCEPlib can also be configured to use an external timers and socket
+infrastructure like the FRR threads and tasks. In this case, no internal
+threads are launched for timers and socket comm, as is illustrated in the
+following diagram.
+
+![PCEPlib Threading model with external infra](images/PCEPlib_threading_model_frr_infra.jpg)
 
 
 ## Building, Installing, and Testing the PCEPlib
@@ -340,6 +348,12 @@ The following sections describe the PCEPlib PCC API.
 
 ### PCEPlib PCC Initialization and Destruction
 
+The PCEPlib can be initialized to handle memory, timers, and socket comm
+internally in what is called stand-alone mode, or with an external
+infrastructure, like FRR.
+
+#### PCEPlib PCC Initialization and Destruction in stand-alone mode
+
 PCEPlib PCC initialization and destruction functions:
 * `bool initialize_pcc();`
 * `bool initialize_pcc_wait_for_completion();`
@@ -361,6 +375,38 @@ When `destroy_pcc()` is called, all pthreads will be stopped and all
 resources will be released.
 
 All 3 functions return true upon success, and false otherwise.
+
+#### PCEPlib PCC Initialization and Destruction with FRR infrastructure
+
+PCEPlib PCC initialization and destruction functions:
+* `bool initialize_pcc_infra(struct pceplib_infra_config *infra_config);`
+* `bool destroy_pcc();`
+
+The `pceplib_infra_config` struct has the following fields:
+* **void *pceplib_infra_mt**
+    * FRR Memory type pointer for infra related memory management
+* **void *pceplib_messages_mt**
+    * FRR Memory type pointer for PCEP messages related memory management
+* **pceplib_malloc_func mfunc**
+    * FRR malloc function pointer
+* **pceplib_calloc_func cfunc**
+    * FRR calloc function pointer
+* **pceplib_realloc_func rfunc**
+    * FRR realloc function pointer
+* **pceplib_strdup_func sfunc**
+    * FRR strdup function pointer
+* **pceplib_free_func ffunc**
+    * FRR free function pointer
+* **void *external_infra_data**
+    * FRR data used by FRR timers and sockets infrastructure
+* **ext_timer_create timer_create_func**
+    * FRR timer create function pointer
+* **ext_timer_cancel timer_cancel_func**
+    * FRR timer cancel function pointer
+* **ext_socket_write socket_write_func**
+    * FRR socket write function pointer, indicating fd is ready to be written to
+* **ext_socket_read socket_read_func**
+    * FRR socket write function pointer, indicating fd is ready to be read from
 
 
 ### PCEPlib PCC configuration
