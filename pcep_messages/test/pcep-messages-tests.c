@@ -95,6 +95,7 @@ extern void test_validate_message_objects_invalid(void);
 extern void test_pcep_msg_read_pcep_open_cisco_pce(void);
 extern void test_pcep_msg_read_pcep_update_cisco_pce(void);
 extern void test_pcep_msg_read_pcep_report_cisco_pcc(void);
+extern void test_pcep_msg_read_pcep_initiate_cisco_pcc(void);
 
 
 int main(int argc, char **argv)
@@ -194,6 +195,7 @@ int main(int argc, char **argv)
     CU_add_test(tools_suite, "test_pcep_msg_read_pcep_open_cisco_pce", test_pcep_msg_read_pcep_open_cisco_pce);
     CU_add_test(tools_suite, "test_pcep_msg_read_pcep_update_cisco_pce", test_pcep_msg_read_pcep_update_cisco_pce);
     CU_add_test(tools_suite, "test_pcep_msg_read_pcep_report_cisco_pcc", test_pcep_msg_read_pcep_report_cisco_pcc);
+    CU_add_test(tools_suite, "test_pcep_msg_read_pcep_initiate_cisco_pcc", test_pcep_msg_read_pcep_initiate_cisco_pcc);
 
     CU_basic_set_mode(CU_BRM_VERBOSE);
     CU_basic_run_tests();

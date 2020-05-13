@@ -346,6 +346,65 @@ pcep_obj_create_vendor_info (uint32_t enterprise_number, uint32_t enterprise_spe
     return obj;
 }
 
+struct pcep_object_inter_layer*
+pcep_obj_create_inter_layer (bool flag_i, bool flag_m, bool flag_t)
+{
+    struct pcep_object_inter_layer *obj =
+            (struct pcep_object_inter_layer *) pcep_obj_create_common(
+                    sizeof(struct pcep_object_inter_layer),
+                    PCEP_OBJ_CLASS_INTER_LAYER, PCEP_OBJ_TYPE_INTER_LAYER);
+
+    obj->flag_i = flag_i;
+    obj->flag_m = flag_m;
+    obj->flag_t = flag_t;
+
+    return obj;
+}
+
+struct pcep_object_switch_layer*
+pcep_obj_create_switch_layer(double_linked_list *switch_layer_rows)
+{
+    struct pcep_object_switch_layer *obj =
+            (struct pcep_object_switch_layer *) pcep_obj_create_common(
+                    sizeof(struct pcep_object_switch_layer),
+                    PCEP_OBJ_CLASS_SWITCH_LAYER, PCEP_OBJ_TYPE_SWITCH_LAYER);
+
+    obj->switch_layer_rows = switch_layer_rows;
+
+    return obj;
+}
+
+struct pcep_object_req_adap_cap*
+pcep_obj_create_req_adap_cap(enum pcep_switching_capability sw_cap, enum pcep_lsp_encoding_type encoding)
+{
+    struct pcep_object_req_adap_cap *obj =
+            (struct pcep_object_req_adap_cap *) pcep_obj_create_common(
+                    sizeof(struct pcep_object_req_adap_cap),
+                    PCEP_OBJ_CLASS_REQ_ADAP_CAP, PCEP_OBJ_TYPE_REQ_ADAP_CAP);
+
+    obj->switching_capability = sw_cap;
+    obj->encoding = encoding;
+
+    return obj;
+}
+
+struct pcep_object_server_indication*
+pcep_obj_create_server_indication(enum pcep_switching_capability sw_cap,
+                                  enum pcep_lsp_encoding_type encoding,
+                                  double_linked_list *tlv_list)
+{
+    struct pcep_object_server_indication *obj =
+            (struct pcep_object_server_indication *) pcep_obj_create_common_with_tlvs(
+                    sizeof(struct pcep_object_server_indication),
+                    PCEP_OBJ_CLASS_SERVER_IND, PCEP_OBJ_TYPE_SERVER_IND,
+                    tlv_list);
+
+    obj->switching_capability = sw_cap;
+    obj->encoding = encoding;
+
+    return obj;
+}
+
 /* Wrap a list of ro subobjects in a structure with an object header */
 struct pcep_object_ro*
 pcep_obj_create_ero(double_linked_list* ero_list)

@@ -129,6 +129,26 @@ char *pcep_report_cisco_pcc_hexbyte_strs[] = {
     "41", "80", "00", "00"
 };
 
+/* Cisco PcInitiate with the following objects:
+ *   SRP, LSP, Endpoint, Inter-layer, Switch-layer, ERO
+ */
+uint16_t pcep_initiate_cisco_pcc_hexbyte_strs_length = 104;
+char *pcep_initiate_cisco_pcc_hexbyte_strs[] = {
+    "20", "0c", "00", "68", "21", "10", "00", "14",
+    "00", "00", "00", "00", "00", "00", "00", "01",
+    "00", "1c", "00", "04", "00", "00", "00", "01",
+    "20", "10", "00", "30", "00", "00", "00", "89",
+    "00", "11", "00", "13", "50", "4f", "4c", "31",
+    "5f", "50", "43", "49", "4e", "49", "54", "41",
+    "54", "45", "5f", "54", "45", "53", "54", "00",
+    "00", "07", "00", "0c", "00", "00", "00", "09",
+    "00", "03", "00", "04", "00", "00", "00", "01",
+    "04", "10", "00", "0c", "0a", "0a", "0a", "0a",
+    "0a", "0a", "0a", "04", "24", "10", "00", "08",
+    "00", "00", "01", "4d", "25", "10", "00", "08",
+    "00", "00", "00", "64", "07", "10", "00", "04"
+};
+
 /* Reads an array of hexbyte strs, and writes them to a temporary file.
  * The caller should close the returned file. */
 int convert_hexstrs_to_binary(char *hexbyte_strs[], uint16_t hexbyte_strs_length)
@@ -740,6 +760,95 @@ void test_pcep_msg_read_pcep_report_cisco_pcc()
     CU_ASSERT_FALSE(metric->flag_c);
     CU_ASSERT_EQUAL(metric->type, PCEP_METRIC_AGGREGATE_BW);
     CU_ASSERT_EQUAL(metric->value, 16.0);
+
+    pcep_msg_free_message_list(msg_list);
+    close(fd);
+}
+
+void test_pcep_msg_read_pcep_initiate_cisco_pcc()
+{
+    int fd = convert_hexstrs_to_binary(
+            pcep_initiate_cisco_pcc_hexbyte_strs,
+            pcep_initiate_cisco_pcc_hexbyte_strs_length);
+    double_linked_list *msg_list = pcep_msg_read(fd);
+    CU_ASSERT_PTR_NOT_NULL(msg_list);
+    CU_ASSERT_EQUAL(msg_list->num_entries, 1);
+
+    struct pcep_message *msg = (struct pcep_message *) msg_list->head->data;
+    CU_ASSERT_EQUAL(msg->msg_header->type, PCEP_TYPE_INITIATE);
+    CU_ASSERT_EQUAL(msg->encoded_message_length, pcep_initiate_cisco_pcc_hexbyte_strs_length);
+    CU_ASSERT_EQUAL(msg->obj_list->num_entries, 6);
+
+    /* SRP object */
+    double_linked_list_node *obj_node = msg->obj_list->head;
+    struct pcep_object_srp *srp = (struct pcep_object_srp *) obj_node->data;
+    CU_ASSERT_EQUAL(srp->header.object_class, PCEP_OBJ_CLASS_SRP);
+    CU_ASSERT_EQUAL(srp->header.object_type, PCEP_OBJ_TYPE_SRP);
+    CU_ASSERT_EQUAL(srp->header.encoded_object_length, 20);
+    CU_ASSERT_PTR_NOT_NULL(srp->header.tlv_list);
+    CU_ASSERT_EQUAL(srp->header.tlv_list->num_entries, 1);
+    CU_ASSERT_EQUAL(srp->srp_id_number, 1);
+    CU_ASSERT_FALSE(srp->flag_lsp_remove);
+
+    /* LSP object */
+    obj_node = obj_node->next_node;
+    struct pcep_object_lsp *lsp = (struct pcep_object_lsp *) obj_node->data;
+    CU_ASSERT_EQUAL(lsp->header.object_class, PCEP_OBJ_CLASS_LSP);
+    CU_ASSERT_EQUAL(lsp->header.object_type, PCEP_OBJ_TYPE_LSP);
+    CU_ASSERT_EQUAL(lsp->header.encoded_object_length, 48);
+    CU_ASSERT_PTR_NOT_NULL(lsp->header.tlv_list);
+    CU_ASSERT_EQUAL(lsp->header.tlv_list->num_entries, 2);
+    CU_ASSERT_EQUAL(lsp->plsp_id, 0);
+    CU_ASSERT_EQUAL(lsp->operational_status, PCEP_LSP_OPERATIONAL_DOWN);
+    CU_ASSERT_TRUE(lsp->flag_a);
+    CU_ASSERT_TRUE(lsp->flag_d);
+    CU_ASSERT_TRUE(lsp->flag_c);
+    CU_ASSERT_FALSE(lsp->flag_r);
+    CU_ASSERT_FALSE(lsp->flag_s);
+
+    /* Endpoint object */
+    obj_node = obj_node->next_node;
+    struct pcep_object_endpoints_ipv4 *endpoint = (struct pcep_object_endpoints_ipv4 *) obj_node->data;
+    CU_ASSERT_EQUAL(endpoint->header.object_class, PCEP_OBJ_CLASS_ENDPOINTS);
+    CU_ASSERT_EQUAL(endpoint->header.object_type, PCEP_OBJ_TYPE_ENDPOINT_IPV4);
+    CU_ASSERT_EQUAL(endpoint->header.encoded_object_length, 12);
+    CU_ASSERT_PTR_NULL(endpoint->header.tlv_list);
+    CU_ASSERT_EQUAL(endpoint->src_ipv4.s_addr, htonl(0x0a0a0a0a));
+    CU_ASSERT_EQUAL(endpoint->dst_ipv4.s_addr, htonl(0x0a0a0a04));
+
+    /* Inter-Layer object */
+    obj_node = obj_node->next_node;
+    struct pcep_object_inter_layer *inter_layer = (struct pcep_object_inter_layer *) obj_node->data;
+    CU_ASSERT_EQUAL(inter_layer->header.object_class, PCEP_OBJ_CLASS_INTER_LAYER);
+    CU_ASSERT_EQUAL(inter_layer->header.object_type, PCEP_OBJ_TYPE_INTER_LAYER);
+    CU_ASSERT_EQUAL(inter_layer->header.encoded_object_length, 8);
+    CU_ASSERT_PTR_NULL(inter_layer->header.tlv_list);
+    CU_ASSERT_TRUE(inter_layer->flag_i);
+    CU_ASSERT_FALSE(inter_layer->flag_m);
+    CU_ASSERT_TRUE(inter_layer->flag_t);
+
+    /* Switch-Layer object */
+    obj_node = obj_node->next_node;
+    struct pcep_object_switch_layer *switch_layer = (struct pcep_object_switch_layer *) obj_node->data;
+    CU_ASSERT_EQUAL(switch_layer->header.object_class, PCEP_OBJ_CLASS_SWITCH_LAYER);
+    CU_ASSERT_EQUAL(switch_layer->header.object_type, PCEP_OBJ_TYPE_SWITCH_LAYER);
+    CU_ASSERT_EQUAL(switch_layer->header.encoded_object_length, 8);
+    CU_ASSERT_PTR_NULL(switch_layer->header.tlv_list);
+    CU_ASSERT_PTR_NOT_NULL(switch_layer->switch_layer_rows);
+    CU_ASSERT_EQUAL(switch_layer->switch_layer_rows->num_entries, 1);
+    struct pcep_object_switch_layer_row *switch_layer_row =
+            (struct pcep_object_switch_layer_row *) switch_layer->switch_layer_rows->head->data;
+    CU_ASSERT_EQUAL(switch_layer_row->lsp_encoding_type, 0);
+    CU_ASSERT_EQUAL(switch_layer_row->switching_type, 0);
+    CU_ASSERT_FALSE(switch_layer_row->flag_i);
+
+    /* ERO object */
+    obj_node = obj_node->next_node;
+    struct pcep_object_ro *ero = (struct pcep_object_ro *) obj_node->data;
+    CU_ASSERT_EQUAL(ero->header.object_class, PCEP_OBJ_CLASS_ERO);
+    CU_ASSERT_EQUAL(ero->header.object_type, PCEP_OBJ_TYPE_ERO);
+    CU_ASSERT_EQUAL(ero->header.encoded_object_length, 4);
+    CU_ASSERT_PTR_NULL(ero->header.tlv_list);
 
     pcep_msg_free_message_list(msg_list);
     close(fd);

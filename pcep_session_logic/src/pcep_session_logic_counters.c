@@ -81,6 +81,10 @@ void create_session_counters(pcep_session *session)
     create_subgroup_counter(rx_obj_subgroup, PCEP_OBJ_CLASS_LSP,         "Object LSP");
     create_subgroup_counter(rx_obj_subgroup, PCEP_OBJ_CLASS_SRP,         "Object SRP");
     create_subgroup_counter(rx_obj_subgroup, PCEP_OBJ_CLASS_VENDOR_INFO, "Object Vendor Info");
+    create_subgroup_counter(rx_obj_subgroup, PCEP_OBJ_CLASS_INTER_LAYER, "Object Inter-Layer");
+    create_subgroup_counter(rx_obj_subgroup, PCEP_OBJ_CLASS_SWITCH_LAYER, "Object Switch-Layer");
+    create_subgroup_counter(rx_obj_subgroup, PCEP_OBJ_CLASS_REQ_ADAP_CAP, "Object Requested Adap-Cap");
+    create_subgroup_counter(rx_obj_subgroup, PCEP_OBJ_CLASS_SERVER_IND,  "Object Server-Indication");
     create_subgroup_counter(rx_obj_subgroup, PCEP_OBJ_CLASS_ASSOCIATION, "Object Association");
     create_subgroup_counter(rx_obj_subgroup, PCEP_OBJ_CLASS_MAX,         "Object Unknown");
     create_subgroup_counter(rx_obj_subgroup, PCEP_OBJ_CLASS_MAX + 1,     "Object Erroneous");

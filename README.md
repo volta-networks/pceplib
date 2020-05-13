@@ -24,6 +24,7 @@ Additionally, the PCEPlib implements the following PCEP extensions:
 * [RFC 8281](https://tools.ietf.org/html/rfc8281) PCE initiated for PCE-Initiated LSP Setup
 * [RFC 8231](https://tools.ietf.org/html/rfc8231) Extensions for Stateful PCE
 * [RFC 8232](https://tools.ietf.org/html/rfc8232) Optimizations of Label Switched Path State Synchronization Procedures for a Stateful PCE
+* [RFC 8282](https://tools.ietf.org/html/rfc8282) Extensions to PCEP for Inter-Layer MPLS and GMPLS Traffic Engineering
 * [RFC 8408](https://tools.ietf.org/html/rfc8408) Conveying Path Setup Type in PCE Communication Protocol (PCEP) Messages
 * [draft-ietf-pce-segment-routing-07](https://tools.ietf.org/html/draft-ietf-pce-segment-routing-07),
   [draft-ietf-pce-segment-routing-16](https://tools.ietf.org/html/draft-ietf-pce-segment-routing-16),

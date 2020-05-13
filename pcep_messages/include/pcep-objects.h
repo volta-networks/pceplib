@@ -47,7 +47,11 @@ enum pcep_object_classes
     PCEP_OBJ_CLASS_LSP = 32,
     PCEP_OBJ_CLASS_SRP = 33,
     PCEP_OBJ_CLASS_VENDOR_INFO = 34,
-    PCEP_OBJ_CLASS_ASSOCIATION = 40,/*draft-ietf-pce-association-group-10*/
+    PCEP_OBJ_CLASS_INTER_LAYER = 36,  /* RFC 8282 */
+    PCEP_OBJ_CLASS_SWITCH_LAYER = 37, /* RFC 8282 */
+    PCEP_OBJ_CLASS_REQ_ADAP_CAP = 38, /* RFC 8282 */
+    PCEP_OBJ_CLASS_SERVER_IND = 39,   /* RFC 8282 */
+    PCEP_OBJ_CLASS_ASSOCIATION = 40,  /*draft-ietf-pce-association-group-10*/
     PCEP_OBJ_CLASS_MAX,
 };
 
@@ -73,6 +77,10 @@ enum pcep_object_types
     PCEP_OBJ_TYPE_NOTF = 1,
     PCEP_OBJ_TYPE_ERROR = 1,
     PCEP_OBJ_TYPE_CLOSE = 1,
+    PCEP_OBJ_TYPE_INTER_LAYER = 1,
+    PCEP_OBJ_TYPE_SWITCH_LAYER = 1,
+    PCEP_OBJ_TYPE_REQ_ADAP_CAP = 1,
+    PCEP_OBJ_TYPE_SERVER_IND = 1,
     PCEP_OBJ_TYPE_ASSOCIATION_IPV4 = 1,/*draft-ietf-pce-association-group-10*/
     PCEP_OBJ_TYPE_ASSOCIATION_IPV6 = 2,/*draft-ietf-pce-association-group-10*/
     PCEP_OBJ_TYPE_MAX = 2,
@@ -446,6 +454,83 @@ struct pcep_object_vendor_info
     uint32_t enterprise_specific_info;
 };
 
+/* RFC 8282 */
+#define OBJECT_INTER_LAYER_FLAG_I 0x01
+#define OBJECT_INTER_LAYER_FLAG_M 0x02
+#define OBJECT_INTER_LAYER_FLAG_T 0x04
+
+struct pcep_object_inter_layer
+{
+    struct pcep_object_header header;
+    bool flag_i;
+    bool flag_m;
+    bool flag_t;
+};
+
+/* RFC 8282 */
+#define OBJECT_SWITCH_LAYER_FLAG_I 0x01
+enum pcep_lsp_encoding_type
+{
+    /* Values taken from RFC 3471 as suggested by RFC 8282 */
+    PCEP_LSP_ENC_PACKET = 1,
+    PCEP_LSP_ENC_ETHERNET = 2,
+    PCEP_LSP_ENC_PDH = 3,
+    PCEP_LSP_ENC_RESERVED4 = 4,
+    PCEP_LSP_ENC_SDH_SONET = 5,
+    PCEP_LSP_ENC_RESERVED6 = 6,
+    PCEP_LSP_ENC_DIG_WRAPPER = 7,
+    PCEP_LSP_ENC_LAMBDA = 8,
+    PCEP_LSP_ENC_FIBER = 9,
+    PCEP_LSP_ENC_RESERVED10 = 10,
+    PCEP_LSP_ENC_FIBER_CHAN = 11
+};
+
+enum pcep_switching_capability
+{
+    /* Switching capability values taken from RFC 4203/3471 as suggested by RFC 8282 */
+    PCEP_SW_CAP_PSC1 = 1,    /* Packet-Switch Capable-1 (PSC-1) */
+    PCEP_SW_CAP_PSC2 = 2,
+    PCEP_SW_CAP_PSC3 = 3,
+    PCEP_SW_CAP_PSC4 = 4,
+    PCEP_SW_CAP_L2SC = 51,   /* Layer-2 Switch Capable */
+    PCEP_SW_CAP_TDM  = 100,  /* Time-Division-Multiplex Capable */
+    PCEP_SW_CAP_LSC  = 150,  /* Lambda-Switch Capable */
+    PCEP_SW_CAP_FSC  = 200   /* Fiber-Switch Capable */
+};
+
+struct pcep_object_switch_layer_row
+{
+    enum pcep_lsp_encoding_type lsp_encoding_type;
+    enum pcep_switching_capability switching_type;
+    bool flag_i;
+};
+
+struct pcep_object_switch_layer
+{
+    struct pcep_object_header header;
+    double_linked_list *switch_layer_rows; /* list of struct pcep_object_switch_layer_row */
+};
+
+/* RFC 8282
+ * Requested Adaptation capability */
+
+struct pcep_object_req_adap_cap
+{
+    struct pcep_object_header header;
+    enum pcep_switching_capability switching_capability;
+    enum pcep_lsp_encoding_type encoding;
+};
+
+/* RFC 8282 */
+
+struct pcep_object_server_indication
+{
+    struct pcep_object_header header;
+    enum pcep_switching_capability switching_capability;
+    enum pcep_lsp_encoding_type encoding;
+    /* This object is identical to req_adap_cap, except it allows TLVs */
+};
+
 /*
  * Common Route Object sub-object definitions
  * used by ERO, IRO, and RRO
@@ -599,6 +684,12 @@ struct pcep_object_lsp*                 pcep_obj_create_lsp         (uint32_t pl
                                                                      bool c_flag, bool a_flag, bool r_flag, bool s_flag, bool d_flag,
                                                                      double_linked_list *tlv_list);
 struct pcep_object_vendor_info*         pcep_obj_create_vendor_info (uint32_t enterprise_number, uint32_t enterprise_spec_info);
+struct pcep_object_inter_layer*         pcep_obj_create_inter_layer (bool flag_i, bool flag_m, bool flag_t);
+struct pcep_object_switch_layer*        pcep_obj_create_switch_layer(double_linked_list *switch_layer_rows);
+struct pcep_object_req_adap_cap*        pcep_obj_create_req_adap_cap(enum pcep_switching_capability sw_cap, enum pcep_lsp_encoding_type encoding);
+struct pcep_object_server_indication*   pcep_obj_create_server_indication(enum pcep_switching_capability sw_cap,
+                                                                          enum pcep_lsp_encoding_type encoding,
+                                                                          double_linked_list *tlv_list);
 
 /* Route Object (Explicit ero, Reported rro, and Include iro) functions
  * First, the sub-objects should be created and appended to a double_linked_list,

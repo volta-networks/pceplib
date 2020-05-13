@@ -33,6 +33,10 @@ uint16_t pcep_encode_obj_close(struct pcep_object_header *close, struct pcep_ver
 uint16_t pcep_encode_obj_srp(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_lsp(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_vendor_info(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
+uint16_t pcep_encode_obj_inter_layer(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
+uint16_t pcep_encode_obj_switch_layer(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
+uint16_t pcep_encode_obj_req_adap_cap(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
+uint16_t pcep_encode_obj_server_ind(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 typedef uint16_t (*object_encoder_funcptr)(struct pcep_object_header *, struct pcep_versioning *versioning, uint8_t *buf);
 
 #define MAX_OBJECT_ENCODER_INDEX 64
@@ -57,6 +61,10 @@ struct pcep_object_header *pcep_decode_obj_close(struct pcep_object_header *hdr,
 struct pcep_object_header *pcep_decode_obj_srp(struct pcep_object_header *hdr, uint8_t *buf);
 struct pcep_object_header *pcep_decode_obj_lsp(struct pcep_object_header *hdr, uint8_t *buf);
 struct pcep_object_header *pcep_decode_obj_vendor_info(struct pcep_object_header *hdr, uint8_t *buf);
+struct pcep_object_header *pcep_decode_obj_inter_layer(struct pcep_object_header *hdr, uint8_t *buf);
+struct pcep_object_header *pcep_decode_obj_switch_layer(struct pcep_object_header *hdr, uint8_t *buf);
+struct pcep_object_header *pcep_decode_obj_req_adap_cap(struct pcep_object_header *hdr, uint8_t *buf);
+struct pcep_object_header *pcep_decode_obj_server_ind(struct pcep_object_header *hdr, uint8_t *buf);
 typedef struct pcep_object_header* (*object_decoder_funcptr)(struct pcep_object_header *, uint8_t *buf);
 
 object_decoder_funcptr object_decoders[MAX_OBJECT_ENCODER_INDEX];
@@ -83,7 +91,13 @@ static uint8_t pcep_object_class_lengths[] = {
         0, 0, 0, 0, 0, 0, 0, 0,   /* Object classes 24 - 31 are not used */
         8,   /* PCEP_OBJ_CLASS_LSP = 32 */
         12,  /* PCEP_OBJ_CLASS_SRP = 33 */
-        12    /* PCEP_OBJ_CLASS_VENDOR_INFO = 34 */
+        12,  /* PCEP_OBJ_CLASS_VENDOR_INFO = 34 */
+        0,   /* Object class 35 unused */
+        0,   /* PCEP_OBJ_CLASS_INTER_LAYER = 36, cannot have TLVs */
+        0,   /* PCEP_OBJ_CLASS_SWITCH_LAYER = 37, cannot have TLVs */
+        0,   /* PCEP_OBJ_CLASS_REQ_ADAP_CAP = 38, cannot have TLVs*/
+        8,   /* PCEP_OBJ_CLASS_SERVER_IND = 39 */
+        0,   /* PCEP_OBJ_CLASS_ASSOCIATION = 40, cannot have TLVs */
 };
 
 
@@ -116,8 +130,12 @@ static void initialize_object_coders()
     object_encoders[PCEP_OBJ_CLASS_CLOSE]      =  pcep_encode_obj_close;
     object_encoders[PCEP_OBJ_CLASS_LSP]        =  pcep_encode_obj_lsp;
     object_encoders[PCEP_OBJ_CLASS_SRP]        =  pcep_encode_obj_srp;
-    object_encoders[PCEP_OBJ_CLASS_ASSOCIATION]=  pcep_encode_obj_association;
-    object_encoders[PCEP_OBJ_CLASS_VENDOR_INFO]=  pcep_encode_obj_vendor_info;
+    object_encoders[PCEP_OBJ_CLASS_ASSOCIATION] = pcep_encode_obj_association;
+    object_encoders[PCEP_OBJ_CLASS_INTER_LAYER] = pcep_encode_obj_inter_layer;
+    object_encoders[PCEP_OBJ_CLASS_SWITCH_LAYER]= pcep_encode_obj_switch_layer;
+    object_encoders[PCEP_OBJ_CLASS_REQ_ADAP_CAP]= pcep_encode_obj_req_adap_cap;
+    object_encoders[PCEP_OBJ_CLASS_SERVER_IND]  = pcep_encode_obj_server_ind;
+    object_encoders[PCEP_OBJ_CLASS_VENDOR_INFO] = pcep_encode_obj_vendor_info;
 
     /* Decoders */
     memset(object_decoders, 0, sizeof(object_decoder_funcptr) * MAX_OBJECT_ENCODER_INDEX);
@@ -137,8 +155,12 @@ static void initialize_object_coders()
     object_decoders[PCEP_OBJ_CLASS_CLOSE]      =  pcep_decode_obj_close;
     object_decoders[PCEP_OBJ_CLASS_LSP]        =  pcep_decode_obj_lsp;
     object_decoders[PCEP_OBJ_CLASS_SRP]        =  pcep_decode_obj_srp;
-    object_decoders[PCEP_OBJ_CLASS_ASSOCIATION]=  pcep_decode_obj_association;
-    object_decoders[PCEP_OBJ_CLASS_VENDOR_INFO]=  pcep_decode_obj_vendor_info;
+    object_decoders[PCEP_OBJ_CLASS_ASSOCIATION] = pcep_decode_obj_association;
+    object_decoders[PCEP_OBJ_CLASS_INTER_LAYER] = pcep_decode_obj_inter_layer;
+    object_decoders[PCEP_OBJ_CLASS_SWITCH_LAYER]= pcep_decode_obj_switch_layer;
+    object_decoders[PCEP_OBJ_CLASS_REQ_ADAP_CAP]= pcep_decode_obj_req_adap_cap;
+    object_decoders[PCEP_OBJ_CLASS_SERVER_IND]  = pcep_decode_obj_server_ind;
+    object_decoders[PCEP_OBJ_CLASS_VENDOR_INFO] = pcep_decode_obj_vendor_info;
 }
 
 /*
@@ -434,6 +456,60 @@ uint16_t pcep_encode_obj_vendor_info(struct pcep_object_header *hdr, struct pcep
     uint32_ptr[1] = htonl(obj->enterprise_specific_info);
 
     return LENGTH_2WORDS;
+}
+
+uint16_t pcep_encode_obj_inter_layer(struct pcep_object_header *hdr, struct pcep_versioning *versioning, uint8_t *obj_body_buf)
+{
+    struct pcep_object_inter_layer *obj = (struct pcep_object_inter_layer *) hdr;
+    obj_body_buf[3] = ((obj->flag_i == true ? OBJECT_INTER_LAYER_FLAG_I : 0x00) |
+                       (obj->flag_m == true ? OBJECT_INTER_LAYER_FLAG_M : 0x00) |
+                       (obj->flag_t == true ? OBJECT_INTER_LAYER_FLAG_T : 0x00));
+
+    return LENGTH_1WORD;
+}
+
+uint16_t pcep_encode_obj_switch_layer(struct pcep_object_header *hdr, struct pcep_versioning *versioning, uint8_t *obj_body_buf)
+{
+    struct pcep_object_switch_layer *obj = (struct pcep_object_switch_layer *) hdr;
+    uint8_t buf_index = 0;
+
+    double_linked_list_node *node = obj->switch_layer_rows->head;
+    while (node != NULL)
+    {
+        struct pcep_object_switch_layer_row *row = node->data;
+        if (row == NULL)
+        {
+            break;
+        }
+
+        obj_body_buf[buf_index] = row->lsp_encoding_type;
+        obj_body_buf[buf_index + 1] = row->switching_type;
+        obj_body_buf[buf_index + 3] = (row->flag_i == true ? OBJECT_SWITCH_LAYER_FLAG_I : 0x00);
+
+        buf_index += LENGTH_1WORD;
+    }
+
+    return buf_index;
+}
+
+uint16_t pcep_encode_obj_req_adap_cap(struct pcep_object_header *hdr, struct pcep_versioning *versioning, uint8_t *obj_body_buf)
+{
+    struct pcep_object_req_adap_cap *obj = (struct pcep_object_req_adap_cap *) hdr;
+
+    obj->switching_capability = obj_body_buf[0];
+    obj->encoding = obj_body_buf[1];
+
+    return LENGTH_1WORD;
+}
+
+uint16_t pcep_encode_obj_server_ind(struct pcep_object_header *hdr, struct pcep_versioning *versioning, uint8_t *obj_body_buf)
+{
+    struct pcep_object_server_indication *obj = (struct pcep_object_server_indication *) hdr;
+
+    obj->switching_capability = obj_body_buf[0];
+    obj->encoding = obj_body_buf[1];
+
+    return LENGTH_1WORD;
 }
 
 uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioning *versioning, uint8_t *obj_body_buf)
@@ -1003,6 +1079,61 @@ struct pcep_object_header *pcep_decode_obj_vendor_info(struct pcep_object_header
     struct pcep_object_vendor_info *obj = (struct pcep_object_vendor_info *) common_object_create(hdr, sizeof(struct pcep_object_vendor_info));
     obj->enterprise_number = ntohl(*((uint32_t *) (obj_buf)));
     obj->enterprise_specific_info = ntohl(*((uint32_t *) (obj_buf + 4)));
+
+    return (struct pcep_object_header *) obj;
+}
+
+struct pcep_object_header *pcep_decode_obj_inter_layer(struct pcep_object_header *hdr, uint8_t *obj_buf)
+{
+    struct pcep_object_inter_layer *obj = (struct pcep_object_inter_layer *) common_object_create(hdr, sizeof(struct pcep_object_inter_layer));
+    obj->flag_t = (obj_buf[3] & OBJECT_INTER_LAYER_FLAG_T);
+    obj->flag_m = (obj_buf[3] & OBJECT_INTER_LAYER_FLAG_M);
+    obj->flag_i = (obj_buf[3] & OBJECT_INTER_LAYER_FLAG_I);
+
+    return (struct pcep_object_header *) obj;
+}
+
+struct pcep_object_header *pcep_decode_obj_switch_layer(struct pcep_object_header *hdr, uint8_t *obj_buf)
+{
+    struct pcep_object_switch_layer *obj =
+            (struct pcep_object_switch_layer *) common_object_create(hdr, sizeof(struct pcep_object_switch_layer));
+    obj->switch_layer_rows = dll_initialize();
+    int num_rows = ((hdr->encoded_object_length - 4) / 4);
+    uint8_t buf_index = 0;
+
+    int i = 0;
+    for (; i < num_rows; i++)
+    {
+        struct pcep_object_switch_layer_row *row = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_object_switch_layer_row));
+        row->lsp_encoding_type = obj_buf[buf_index];
+        row->switching_type = obj_buf[buf_index + 1];
+        row->flag_i = (obj_buf[buf_index + 3] & OBJECT_SWITCH_LAYER_FLAG_I);
+        dll_append(obj->switch_layer_rows, row);
+
+        buf_index += LENGTH_1WORD;
+    }
+
+    return (struct pcep_object_header *) obj;
+}
+
+struct pcep_object_header *pcep_decode_obj_req_adap_cap(struct pcep_object_header *hdr, uint8_t *obj_buf)
+{
+    struct pcep_object_req_adap_cap *obj =
+            (struct pcep_object_req_adap_cap *) common_object_create(hdr, sizeof(struct pcep_object_req_adap_cap));
+
+    obj->switching_capability = obj_buf[0];
+    obj->encoding = obj_buf[1];
+
+    return (struct pcep_object_header *) obj;
+}
+
+struct pcep_object_header *pcep_decode_obj_server_ind(struct pcep_object_header *hdr, uint8_t *obj_buf)
+{
+    struct pcep_object_server_indication *obj =
+            (struct pcep_object_server_indication *) common_object_create(hdr, sizeof(struct pcep_object_server_indication));
+
+    obj->switching_capability = obj_buf[0];
+    obj->encoding = obj_buf[1];
 
     return (struct pcep_object_header *) obj;
 }
