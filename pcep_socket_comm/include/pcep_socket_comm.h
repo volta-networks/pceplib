@@ -9,6 +9,7 @@
 #define INCLUDE_PCEPSOCKETCOMM_H_
 
 #include <arpa/inet.h>  // sockaddr_in
+#include <netinet/tcp.h>
 #include <stdbool.h>
 
 #include "pcep_utils_queue.h"
@@ -63,6 +64,8 @@ typedef struct pcep_socket_comm_session_
     int received_bytes;
     bool close_after_write;
     void *external_socket_data; /* used for external socket infra */
+    char tcp_authentication_str[TCP_MD5SIG_MAXKEYLEN]; /* should be used with is_tcp_auth_md5 flag */
+    bool is_tcp_auth_md5; /* flag to distinguish between rfc 2385 (md5) and rfc 5925 (tcp-ao) */
 
 } pcep_socket_comm_session;
 
@@ -95,6 +98,8 @@ socket_comm_session_initialize(message_received_handler msg_rcv_handler,
                             struct in_addr *dst_ip,
                             short dst_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data);
 
 pcep_socket_comm_session *
@@ -105,6 +110,8 @@ socket_comm_session_initialize_ipv6(message_received_handler msg_rcv_handler,
                             struct in6_addr *dst_ip,
                             short dst_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data);
 
 pcep_socket_comm_session *
@@ -117,6 +124,8 @@ socket_comm_session_initialize_with_src(message_received_handler msg_rcv_handler
                             struct in_addr *dst_ip,
                             short dst_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data);
 
 pcep_socket_comm_session *
@@ -129,6 +138,8 @@ socket_comm_session_initialize_with_src_ipv6(message_received_handler msg_rcv_ha
                             struct in6_addr *dst_ip,
                             short dst_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data);
 
 bool socket_comm_session_teardown(pcep_socket_comm_session *socket_comm_session);

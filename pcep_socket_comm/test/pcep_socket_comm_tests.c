@@ -18,6 +18,8 @@ extern void test_pcep_socket_comm_initialize(void);
 extern void test_pcep_socket_comm_initialize_ipv6(void);
 extern void test_pcep_socket_comm_initialize_with_src(void);
 extern void test_pcep_socket_comm_initialize_with_src_ipv6(void);
+extern void test_pcep_socket_comm_initialize_tcpmd5(void);
+extern void test_pcep_socket_comm_initialize_ipv6_tcpmd5(void);
 extern void test_pcep_socket_comm_initialize_handlers(void);
 extern void test_pcep_socket_comm_session_not_initialized(void);
 extern void test_pcep_socket_comm_session_destroy(void);
@@ -59,6 +61,12 @@ int main(int argc, char **argv)
     CU_add_test(test_socket_comm_suite,
                 "test_pcep_socket_comm_initialize_with_src_ipv6",
                 test_pcep_socket_comm_initialize_with_src_ipv6);
+    CU_add_test(test_socket_comm_suite,
+                "test_pcep_socket_comm_initialize_tcpmd5",
+                test_pcep_socket_comm_initialize_tcpmd5);
+    CU_add_test(test_socket_comm_suite,
+                "test_pcep_socket_comm_initialize_ipv6_tcpmd5",
+                test_pcep_socket_comm_initialize_ipv6_tcpmd5);
     CU_add_test(test_socket_comm_suite,
                 "test_pcep_socket_comm_initialize_handlers",
                 test_pcep_socket_comm_initialize_handlers);

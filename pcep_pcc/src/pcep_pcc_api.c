@@ -82,6 +82,8 @@ bool destroy_pcc()
 pcep_configuration *create_default_pcep_configuration()
 {
     pcep_configuration *config = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_configuration));
+    memset(config, 0, sizeof(pcep_configuration));
+
     config->keep_alive_seconds = DEFAULT_CONFIG_KEEP_ALIVE;
     config->min_keep_alive_seconds = DEFAULT_MIN_CONFIG_KEEP_ALIVE;
     config->max_keep_alive_seconds = DEFAULT_MAX_CONFIG_KEEP_ALIVE;
@@ -110,6 +112,8 @@ pcep_configuration *create_default_pcep_configuration()
     config->src_ip.src_ipv4.s_addr = INADDR_ANY;
     config->is_src_ipv6 = false;
     config->pcep_msg_versioning = create_default_pcep_versioning();
+    config->tcp_authentication_str[0] = '\0';
+    config->is_tcp_auth_md5  = true;
 
     return config;
 }

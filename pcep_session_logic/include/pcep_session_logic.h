@@ -9,6 +9,7 @@
 #define INCLUDE_PCEPSESSIONLOGIC_H_
 
 #include <stdbool.h>
+#include <netinet/tcp.h>
 
 #include "pcep-encoding.h"
 #include "pcep_socket_comm.h"
@@ -100,6 +101,9 @@ typedef struct pcep_configuration_
     bool is_src_ipv6;
 
     struct pcep_versioning *pcep_msg_versioning;
+
+    char tcp_authentication_str[TCP_MD5SIG_MAXKEYLEN];
+    bool is_tcp_auth_md5; /* true: RFC 2385, false: RFC 5925 */
 
 } pcep_configuration;
 

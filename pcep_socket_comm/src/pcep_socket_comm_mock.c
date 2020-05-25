@@ -97,6 +97,8 @@ socket_comm_session_initialize(message_received_handler msg_rcv_handler,
                             struct in_addr *dst_ip,
                             short dst_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     mock_socket_metadata.socket_comm_session_initialize_times_called++;
@@ -127,6 +129,8 @@ socket_comm_session_initialize_ipv6(message_received_handler msg_rcv_handler,
                             struct in6_addr *dst_ip,
                             short dst_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     mock_socket_metadata.socket_comm_session_initialize_times_called++;
@@ -159,6 +163,8 @@ socket_comm_session_initialize_with_src(message_received_handler msg_rcv_handler
                             struct in_addr *dst_ip,
                             short dst_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     mock_socket_metadata.socket_comm_session_initialize_src_times_called++;
@@ -194,6 +200,8 @@ socket_comm_session_initialize_with_src_ipv6(message_received_handler msg_rcv_ha
                             struct in6_addr *dst_ip,
                             short dst_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     mock_socket_metadata.socket_comm_session_initialize_src_times_called++;

@@ -384,6 +384,8 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
             pce_ip,
             ((config->dst_pcep_port == 0) ? PCEP_TCP_PORT : config->dst_pcep_port),
             config->socket_connect_timeout_millis,
+            config->tcp_authentication_str,
+            config->is_tcp_auth_md5,
             session);
     if (session->socket_comm_session == NULL)
     {
@@ -425,6 +427,8 @@ pcep_session *create_pcep_session_ipv6(pcep_configuration *config, struct in6_ad
             pce_ip,
             ((config->dst_pcep_port == 0) ? PCEP_TCP_PORT : config->dst_pcep_port),
             config->socket_connect_timeout_millis,
+            config->tcp_authentication_str,
+            config->is_tcp_auth_md5,
             session);
     if (session->socket_comm_session == NULL)
     {

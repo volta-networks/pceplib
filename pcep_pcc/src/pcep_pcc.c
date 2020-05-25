@@ -1,5 +1,6 @@
 
 #include <netdb.h> // gethostbyname
+#include <netinet/tcp.h>
 #include <pthread.h>
 #include <signal.h>
 #include <stdio.h>
@@ -31,6 +32,7 @@ struct cmd_line_args
     char dest_ip_str[40];
     short src_tcp_port;
     short dest_tcp_port;
+    char tcp_md5_str[TCP_MD5SIG_MAXKEYLEN]; /* RFC 2385 */
     bool is_ipv6;
 };
 
@@ -48,13 +50,14 @@ struct cmd_line_args *get_cmdline_args(int argc, char *argv[])
      * -srcip localhost
      * -destip 192.168.0.2
      * -srcport 4999
-     * -dstport 4189 */
+     * -dstport 4189
+     * -tcpmd5 hello */
     int i = 1;
     for (; i < argc; ++i)
     {
         if (strcmp(argv[i], "-help") == 0)
         {
-            pcep_log(LOG_INFO, "pcep_pcc [-ipv6] [-srcip localhost] [-destip 192.168.0.1] [-srcport 4999] [-dstport 4189]");
+            pcep_log(LOG_INFO, "pcep_pcc [-ipv6] [-srcip localhost] [-destip 192.168.0.1] [-srcport 4999] [-dstport 4189] [-tcpmd5 authstr]");
             return NULL;
         }
         else if (strcmp(argv[i], "-ipv6") == 0)
@@ -110,6 +113,18 @@ struct cmd_line_args *get_cmdline_args(int argc, char *argv[])
             else
             {
                 pcep_log(LOG_ERR, "Invalid number of cmd_line_args for \"-destport\"");
+                return NULL;
+            }
+        }
+        else if(strcmp(argv[i], "-tcpmd5") == 0)
+        {
+            if (argc >= i + 2)
+            {
+                strncpy(cmd_line_args->tcp_md5_str, argv[++i], TCP_MD5SIG_MAXKEYLEN);
+            }
+            else
+            {
+                pcep_log(LOG_ERR, "Invalid number of cmd_line_args for \"-tcpmd5\"");
                 return NULL;
             }
         }
@@ -342,6 +357,8 @@ int main(int argc, char **argv)
     pcep_configuration *config = create_default_pcep_configuration();
     config->pcep_msg_versioning->draft_ietf_pce_segment_routing_07 = true;
     config->src_pcep_port = cmd_line_args->src_tcp_port;
+    config->is_tcp_auth_md5 = true;
+    strncpy(config->tcp_authentication_str, cmd_line_args->tcp_md5_str, TCP_MD5SIG_MAXKEYLEN);
 
     int af = (cmd_line_args->is_ipv6 ? AF_INET6 : AF_INET);
     struct hostent *host_info = gethostbyname2(cmd_line_args->dest_ip_str, af);

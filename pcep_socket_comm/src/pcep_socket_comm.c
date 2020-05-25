@@ -134,6 +134,8 @@ socket_comm_session_initialize_pre(message_received_handler message_handler,
                             message_sent_notifier msg_sent_notifier,
                             connection_except_notifier notifier,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     /* check that not both message handlers were set */
@@ -180,6 +182,11 @@ socket_comm_session_initialize_pre(message_received_handler message_handler,
     socket_comm_session->message_queue = queue_initialize();
     socket_comm_session->connect_timeout_millis = connect_timeout_millis;
     socket_comm_session->external_socket_data = NULL;
+    if (tcp_authentication_str != NULL)
+    {
+        socket_comm_session->is_tcp_auth_md5 = is_tcp_auth_md5;
+        strncpy(socket_comm_session->tcp_authentication_str, tcp_authentication_str, TCP_MD5SIG_MAXKEYLEN);
+    }
 
     return socket_comm_session;
 }
@@ -235,11 +242,14 @@ socket_comm_session_initialize(message_received_handler message_handler,
                             struct in_addr *dest_ip,
                             short dest_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     return socket_comm_session_initialize_with_src(
             message_handler, message_ready_handler, msg_sent_notifier, notifier,
-            NULL, 0, dest_ip, dest_port, connect_timeout_millis, session_data);
+            NULL, 0, dest_ip, dest_port, connect_timeout_millis, tcp_authentication_str,
+            is_tcp_auth_md5, session_data);
 }
 
 pcep_socket_comm_session *
@@ -250,11 +260,14 @@ socket_comm_session_initialize_ipv6(message_received_handler message_handler,
                             struct in6_addr *dest_ip,
                             short dest_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     return socket_comm_session_initialize_with_src_ipv6(
             message_handler, message_ready_handler, msg_sent_notifier, notifier,
-            NULL, 0, dest_ip, dest_port, connect_timeout_millis, session_data);
+            NULL, 0, dest_ip, dest_port, connect_timeout_millis, tcp_authentication_str,
+            is_tcp_auth_md5, session_data);
 }
 
 
@@ -268,6 +281,8 @@ socket_comm_session_initialize_with_src(message_received_handler message_handler
                             struct in_addr *dest_ip,
                             short dest_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     if (dest_ip == NULL)
@@ -282,6 +297,8 @@ socket_comm_session_initialize_with_src(message_received_handler message_handler
                     msg_sent_notifier,
                     notifier,
                     connect_timeout_millis,
+                    tcp_authentication_str,
+                    is_tcp_auth_md5,
                     session_data);
     if (socket_comm_session == NULL)
     {
@@ -329,6 +346,8 @@ socket_comm_session_initialize_with_src_ipv6(message_received_handler message_ha
                             struct in6_addr *dest_ip,
                             short dest_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     if (dest_ip == NULL)
@@ -343,6 +362,8 @@ socket_comm_session_initialize_with_src_ipv6(message_received_handler message_ha
                     msg_sent_notifier,
                     notifier,
                     connect_timeout_millis,
+                    tcp_authentication_str,
+                    is_tcp_auth_md5,
                     session_data);
     if (socket_comm_session == NULL)
     {
@@ -402,6 +423,33 @@ bool socket_comm_session_connect_tcp(pcep_socket_comm_session *socket_comm_sessi
     {
         pcep_log(LOG_WARNING, "Error fcntl(..., F_SETFL) [%d %s]", errno, strerror(errno));
         return false;
+    }
+
+    /* TCP authentication, currently only TCP MD5 RFC2385 is supported */
+    if (socket_comm_session->tcp_authentication_str != NULL &&
+        socket_comm_session->tcp_authentication_str[0] != '\0')
+    {
+        struct tcp_md5sig sig;
+        memset(&sig, 0, sizeof(sig));
+        if (socket_comm_session->is_ipv6)
+        {
+            memcpy(&sig.tcpm_addr,
+                   &socket_comm_session->dest_sock_addr.dest_sock_addr_ipv6,
+                   sizeof(struct sockaddr_in6));
+        }
+        else
+        {
+            memcpy(&sig.tcpm_addr,
+                   &socket_comm_session->dest_sock_addr.dest_sock_addr_ipv4,
+                   sizeof(struct sockaddr_in));
+        }
+        sig.tcpm_keylen = strlen(socket_comm_session->tcp_authentication_str);
+        memcpy(sig.tcpm_key, socket_comm_session->tcp_authentication_str, sig.tcpm_keylen);
+        if (setsockopt(socket_comm_session->socket_fd, IPPROTO_TCP, TCP_MD5SIG, &sig, sizeof(sig)) == -1)
+        {
+            pcep_log(LOG_ERR, "Failed to setsockopt(): [%d %s]", errno, strerror(errno));
+            return false;
+        }
     }
 
     int connect_result = 0;
