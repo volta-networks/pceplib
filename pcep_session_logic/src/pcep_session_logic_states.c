@@ -99,7 +99,15 @@ void enqueue_event(pcep_session *session, pcep_event_type event_type, struct pce
     event->message = message;
 
     pthread_mutex_lock(&session_logic_event_queue_->event_queue_mutex);
-    queue_enqueue(session_logic_event_queue_->event_queue, event);
+    if (session_logic_event_queue_->event_callback != NULL)
+    {
+        session_logic_event_queue_->event_callback(
+                session_logic_event_queue_->event_callback_data, event);
+    }
+    else
+    {
+        queue_enqueue(session_logic_event_queue_->event_queue, event);
+    }
     pthread_mutex_unlock(&session_logic_event_queue_->event_queue_mutex);
 }
 

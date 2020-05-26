@@ -133,6 +133,9 @@ bool run_session_logic_with_infra(pceplib_infra_config *infra_config)
         return false;
     }
 
+    session_logic_event_queue_->event_callback = infra_config->pcep_event_func;
+    session_logic_event_queue_->event_callback_data = infra_config->external_infra_data;
+
     if (!initialize_timers_external_infra(
             session_logic_timer_expire_handler,
             infra_config->external_infra_data,
