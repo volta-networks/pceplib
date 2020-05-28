@@ -24,7 +24,6 @@
 
 
 #include <errno.h>
-#include <malloc.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -32,6 +31,7 @@
 #include "pcep-tools.h"
 #include "pcep-encoding.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 static const char* message_type_strs[] = {
         "NOT_IMPLEMENTED0",
@@ -89,7 +89,7 @@ pcep_msg_read(int sock_fd)
     uint8_t buffer[PCEP_MAX_SIZE];
     uint16_t buffer_read = 0;
 
-    bzero(&buffer, PCEP_MAX_SIZE);
+    memset(&buffer, 0, PCEP_MAX_SIZE);
 
     ret = read(sock_fd, &buffer, PCEP_MAX_SIZE);
 
@@ -261,19 +261,25 @@ pcep_obj_free_tlv(struct pcep_object_tlv_header *tlv)
     case PCEP_OBJ_TLV_TYPE_SPEAKER_ENTITY_ID:
         if (((struct pcep_object_tlv_speaker_entity_identifier *) tlv)->speaker_entity_id_list != NULL)
         {
-            dll_destroy_with_data(((struct pcep_object_tlv_speaker_entity_identifier *) tlv)->speaker_entity_id_list);
+            dll_destroy_with_data_memtype(
+                    ((struct pcep_object_tlv_speaker_entity_identifier *) tlv)->speaker_entity_id_list,
+                    PCEPLIB_MESSAGES);
         }
         break;
 
     case PCEP_OBJ_TLV_TYPE_PATH_SETUP_TYPE_CAPABILITY:
         if (((struct pcep_object_tlv_path_setup_type_capability *) tlv)->pst_list != NULL)
         {
-            dll_destroy_with_data(((struct pcep_object_tlv_path_setup_type_capability *) tlv)->pst_list);
+            dll_destroy_with_data_memtype(
+                    ((struct pcep_object_tlv_path_setup_type_capability *) tlv)->pst_list,
+                    PCEPLIB_MESSAGES);
         }
 
         if (((struct pcep_object_tlv_path_setup_type_capability *) tlv)->sub_tlv_list != NULL)
         {
-            dll_destroy_with_data(((struct pcep_object_tlv_path_setup_type_capability *) tlv)->sub_tlv_list);
+            dll_destroy_with_data_memtype(
+                    ((struct pcep_object_tlv_path_setup_type_capability *) tlv)->sub_tlv_list,
+                    PCEPLIB_MESSAGES);
         }
         break;
 
@@ -281,7 +287,7 @@ pcep_obj_free_tlv(struct pcep_object_tlv_header *tlv)
         break;
     }
 
-    free(tlv);
+    pceplib_free(PCEPLIB_MESSAGES, tlv);
 }
 
 void
@@ -316,11 +322,15 @@ pcep_obj_free_object(struct pcep_object_header *obj)
                 {
                     if (((struct pcep_ro_subobj_sr *) ro_subobj)->nai_list != NULL)
                     {
-                        dll_destroy_with_data(((struct pcep_ro_subobj_sr *) ro_subobj)->nai_list);
+                        dll_destroy_with_data_memtype(
+                                ((struct pcep_ro_subobj_sr *) ro_subobj)->nai_list,
+                                PCEPLIB_MESSAGES);
                     }
                 }
             }
-            dll_destroy_with_data(((struct pcep_object_ro *) obj)->sub_objects);
+            dll_destroy_with_data_memtype(
+                    ((struct pcep_object_ro *) obj)->sub_objects,
+                    PCEPLIB_MESSAGES);
         }
     }
     break;
@@ -328,7 +338,9 @@ pcep_obj_free_object(struct pcep_object_header *obj)
     case PCEP_OBJ_CLASS_SVEC:
         if (((struct pcep_object_svec *) obj)->request_id_list != NULL)
         {
-            dll_destroy_with_data(((struct pcep_object_svec *) obj)->request_id_list);
+            dll_destroy_with_data_memtype(
+                    ((struct pcep_object_svec *) obj)->request_id_list,
+                    PCEPLIB_MESSAGES);
         }
         break;
 
@@ -343,7 +355,7 @@ pcep_obj_free_object(struct pcep_object_header *obj)
         break;
     }
 
-    free(obj);
+    pceplib_free(PCEPLIB_MESSAGES, obj);
 }
 
 void
@@ -363,15 +375,15 @@ pcep_msg_free_message(struct pcep_message *message)
 
     if (message->msg_header != NULL)
     {
-        free(message->msg_header);
+        pceplib_free(PCEPLIB_MESSAGES, message->msg_header);
     }
 
     if (message->encoded_message != NULL)
     {
-        free(message->encoded_message);
+        pceplib_free(PCEPLIB_MESSAGES, message->encoded_message);
     }
 
-    free(message);
+    pceplib_free(PCEPLIB_MESSAGES, message);
 }
 
 void

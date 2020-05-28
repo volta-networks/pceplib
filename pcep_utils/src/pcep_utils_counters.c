@@ -33,6 +33,7 @@
 
 #include "pcep_utils_counters.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 struct counters_group *create_counters_group(const char *group_name, uint16_t max_subgroups)
 {
@@ -49,9 +50,9 @@ struct counters_group *create_counters_group(const char *group_name, uint16_t ma
         return NULL;
     }
 
-    struct counters_group *group = malloc(sizeof(struct counters_group));
+    struct counters_group *group = pceplib_malloc(PCEPLIB_INFRA, sizeof(struct counters_group));
     memset(group, 0, sizeof(struct counters_group));
-    group->subgroups = malloc(sizeof(struct counters_subgroup*) * (max_subgroups + 1));
+    group->subgroups = pceplib_malloc(PCEPLIB_INFRA, sizeof(struct counters_subgroup*) * (max_subgroups + 1));
     memset(group->subgroups, 0, sizeof(struct counters_subgroup*) * (max_subgroups + 1));
 
     strcpy(group->counters_group_name, group_name);
@@ -83,9 +84,9 @@ struct counters_subgroup *create_counters_subgroup(const char *subgroup_name, ui
         return NULL;
     }
 
-    struct counters_subgroup *subgroup = malloc(sizeof(struct counters_subgroup));
+    struct counters_subgroup *subgroup = pceplib_malloc(PCEPLIB_INFRA, sizeof(struct counters_subgroup));
     memset(subgroup, 0, sizeof(struct counters_subgroup));
-    subgroup->counters = malloc(sizeof(struct counter*) * (max_counters + 1));
+    subgroup->counters = pceplib_malloc(PCEPLIB_INFRA, sizeof(struct counter*) * (max_counters + 1));
     memset(subgroup->counters, 0, sizeof(struct counter*) * (max_counters + 1));
 
     strcpy(subgroup->counters_subgroup_name, subgroup_name);
@@ -178,7 +179,7 @@ bool create_subgroup_counter(struct counters_subgroup *subgroup, uint32_t counte
         return NULL;
     }
 
-    struct counter *counter = malloc(sizeof(struct counter));
+    struct counter *counter = pceplib_malloc(PCEPLIB_INFRA, sizeof(struct counter));
     memset(counter, 0, sizeof(struct counter));
     counter->counter_id = counter_id;
     strcpy(counter->counter_name, counter_name);
@@ -207,8 +208,8 @@ bool delete_counters_group(struct counters_group *group)
         }
     }
 
-    free(group->subgroups);
-    free(group);
+    pceplib_free(PCEPLIB_INFRA, group->subgroups);
+    pceplib_free(PCEPLIB_INFRA, group);
 
     return true;
 }
@@ -227,12 +228,12 @@ bool delete_counters_subgroup(struct counters_subgroup *subgroup)
         struct counter *counter = subgroup->counters[i];
         if (counter != NULL)
         {
-            free(counter);
+            pceplib_free(PCEPLIB_INFRA, counter);
         }
     }
 
-    free(subgroup->counters);
-    free(subgroup);
+    pceplib_free(PCEPLIB_INFRA, subgroup->counters);
+    pceplib_free(PCEPLIB_INFRA, subgroup);
 
     return true;
 }

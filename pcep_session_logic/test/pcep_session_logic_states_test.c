@@ -58,13 +58,13 @@ void destroy_message_for_test();
 void pcep_session_logic_states_test_setup()
 {
     session_logic_handle_ = malloc(sizeof(pcep_session_logic_handle));
-    bzero(session_logic_handle_, sizeof(pcep_session_logic_handle));
+    memset(session_logic_handle_, 0, sizeof(pcep_session_logic_handle));
 
     session_logic_event_queue_ = malloc(sizeof(pcep_event_queue));
-    bzero(session_logic_event_queue_, sizeof(pcep_event_queue));
+    memset(session_logic_event_queue_, 0, sizeof(pcep_event_queue));
     session_logic_event_queue_->event_queue = queue_initialize();
 
-    bzero(&session, sizeof(pcep_session));
+    memset(&session, 0, sizeof(pcep_session));
     session.pcc_config.keep_alive_seconds = 5;
     session.pcc_config.min_keep_alive_seconds = 1;
     session.pcc_config.max_keep_alive_seconds = 10;
@@ -75,7 +75,7 @@ void pcep_session_logic_states_test_setup()
     memcpy(&session.pce_config, &session.pcc_config, sizeof(pcep_configuration));
     session.num_unknown_messages_time_queue = queue_initialize();
 
-    bzero(&event, sizeof(pcep_session_event));
+    memset(&event, 0, sizeof(pcep_session_event));
     event.socket_closed = false;
     event.session = &session;
 
@@ -104,10 +104,10 @@ void create_message_for_test(uint8_t msg_type, bool free_msg_list_at_teardown, b
     msg_enqueued = was_msg_enqueued;
 
     message = malloc(sizeof(struct pcep_message));
-    bzero(message, sizeof(struct pcep_message));
+    memset(message, 0, sizeof(struct pcep_message));
 
     message->msg_header = malloc(sizeof(struct pcep_message_header));
-    bzero(message->msg_header, sizeof(struct pcep_message_header));
+    memset(message->msg_header, 0, sizeof(struct pcep_message_header));
     message->obj_list = dll_initialize();
     message->msg_header->type = msg_type;
 

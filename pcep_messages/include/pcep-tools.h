@@ -1,5 +1,5 @@
 /*
- * This file is part of the PCEPlib, a PCEP library.
+ * This file is part of the PCEPlib, a PCEP protocol library.
  *
  * Copyright (C) 2020 Volta Networks https://voltanet.io/
  *

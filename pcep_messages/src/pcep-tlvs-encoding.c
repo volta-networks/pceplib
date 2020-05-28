@@ -33,6 +33,7 @@
 #include "pcep-encoding.h"
 #include "pcep-tlvs.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 void write_tlv_header(struct pcep_object_tlv_header *tlv_hdr, uint16_t tlv_length, struct pcep_versioning *versioning, uint8_t *buf);
 
@@ -487,7 +488,7 @@ uint16_t pcep_encode_tlv_arbitrary(struct pcep_object_tlv_header *tlv, struct pc
 
 void pcep_decode_tlv_hdr(uint8_t *tlv_buf, struct pcep_object_tlv_header *tlv_hdr)
 {
-    bzero(tlv_hdr, sizeof(struct pcep_object_tlv_header));
+    memset(tlv_hdr, 0, sizeof(struct pcep_object_tlv_header));
 
     uint16_t *uint16_ptr = (uint16_t *) tlv_buf;
     tlv_hdr->type = ntohs(uint16_ptr[0]);
@@ -521,7 +522,7 @@ struct pcep_object_tlv_header *pcep_decode_tlv(uint8_t *tlv_buf)
 
 static struct pcep_object_tlv_header *common_tlv_create(struct pcep_object_tlv_header *hdr, uint16_t new_tlv_length)
 {
-    struct pcep_object_tlv_header *new_tlv = malloc(new_tlv_length);
+    struct pcep_object_tlv_header *new_tlv = pceplib_malloc(PCEPLIB_MESSAGES, new_tlv_length);
     memset(new_tlv, 0, new_tlv_length);
     memcpy(new_tlv, hdr, sizeof(struct pcep_object_tlv_header));
 
@@ -685,7 +686,7 @@ struct pcep_object_tlv_header *pcep_decode_tlv_speaker_entity_id(struct pcep_obj
     int i;
     for (i = 0; i < num_entity_ids; i++)
     {
-        uint32_t *entity_id = malloc(sizeof(uint32_t));
+        uint32_t *entity_id = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(uint32_t));
         *entity_id = ntohl(uint32_ptr[i]);
         dll_append(tlv->speaker_entity_id_list, entity_id);
     }
@@ -731,7 +732,7 @@ struct pcep_object_tlv_header *pcep_decode_tlv_path_setup_type_capability(struct
     tlv->pst_list = dll_initialize();
     for (i = 0; i < num_psts; i++)
     {
-        uint8_t *pst = malloc(sizeof(uint8_t));
+        uint8_t *pst = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(uint8_t));
         *pst = tlv_body_buf[i + LENGTH_1WORD];
         dll_append(tlv->pst_list, pst);
     }

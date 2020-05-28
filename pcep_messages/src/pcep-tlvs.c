@@ -27,20 +27,19 @@
  * This is the implementation of a High Level PCEP message object TLV API.
  */
 
-#include <malloc.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
-#include <strings.h>
 #include <unistd.h>
 
 #include "pcep-tlvs.h"
 #include "pcep-encoding.h"
+#include "pcep_utils_memory.h"
 
 static struct pcep_object_tlv_header* pcep_tlv_common_create(enum pcep_object_tlv_types type, uint16_t size)
 {
-    struct pcep_object_tlv_header *tlv = malloc(size);
-    bzero(tlv, size);
+    struct pcep_object_tlv_header *tlv = pceplib_malloc(PCEPLIB_MESSAGES, size);
+    memset(tlv, 0, size);
     tlv->type = type;
 
     return tlv;

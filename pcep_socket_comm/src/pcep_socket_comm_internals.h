@@ -47,6 +47,9 @@ typedef struct pcep_socket_comm_handle_
     ordered_list_handle *write_list;
     ordered_list_handle *session_list;
     int num_active_sessions;
+    void *external_infra_data;
+    ext_socket_write socket_write_func;
+    ext_socket_read socket_read_func;
 
 } pcep_socket_comm_handle;
 

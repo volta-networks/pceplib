@@ -22,8 +22,6 @@
  *
  */
 
-
-#include <malloc.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -34,6 +32,7 @@
 #include "pcep_session_logic_internals.h"
 #include "pcep_timers.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 
 /* Session Logic Handle managed in pcep_session_logic.c */
@@ -108,8 +107,8 @@ void enqueue_event(pcep_session *session, pcep_event_type event_type, struct pce
         return;
     }
 
-    pcep_event *event = malloc(sizeof(pcep_event));
-    bzero(event, sizeof(pcep_event));
+    pcep_event *event = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_event));
+    memset(event, 0, sizeof(pcep_event));
 
     event->session = session;
     event->event_type = event_type;
@@ -117,7 +116,15 @@ void enqueue_event(pcep_session *session, pcep_event_type event_type, struct pce
     event->message = message;
 
     pthread_mutex_lock(&session_logic_event_queue_->event_queue_mutex);
-    queue_enqueue(session_logic_event_queue_->event_queue, event);
+    if (session_logic_event_queue_->event_callback != NULL)
+    {
+        session_logic_event_queue_->event_callback(
+                session_logic_event_queue_->event_callback_data, event);
+    }
+    else
+    {
+        queue_enqueue(session_logic_event_queue_->event_queue, event);
+    }
     pthread_mutex_unlock(&session_logic_event_queue_->event_queue_mutex);
 }
 
@@ -317,7 +324,7 @@ bool handle_pcep_open(pcep_session *session, struct pcep_message *open_msg)
             /* Clone the object here, since the encapsulating message will
              * be deleted in handle_socket_comm_event() most likely before
              * this error message is sent */
-            struct pcep_object_open *cloned_open_object = malloc(sizeof(struct pcep_object_open));
+            struct pcep_object_open *cloned_open_object = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_object_open));
             memcpy(cloned_open_object, open_object, sizeof(struct pcep_object_open));
             open_object->header.tlv_list = NULL;
             cloned_open_object->header.encoded_object = NULL;
@@ -526,7 +533,7 @@ void increment_unknown_message(pcep_session *session)
      * greater than MAX-UNKNOWN-MESSAGES unknown message requests per
      * minute, the PCC/PCE MUST send a PCEP CLOSE message */
 
-    time_t *unknown_message_time = malloc(sizeof(time_t));
+    time_t *unknown_message_time = pceplib_malloc(PCEPLIB_INFRA, sizeof(time_t));
     *unknown_message_time = time(NULL);
     time_t expire_time = *unknown_message_time + 60;
     queue_enqueue(session->num_unknown_messages_time_queue, unknown_message_time);
@@ -537,7 +544,7 @@ void increment_unknown_message(pcep_session *session)
     {
         if (*((time_t *) time_node->data) > expire_time)
         {
-            free(queue_dequeue(session->num_unknown_messages_time_queue));
+            pceplib_free(PCEPLIB_INFRA, queue_dequeue(session->num_unknown_messages_time_queue));
             time_node = session->num_unknown_messages_time_queue->head;
         }
         else

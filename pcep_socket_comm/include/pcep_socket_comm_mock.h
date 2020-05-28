@@ -37,6 +37,7 @@
 
 typedef struct mock_socket_comm_info_
 {
+    int socket_comm_initialize_external_infra_times_called;
     int socket_comm_session_initialize_times_called;
     int socket_comm_session_initialize_src_times_called;
     int socket_comm_session_teardown_times_called;

@@ -27,12 +27,10 @@
  * Public PCEPlib PCC API implementation
  */
 
-#include <malloc.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
-#include <strings.h>
 
 #include "pcep-messages.h"
 #include "pcep_pcc_api.h"
@@ -67,6 +65,23 @@ bool initialize_pcc()
 }
 
 
+bool initialize_pcc_infra(struct pceplib_infra_config *infra_config)
+{
+    if (infra_config == NULL)
+    {
+        return initialize_pcc();
+    }
+
+    if (!run_session_logic_with_infra(infra_config))
+    {
+        pcep_log(LOG_ERR, "Error initializing PCC session logic with infra.");
+        return false;
+    }
+
+    return true;
+}
+
+
 /* this function is blocking */
 bool initialize_pcc_wait_for_completion()
 {
@@ -88,7 +103,9 @@ bool destroy_pcc()
 
 pcep_configuration *create_default_pcep_configuration()
 {
-    pcep_configuration *config = malloc(sizeof(pcep_configuration));
+    pcep_configuration *config = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_configuration));
+    memset(config, 0, sizeof(pcep_configuration));
+
     config->keep_alive_seconds = DEFAULT_CONFIG_KEEP_ALIVE;
     config->min_keep_alive_seconds = DEFAULT_MIN_CONFIG_KEEP_ALIVE;
     config->max_keep_alive_seconds = DEFAULT_MAX_CONFIG_KEEP_ALIVE;
@@ -117,6 +134,8 @@ pcep_configuration *create_default_pcep_configuration()
     config->src_ip.src_ipv4.s_addr = INADDR_ANY;
     config->is_src_ipv6 = false;
     config->pcep_msg_versioning = create_default_pcep_versioning();
+    config->tcp_authentication_str[0] = '\0';
+    config->is_tcp_auth_md5  = true;
 
     return config;
 }
@@ -124,7 +143,7 @@ pcep_configuration *create_default_pcep_configuration()
 void destroy_pcep_configuration(pcep_configuration *config)
 {
     destroy_pcep_versioning(config->pcep_msg_versioning);
-    free(config);
+    pceplib_free(PCEPLIB_INFRA, config);
 }
 
 pcep_session *connect_pce(pcep_configuration *config, struct in_addr *pce_ip)
@@ -229,7 +248,7 @@ void destroy_pcep_event(struct pcep_event *event)
         pcep_msg_free_message(event->message);
     }
 
-    free(event);
+    pceplib_free(PCEPLIB_INFRA, event);
 }
 
 const char *get_event_type_str(int event_type)

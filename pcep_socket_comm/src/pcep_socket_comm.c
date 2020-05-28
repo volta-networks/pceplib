@@ -30,11 +30,9 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <malloc.h>
 #include <netdb.h> // gethostbyname
 #include <stdbool.h>
 #include <string.h>
-#include <strings.h>
 #include <unistd.h>  // close
 
 #include <arpa/inet.h>  // sockets etc.
@@ -44,6 +42,7 @@
 #include "pcep_socket_comm.h"
 #include "pcep_socket_comm_internals.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 #include "pcep_utils_ordered_list.h"
 #include "pcep_utils_queue.h"
 
@@ -59,6 +58,55 @@ int socket_fd_node_compare(void *list_entry, void *new_entry)
 }
 
 
+bool initialize_socket_comm_pre()
+{
+    socket_comm_handle_ = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_socket_comm_handle));
+    memset(socket_comm_handle_, 0, sizeof(pcep_socket_comm_handle));
+
+    socket_comm_handle_->active = true;
+    socket_comm_handle_->num_active_sessions = 0;
+    socket_comm_handle_->read_list = ordered_list_initialize(socket_fd_node_compare);
+    socket_comm_handle_->write_list = ordered_list_initialize(socket_fd_node_compare);
+    socket_comm_handle_->session_list = ordered_list_initialize(pointer_compare_function);
+    FD_ZERO(&socket_comm_handle_->except_master_set);
+    FD_ZERO(&socket_comm_handle_->read_master_set);
+    FD_ZERO(&socket_comm_handle_->write_master_set);
+
+    if (pthread_mutex_init(&(socket_comm_handle_->socket_comm_mutex), NULL) != 0)
+    {
+        pcep_log(LOG_ERR, "Cannot initialize socket_comm mutex.");
+        pceplib_free(PCEPLIB_INFRA, socket_comm_handle_);
+        socket_comm_handle_ = NULL;
+
+        return false;
+    }
+
+    return true;
+}
+
+bool initialize_socket_comm_external_infra(
+        void *external_infra_data,
+        ext_socket_read socket_read_cb,
+        ext_socket_write socket_write_cb)
+{
+    if (socket_comm_handle_ != NULL)
+    {
+        /* already initialized */
+        return true;
+    }
+
+    if (initialize_socket_comm_pre() == false)
+    {
+        return false;
+    }
+
+    socket_comm_handle_->external_infra_data  = external_infra_data;
+    socket_comm_handle_->socket_write_func    = socket_write_cb;
+    socket_comm_handle_->socket_read_func     = socket_read_cb;
+
+    return true;
+}
+
 bool initialize_socket_comm_loop()
 {
     if (socket_comm_handle_ != NULL)
@@ -67,21 +115,12 @@ bool initialize_socket_comm_loop()
         return true;
     }
 
-    socket_comm_handle_ = malloc(sizeof(pcep_socket_comm_handle));
-    bzero(socket_comm_handle_, sizeof(pcep_socket_comm_handle));
-
-    socket_comm_handle_->active = true;
-    socket_comm_handle_->num_active_sessions = 0;
-    socket_comm_handle_->read_list = ordered_list_initialize(socket_fd_node_compare);
-    socket_comm_handle_->write_list = ordered_list_initialize(socket_fd_node_compare);
-    socket_comm_handle_->session_list = ordered_list_initialize(pointer_compare_function);
-
-    if (pthread_mutex_init(&(socket_comm_handle_->socket_comm_mutex), NULL) != 0)
+    if (initialize_socket_comm_pre() == false)
     {
-        pcep_log(LOG_ERR, "Cannot initialize socket_comm mutex.");
         return false;
     }
 
+    /* Launch socket comm loop pthread */
     if(pthread_create(&(socket_comm_handle_->socket_comm_thread), NULL, socket_comm_loop, socket_comm_handle_))
     {
         pcep_log(LOG_ERR, "Cannot initialize socket_comm thread.");
@@ -102,7 +141,7 @@ bool destroy_socket_comm_loop()
     ordered_list_destroy(socket_comm_handle_->session_list);
     pthread_mutex_destroy(&(socket_comm_handle_->socket_comm_mutex));
 
-    free(socket_comm_handle_);
+    pceplib_free(PCEPLIB_INFRA, socket_comm_handle_);
     socket_comm_handle_ = NULL;
 
     return true;
@@ -115,6 +154,8 @@ socket_comm_session_initialize_pre(message_received_handler message_handler,
                             message_sent_notifier msg_sent_notifier,
                             connection_except_notifier notifier,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     /* check that not both message handlers were set */
@@ -140,8 +181,8 @@ socket_comm_session_initialize_pre(message_received_handler message_handler,
 
     /* initialize everything for a pcep_session socket_comm */
 
-    pcep_socket_comm_session *socket_comm_session = malloc(sizeof(pcep_socket_comm_session));
-    bzero(socket_comm_session, sizeof(pcep_socket_comm_session));
+    pcep_socket_comm_session *socket_comm_session = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_socket_comm_session));
+    memset(socket_comm_session, 0, sizeof(pcep_socket_comm_session));
 
     socket_comm_session->socket_fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
     if (socket_comm_session->socket_fd == -1) {
@@ -160,6 +201,12 @@ socket_comm_session_initialize_pre(message_received_handler message_handler,
     socket_comm_session->conn_except_notifier = notifier;
     socket_comm_session->message_queue = queue_initialize();
     socket_comm_session->connect_timeout_millis = connect_timeout_millis;
+    socket_comm_session->external_socket_data = NULL;
+    if (tcp_authentication_str != NULL)
+    {
+        socket_comm_session->is_tcp_auth_md5 = is_tcp_auth_md5;
+        strncpy(socket_comm_session->tcp_authentication_str, tcp_authentication_str, TCP_MD5SIG_MAXKEYLEN);
+    }
 
     return socket_comm_session;
 }
@@ -215,11 +262,14 @@ socket_comm_session_initialize(message_received_handler message_handler,
                             struct in_addr *dest_ip,
                             short dest_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     return socket_comm_session_initialize_with_src(
             message_handler, message_ready_handler, msg_sent_notifier, notifier,
-            NULL, 0, dest_ip, dest_port, connect_timeout_millis, session_data);
+            NULL, 0, dest_ip, dest_port, connect_timeout_millis, tcp_authentication_str,
+            is_tcp_auth_md5, session_data);
 }
 
 pcep_socket_comm_session *
@@ -230,11 +280,14 @@ socket_comm_session_initialize_ipv6(message_received_handler message_handler,
                             struct in6_addr *dest_ip,
                             short dest_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     return socket_comm_session_initialize_with_src_ipv6(
             message_handler, message_ready_handler, msg_sent_notifier, notifier,
-            NULL, 0, dest_ip, dest_port, connect_timeout_millis, session_data);
+            NULL, 0, dest_ip, dest_port, connect_timeout_millis, tcp_authentication_str,
+            is_tcp_auth_md5, session_data);
 }
 
 
@@ -248,6 +301,8 @@ socket_comm_session_initialize_with_src(message_received_handler message_handler
                             struct in_addr *dest_ip,
                             short dest_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     if (dest_ip == NULL)
@@ -262,6 +317,8 @@ socket_comm_session_initialize_with_src(message_received_handler message_handler
                     msg_sent_notifier,
                     notifier,
                     connect_timeout_millis,
+                    tcp_authentication_str,
+                    is_tcp_auth_md5,
                     session_data);
     if (socket_comm_session == NULL)
     {
@@ -309,6 +366,8 @@ socket_comm_session_initialize_with_src_ipv6(message_received_handler message_ha
                             struct in6_addr *dest_ip,
                             short dest_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     if (dest_ip == NULL)
@@ -323,6 +382,8 @@ socket_comm_session_initialize_with_src_ipv6(message_received_handler message_ha
                     msg_sent_notifier,
                     notifier,
                     connect_timeout_millis,
+                    tcp_authentication_str,
+                    is_tcp_auth_md5,
                     session_data);
     if (socket_comm_session == NULL)
     {
@@ -382,6 +443,33 @@ bool socket_comm_session_connect_tcp(pcep_socket_comm_session *socket_comm_sessi
     {
         pcep_log(LOG_WARNING, "Error fcntl(..., F_SETFL) [%d %s]", errno, strerror(errno));
         return false;
+    }
+
+    /* TCP authentication, currently only TCP MD5 RFC2385 is supported */
+    if (socket_comm_session->tcp_authentication_str != NULL &&
+        socket_comm_session->tcp_authentication_str[0] != '\0')
+    {
+        struct tcp_md5sig sig;
+        memset(&sig, 0, sizeof(sig));
+        if (socket_comm_session->is_ipv6)
+        {
+            memcpy(&sig.tcpm_addr,
+                   &socket_comm_session->dest_sock_addr.dest_sock_addr_ipv6,
+                   sizeof(struct sockaddr_in6));
+        }
+        else
+        {
+            memcpy(&sig.tcpm_addr,
+                   &socket_comm_session->dest_sock_addr.dest_sock_addr_ipv4,
+                   sizeof(struct sockaddr_in));
+        }
+        sig.tcpm_keylen = strlen(socket_comm_session->tcp_authentication_str);
+        memcpy(sig.tcpm_key, socket_comm_session->tcp_authentication_str, sig.tcpm_keylen);
+        if (setsockopt(socket_comm_session->socket_fd, IPPROTO_TCP, TCP_MD5SIG, &sig, sizeof(sig)) == -1)
+        {
+            pcep_log(LOG_ERR, "Failed to setsockopt(): [%d %s]", errno, strerror(errno));
+            return false;
+        }
     }
 
     int connect_result = 0;
@@ -451,6 +539,15 @@ bool socket_comm_session_connect_tcp(pcep_socket_comm_session *socket_comm_sessi
     /* once the TCP connection is open, we should be ready to read at any time */
     ordered_list_add_node(socket_comm_handle_->read_list, socket_comm_session);
     pthread_mutex_unlock(&(socket_comm_handle_->socket_comm_mutex));
+
+    if (socket_comm_handle_->socket_read_func != NULL)
+    {
+        socket_comm_handle_->socket_read_func(
+                socket_comm_handle_->external_infra_data,
+                &socket_comm_session->external_socket_data,
+                socket_comm_session->socket_fd,
+                socket_comm_handle_);
+    }
 
     return true;
 }
@@ -524,7 +621,7 @@ bool socket_comm_session_teardown(pcep_socket_comm_session *socket_comm_session)
             socket_comm_session->socket_fd,
             socket_comm_handle_->num_active_sessions);
 
-    free(socket_comm_session);
+    pceplib_free(PCEPLIB_INFRA, socket_comm_session);
 
     /* It would be nice to call destroy_socket_comm_loop() here if
      * socket_comm_handle_->num_active_sessions == 0, but this function
@@ -548,7 +645,7 @@ void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_sess
         return;
     }
 
-    pcep_socket_comm_queued_message *queued_message = malloc(sizeof(pcep_socket_comm_queued_message));
+    pcep_socket_comm_queued_message *queued_message = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(pcep_socket_comm_queued_message));
     queued_message->unmarshalled_message = message;
     queued_message->msg_length = msg_length;
     queued_message->free_after_send = free_after_send;
@@ -557,4 +654,13 @@ void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_sess
     queue_enqueue(socket_comm_session->message_queue, queued_message);
     ordered_list_add_node(socket_comm_handle_->write_list, socket_comm_session);
     pthread_mutex_unlock(&(socket_comm_handle_->socket_comm_mutex));
+
+    if (socket_comm_handle_->socket_write_func != NULL)
+    {
+        socket_comm_handle_->socket_write_func(
+                socket_comm_handle_->external_infra_data,
+                &socket_comm_session->external_socket_data,
+                socket_comm_session->socket_fd,
+                socket_comm_handle_);
+    }
 }

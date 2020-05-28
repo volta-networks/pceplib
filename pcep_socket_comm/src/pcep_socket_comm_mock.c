@@ -96,6 +96,16 @@ void verify_socket_comm_times_called(int initialized, int teardown, int connect,
  * Mock the socket_comm functions used by session_logic for Unit Testing
  */
 
+bool initialize_socket_comm_external_infra(
+        void *external_infra_data,
+        ext_socket_read socket_read_cb,
+        ext_socket_write socket_write_cb)
+{
+    mock_socket_metadata.socket_comm_initialize_external_infra_times_called++;
+
+    return true;
+}
+
 bool destroy_socket_comm_loop()
 {
     mock_socket_metadata.destroy_socket_comm_loop_times_called++;
@@ -111,12 +121,14 @@ socket_comm_session_initialize(message_received_handler msg_rcv_handler,
                             struct in_addr *dst_ip,
                             short dst_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     mock_socket_metadata.socket_comm_session_initialize_times_called++;
 
     pcep_socket_comm_session *comm_session = malloc(sizeof(pcep_socket_comm_session));
-    bzero(comm_session, sizeof(pcep_socket_comm_session));
+    memset(comm_session, 0, sizeof(pcep_socket_comm_session));
 
     comm_session->message_handler = msg_rcv_handler;
     comm_session->message_ready_to_read_handler = msg_ready_handler;
@@ -141,12 +153,14 @@ socket_comm_session_initialize_ipv6(message_received_handler msg_rcv_handler,
                             struct in6_addr *dst_ip,
                             short dst_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     mock_socket_metadata.socket_comm_session_initialize_times_called++;
 
     pcep_socket_comm_session *comm_session = malloc(sizeof(pcep_socket_comm_session));
-    bzero(comm_session, sizeof(pcep_socket_comm_session));
+    memset(comm_session, 0, sizeof(pcep_socket_comm_session));
 
     comm_session->message_handler = msg_rcv_handler;
     comm_session->message_ready_to_read_handler = msg_ready_handler;
@@ -173,12 +187,14 @@ socket_comm_session_initialize_with_src(message_received_handler msg_rcv_handler
                             struct in_addr *dst_ip,
                             short dst_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     mock_socket_metadata.socket_comm_session_initialize_src_times_called++;
 
     pcep_socket_comm_session *comm_session = malloc(sizeof(pcep_socket_comm_session));
-    bzero(comm_session, sizeof(pcep_socket_comm_session));
+    memset(comm_session, 0, sizeof(pcep_socket_comm_session));
 
     comm_session->message_handler = msg_rcv_handler;
     comm_session->message_ready_to_read_handler = msg_ready_handler;
@@ -208,12 +224,14 @@ socket_comm_session_initialize_with_src_ipv6(message_received_handler msg_rcv_ha
                             struct in6_addr *dst_ip,
                             short dst_port,
                             uint32_t connect_timeout_millis,
+                            const char *tcp_authentication_str,
+                            bool is_tcp_auth_md5,
                             void *session_data)
 {
     mock_socket_metadata.socket_comm_session_initialize_src_times_called++;
 
     pcep_socket_comm_session *comm_session = malloc(sizeof(pcep_socket_comm_session));
-    bzero(comm_session, sizeof(pcep_socket_comm_session));
+    memset(comm_session, 0, sizeof(pcep_socket_comm_session));
 
     comm_session->message_handler = msg_rcv_handler;
     comm_session->message_ready_to_read_handler = msg_ready_handler;

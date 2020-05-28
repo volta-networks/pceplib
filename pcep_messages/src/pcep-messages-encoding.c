@@ -36,6 +36,7 @@
 #include "pcep-objects.h"
 #include "pcep-tools.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 #define ANY_OBJECT 0
 #define NO_OBJECT -1
@@ -99,7 +100,7 @@ void pcep_encode_message(struct pcep_message *message, struct pcep_versioning *v
     if (message->obj_list == NULL)
     {
         *length_ptr = htons(message_length);
-        message->encoded_message = malloc(message_length);
+        message->encoded_message = pceplib_malloc(PCEPLIB_MESSAGES, message_length);
         memcpy(message->encoded_message, message_buffer, message_length);
         message->encoded_message_length = message_length;
 
@@ -114,7 +115,7 @@ void pcep_encode_message(struct pcep_message *message, struct pcep_versioning *v
     }
 
     *length_ptr = htons(message_length);
-    message->encoded_message = malloc(message_length);
+    message->encoded_message = pceplib_malloc(PCEPLIB_MESSAGES, message_length);
     memcpy(message->encoded_message, message_buffer, message_length);
     message->encoded_message_length = message_length;
 }
@@ -248,15 +249,15 @@ struct pcep_message *pcep_decode_message(uint8_t *msg_buf)
 
     pcep_decode_msg_header(msg_buf, &msg_version, &msg_flags, &msg_type, &msg_length);
 
-    struct pcep_message *msg = malloc(sizeof(struct pcep_message));
-    bzero(msg, sizeof(struct pcep_message));
+    struct pcep_message *msg = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_message));
+    memset(msg, 0, sizeof(struct pcep_message));
 
-    msg->msg_header = malloc(sizeof(struct pcep_message_header));
+    msg->msg_header = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_message_header));
     msg->msg_header->pcep_version = msg_version;
     msg->msg_header->type = msg_type;
 
     msg->obj_list = dll_initialize();
-    msg->encoded_message = malloc(msg_length);
+    msg->encoded_message = pceplib_malloc(PCEPLIB_MESSAGES, msg_length);
     memcpy(msg->encoded_message, msg_buf, msg_length);
     msg->encoded_message_length = msg_length;
 
@@ -290,7 +291,7 @@ struct pcep_message *pcep_decode_message(uint8_t *msg_buf)
 
 struct pcep_versioning *create_default_pcep_versioning()
 {
-    struct pcep_versioning *versioning = malloc(sizeof(struct pcep_versioning));
+    struct pcep_versioning *versioning = pceplib_malloc(PCEPLIB_INFRA, sizeof(struct pcep_versioning));
     memset(versioning, 0, sizeof(struct pcep_versioning));
 
     versioning->draft_ietf_pce_segment_routing_07 = false;
@@ -300,5 +301,5 @@ struct pcep_versioning *create_default_pcep_versioning()
 
 void destroy_pcep_versioning(struct pcep_versioning *versioning)
 {
-    free(versioning);
+    pceplib_free(PCEPLIB_INFRA, versioning);
 }

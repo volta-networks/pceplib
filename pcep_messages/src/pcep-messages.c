@@ -27,10 +27,8 @@
  * This is the implementation of a High Level PCEP message API.
  */
 
-#include <strings.h>
 #include <string.h>
 #include <arpa/inet.h>
-#include <malloc.h>
 #include <stdarg.h>
 #include <unistd.h>
 
@@ -39,13 +37,15 @@
 #include "pcep-objects.h"
 #include "pcep_utils_double_linked_list.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 static struct pcep_message*
 pcep_msg_create_common_with_obj_list(enum pcep_message_types msg_type, double_linked_list *obj_list)
 {
-    struct pcep_message *message = malloc(sizeof(struct pcep_message));
-    bzero(message, sizeof(struct pcep_message));
-    message->msg_header = malloc(sizeof(struct pcep_message_header));
+    struct pcep_message *message = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_message));
+    memset(message, 0, sizeof(struct pcep_message));
+    message->msg_header = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_message_header));
+    memset(message->msg_header, 0, sizeof(struct pcep_message_header));
     message->msg_header->type = msg_type;
     message->msg_header->pcep_version = PCEP_MESSAGE_HEADER_VERSION;
     message->obj_list = ((obj_list == NULL) ? dll_initialize() : obj_list);

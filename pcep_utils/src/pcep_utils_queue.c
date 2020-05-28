@@ -23,12 +23,12 @@
  */
 
 
-#include <malloc.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <strings.h>
+#include <string.h>
 
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 #include "pcep_utils_queue.h"
 
 queue_handle *queue_initialize()
@@ -40,8 +40,8 @@ queue_handle *queue_initialize()
 
 queue_handle *queue_initialize_with_size(unsigned int max_entries)
 {
-    queue_handle *handle = malloc(sizeof(queue_handle));
-    bzero(handle, sizeof(queue_handle));
+    queue_handle *handle = pceplib_malloc(PCEPLIB_INFRA, sizeof(queue_handle));
+    memset(handle, 0, sizeof(queue_handle));
     handle->max_entries = max_entries;
 
     return handle;
@@ -51,7 +51,7 @@ queue_handle *queue_initialize_with_size(unsigned int max_entries)
 void queue_destroy(queue_handle *handle)
 {
     while (queue_dequeue(handle) != NULL) {}
-    free(handle);
+    pceplib_free(PCEPLIB_INFRA, handle);
 }
 
 
@@ -60,10 +60,10 @@ void queue_destroy_with_data(queue_handle *handle)
     void *data = queue_dequeue(handle);
     while (data != NULL)
     {
-        free(data);
+        pceplib_free(PCEPLIB_INFRA, data);
         data = queue_dequeue(handle);
     }
-    free(handle);
+    pceplib_free(PCEPLIB_INFRA, handle);
 }
 
 
@@ -82,7 +82,8 @@ queue_node *queue_enqueue(queue_handle *handle, void *data)
         return NULL;
     }
 
-    queue_node *new_node = malloc(sizeof(queue_node));
+    queue_node *new_node = pceplib_malloc(PCEPLIB_INFRA, sizeof(queue_node));
+    memset(new_node, 0, sizeof(queue_node));
     new_node->data = data;
     new_node->next_node = NULL;
 
@@ -129,7 +130,7 @@ void *queue_dequeue(queue_handle *handle)
         handle->head = node->next_node;
     }
 
-    free(node);
+    pceplib_free(PCEPLIB_INFRA, node);
 
     return node_data;
 }

@@ -27,12 +27,15 @@
 #define INCLUDE_PCEPSESSIONLOGIC_H_
 
 #include <stdbool.h>
+#include <netinet/tcp.h>
 
 #include "pcep-encoding.h"
 #include "pcep_socket_comm.h"
 #include "pcep-objects.h"
 #include "pcep-tools.h"
+#include "pcep_timers.h"
 #include "pcep_utils_queue.h"
+#include "pcep_utils_memory.h"
 
 #define PCEP_TCP_PORT 4189
 
@@ -117,6 +120,9 @@ typedef struct pcep_configuration_
 
     struct pcep_versioning *pcep_msg_versioning;
 
+    char tcp_authentication_str[TCP_MD5SIG_MAXKEYLEN];
+    bool is_tcp_auth_md5; /* true: RFC 2385, false: RFC 5925 */
+
 } pcep_configuration;
 
 
@@ -188,16 +194,48 @@ typedef struct pcep_event
 
 } pcep_event;
 
+typedef void (*pceplib_pcep_event_callback)(void *cb_data, pcep_event *);
+
 
 typedef struct pcep_event_queue
 {
+    /* The event_queue and event_callback are mutually exclusive.
+     * If the event_callback is configured, then the event_queue
+     * will not be used. */
     queue_handle *event_queue;
     pthread_mutex_t event_queue_mutex;
+    pceplib_pcep_event_callback event_callback;
+    void *event_callback_data;
 
 } pcep_event_queue;
 
 
+typedef struct pceplib_infra_config
+{
+    /* Memory infrastructure */
+    void *pceplib_infra_mt;
+    void *pceplib_messages_mt;
+    pceplib_malloc_func malloc_func;
+    pceplib_calloc_func calloc_func;
+    pceplib_realloc_func realloc_func;
+    pceplib_strdup_func strdup_func;
+    pceplib_free_func free_func;
+
+    /* External Timer and Socket infrastructure */
+    void *external_infra_data;
+    ext_timer_create timer_create_func;
+    ext_timer_cancel timer_cancel_func;
+    ext_socket_write socket_write_func;
+    ext_socket_read socket_read_func;
+
+    /* External pcep_event infrastructure */
+    pceplib_pcep_event_callback pcep_event_func;
+
+} pceplib_infra_config;
+
+
 bool run_session_logic();
+bool run_session_logic_with_infra(pceplib_infra_config *infra_config);
 
 bool run_session_logic_wait_for_completion();
 

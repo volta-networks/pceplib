@@ -91,7 +91,7 @@ void test_create_destroy_pcep_session()
     pcep_configuration config;
     struct in_addr pce_ip;
 
-    bzero(&config, sizeof(pcep_configuration));
+    memset(&config, 0, sizeof(pcep_configuration));
     config.keep_alive_seconds = 5;
     config.dead_timer_seconds = 5;
     config.request_time_seconds = 5;
@@ -124,7 +124,7 @@ void test_create_destroy_pcep_session_ipv6()
     pcep_configuration config;
     struct in6_addr pce_ip;
 
-    bzero(&config, sizeof(pcep_configuration));
+    memset(&config, 0, sizeof(pcep_configuration));
     config.keep_alive_seconds = 5;
     config.dead_timer_seconds = 5;
     config.request_time_seconds = 5;
@@ -160,7 +160,7 @@ void test_create_pcep_session_open_tlvs()
     struct pcep_message* open_msg;
     struct pcep_object_header *open_obj;
     pcep_configuration config;
-    bzero(&config, sizeof(pcep_configuration));
+    memset(&config, 0, sizeof(pcep_configuration));
     config.pcep_msg_versioning = create_default_pcep_versioning();
     inet_pton(AF_INET, "127.0.0.1", &(pce_ip));
 

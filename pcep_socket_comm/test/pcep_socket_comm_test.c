@@ -98,7 +98,8 @@ void test_pcep_socket_comm_initialize()
             NULL,
             NULL,
             test_connection_except_notifier,
-            &test_host_ip, test_port, connect_timeout_millis, NULL);
+            &test_host_ip, test_port, connect_timeout_millis,
+            NULL, false, NULL);
     CU_ASSERT_PTR_NOT_NULL(test_session);
     CU_ASSERT_FALSE(test_session->is_ipv6);
 }
@@ -111,7 +112,8 @@ void test_pcep_socket_comm_initialize_ipv6()
             NULL,
             NULL,
             test_connection_except_notifier,
-            &test_host_ipv6, test_port, connect_timeout_millis, NULL);
+            &test_host_ipv6, test_port, connect_timeout_millis,
+            NULL, false, NULL);
     CU_ASSERT_PTR_NOT_NULL(test_session);
     CU_ASSERT_TRUE(test_session->is_ipv6);
 }
@@ -126,7 +128,8 @@ void test_pcep_socket_comm_initialize_with_src()
             NULL,
             test_connection_except_notifier,
             NULL, 0,
-            &test_host_ip, test_port, connect_timeout_millis, NULL);
+            &test_host_ip, test_port, connect_timeout_millis,
+            NULL, false, NULL);
     CU_ASSERT_PTR_NOT_NULL(test_session);
     CU_ASSERT_EQUAL(test_session->src_sock_addr.src_sock_addr_ipv4.sin_addr.s_addr, INADDR_ANY);
     CU_ASSERT_FALSE(test_session->is_ipv6);
@@ -138,7 +141,8 @@ void test_pcep_socket_comm_initialize_with_src()
             NULL,
             test_connection_except_notifier,
             &test_src_ip, test_src_port,
-            &test_host_ip, test_port, connect_timeout_millis, NULL);
+            &test_host_ip, test_port, connect_timeout_millis,
+            NULL, false, NULL);
     CU_ASSERT_PTR_NOT_NULL(test_session);
     CU_ASSERT_EQUAL(test_session->src_sock_addr.src_sock_addr_ipv4.sin_addr.s_addr, test_src_ip.s_addr);
     CU_ASSERT_EQUAL(test_session->src_sock_addr.src_sock_addr_ipv4.sin_port, ntohs(test_src_port));
@@ -155,7 +159,8 @@ void test_pcep_socket_comm_initialize_with_src_ipv6()
             NULL,
             test_connection_except_notifier,
             NULL, 0,
-            &test_host_ipv6, test_port, connect_timeout_millis, NULL);
+            &test_host_ipv6, test_port, connect_timeout_millis,
+            NULL, false, NULL);
     CU_ASSERT_PTR_NOT_NULL(test_session);
     CU_ASSERT_EQUAL(memcmp(&test_session->src_sock_addr.src_sock_addr_ipv6.sin6_addr,
                            &in6addr_any, sizeof(struct in6_addr)), 0);
@@ -168,12 +173,81 @@ void test_pcep_socket_comm_initialize_with_src_ipv6()
             NULL,
             test_connection_except_notifier,
             &test_src_ipv6, test_src_port,
-            &test_host_ipv6, test_port, connect_timeout_millis, NULL);
+            &test_host_ipv6, test_port, connect_timeout_millis,
+            NULL, false, NULL);
     CU_ASSERT_PTR_NOT_NULL(test_session);
     CU_ASSERT_EQUAL(memcmp(&test_session->src_sock_addr.src_sock_addr_ipv6.sin6_addr,
                            &test_src_ipv6, sizeof(struct in6_addr)), 0);
     CU_ASSERT_EQUAL(test_session->src_sock_addr.src_sock_addr_ipv6.sin6_port, ntohs(test_src_port));
     CU_ASSERT_TRUE(test_session->is_ipv6);
+}
+
+
+void test_pcep_socket_comm_initialize_tcpmd5()
+{
+    char tcp_md5_str[] = "hello";
+    int tcp_md5_strlen = strlen(tcp_md5_str);
+
+    test_session = socket_comm_session_initialize(
+            test_message_received_handler,
+            NULL,
+            NULL,
+            test_connection_except_notifier,
+            &test_host_ip, test_port, 1,
+            tcp_md5_str, true, NULL);
+    CU_ASSERT_PTR_NOT_NULL(test_session);
+    CU_ASSERT_EQUAL(0, strncmp(tcp_md5_str, test_session->tcp_authentication_str, tcp_md5_strlen));
+    CU_ASSERT_TRUE(test_session->is_tcp_auth_md5);
+    CU_ASSERT_FALSE(socket_comm_session_connect_tcp(test_session));
+    /* This call does not work, it returns errno=92, Protocol not available
+    getsockopt(test_session->socket_fd, SOL_SOCKET, TCP_MD5SIG, &sig, &siglen);*/
+
+    socket_comm_session_teardown(test_session);
+    test_session = socket_comm_session_initialize(
+            test_message_received_handler,
+            NULL,
+            NULL,
+            test_connection_except_notifier,
+            &test_host_ip, test_port, 1,
+            tcp_md5_str, false, NULL);
+    CU_ASSERT_PTR_NOT_NULL(test_session);
+    CU_ASSERT_EQUAL(0, strncmp(tcp_md5_str, test_session->tcp_authentication_str, tcp_md5_strlen));
+    CU_ASSERT_FALSE(test_session->is_tcp_auth_md5);
+    CU_ASSERT_FALSE(socket_comm_session_connect_tcp(test_session));
+}
+
+
+void test_pcep_socket_comm_initialize_ipv6_tcpmd5()
+{
+    char tcp_md5_str[] = "hello";
+    int tcp_md5_strlen = strlen(tcp_md5_str);
+
+    test_session = socket_comm_session_initialize_ipv6(
+            test_message_received_handler,
+            NULL,
+            NULL,
+            test_connection_except_notifier,
+            &test_host_ipv6, test_port, 1,
+            tcp_md5_str, true, NULL);
+    CU_ASSERT_PTR_NOT_NULL(test_session);
+    CU_ASSERT_EQUAL(0, strncmp(tcp_md5_str, test_session->tcp_authentication_str, tcp_md5_strlen));
+    CU_ASSERT_TRUE(test_session->is_tcp_auth_md5);
+    CU_ASSERT_FALSE(socket_comm_session_connect_tcp(test_session));
+    /* This call does not work, it returns errno=92, Protocol not available
+    getsockopt(test_session->socket_fd, SOL_SOCKET, TCP_MD5SIG, &sig, &siglen);*/
+
+    socket_comm_session_teardown(test_session);
+    test_session = socket_comm_session_initialize_ipv6(
+            test_message_received_handler,
+            NULL,
+            NULL,
+            test_connection_except_notifier,
+            &test_host_ipv6, test_port, 1,
+            tcp_md5_str, false, NULL);
+    CU_ASSERT_PTR_NOT_NULL(test_session);
+    CU_ASSERT_EQUAL(0, strncmp(tcp_md5_str, test_session->tcp_authentication_str, tcp_md5_strlen));
+    CU_ASSERT_FALSE(test_session->is_tcp_auth_md5);
+    CU_ASSERT_FALSE(socket_comm_session_connect_tcp(test_session));
 }
 
 
@@ -187,7 +261,8 @@ void test_pcep_socket_comm_initialize_handlers()
             NULL,
             NULL,
             test_connection_except_notifier,
-            &test_host_ip, test_port, connect_timeout_millis, NULL);
+            &test_host_ip, test_port, connect_timeout_millis,
+            NULL, false, NULL);
     CU_ASSERT_PTR_NULL(test_session);
 
     /* Both receive handlers cannot be set */
@@ -196,7 +271,8 @@ void test_pcep_socket_comm_initialize_handlers()
             test_message_ready_to_read_handler,
             test_message_sent_handler,
             test_connection_except_notifier,
-            &test_host_ip, test_port, connect_timeout_millis, NULL);
+            &test_host_ip, test_port, connect_timeout_millis,
+            NULL, false, NULL);
     CU_ASSERT_PTR_NULL(test_session);
 
     /* Only one receive handler can be set */
@@ -205,7 +281,8 @@ void test_pcep_socket_comm_initialize_handlers()
             test_message_ready_to_read_handler,
             test_message_sent_handler,
             test_connection_except_notifier,
-            &test_host_ip, test_port, connect_timeout_millis, NULL);
+            &test_host_ip, test_port, connect_timeout_millis,
+            NULL, false, NULL);
     CU_ASSERT_PTR_NOT_NULL(test_session);
 }
 
@@ -219,6 +296,7 @@ void test_pcep_socket_comm_session_not_initialized()
     CU_ASSERT_FALSE(socket_comm_session_teardown(NULL));
 }
 
+
 void test_pcep_socket_comm_session_destroy()
 {
     test_session = socket_comm_session_initialize(
@@ -226,7 +304,8 @@ void test_pcep_socket_comm_session_destroy()
             NULL,
             test_message_sent_handler,
             test_connection_except_notifier,
-            &test_host_ip, test_port, connect_timeout_millis, NULL);
+            &test_host_ip, test_port, connect_timeout_millis,
+            NULL, false, NULL);
     CU_ASSERT_PTR_NOT_NULL(test_session);
     CU_ASSERT_PTR_NOT_NULL(socket_comm_handle_);
     CU_ASSERT_EQUAL(socket_comm_handle_->num_active_sessions, 1);

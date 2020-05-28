@@ -24,17 +24,16 @@
 
 
 #include <errno.h>
-#include <malloc.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
-#include <strings.h>
 #include <unistd.h>
 
 #include "pcep_socket_comm_internals.h"
 #include "pcep_utils_logging.h"
 #include "pcep_utils_ordered_list.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 
 bool comm_session_exists(pcep_socket_comm_handle *socket_comm_handle, pcep_socket_comm_session *socket_comm_session)
@@ -188,6 +187,8 @@ void handle_reads(pcep_socket_comm_handle *socket_comm_handle)
 
         if (is_set)
         {
+            FD_CLR(comm_session->socket_fd, &(socket_comm_handle->read_master_set));
+
             /* either read the message locally, or call the message_ready_handler to read it */
             if (comm_session->message_handler != NULL)
             {
@@ -266,10 +267,12 @@ void handle_writes(pcep_socket_comm_handle *socket_comm_handle)
 
     ordered_list_node *node = socket_comm_handle->write_list->head;
     pcep_socket_comm_session *comm_session;
+    bool msg_written;
     while (node != NULL)
     {
         comm_session = (pcep_socket_comm_session *) node->data;
         node = node->next_node;
+        msg_written = false;
 
         if (!comm_session_exists(socket_comm_handle, comm_session))
         {
@@ -281,20 +284,22 @@ void handle_writes(pcep_socket_comm_handle *socket_comm_handle)
         if (FD_ISSET(comm_session->socket_fd, &(socket_comm_handle->write_master_set))) {
             /* only remove the entry from the list, if it is written to */
             ordered_list_remove_first_node_equals(socket_comm_handle->write_list, comm_session);
+            FD_CLR(comm_session->socket_fd, &(socket_comm_handle->write_master_set));
 
             /* dequeue all the comm_session messages and send them */
             pcep_socket_comm_queued_message *queued_message = queue_dequeue(comm_session->message_queue);
             while (queued_message != NULL)
             {
+                msg_written = true;
                 write_message(
                         comm_session->socket_fd,
                         queued_message->unmarshalled_message,
                         queued_message->msg_length);
                 if (queued_message->free_after_send)
                 {
-                    free(queued_message->unmarshalled_message);
+                    pceplib_free(PCEPLIB_MESSAGES, queued_message->unmarshalled_message);
                 }
-                free(queued_message);
+                pceplib_free(PCEPLIB_MESSAGES, queued_message);
                 queued_message = queue_dequeue(comm_session->message_queue);
             }
         }
@@ -312,7 +317,7 @@ void handle_writes(pcep_socket_comm_handle *socket_comm_handle)
             }
         }
 
-        if (comm_session->message_sent_handler != NULL)
+        if (comm_session->message_sent_handler != NULL && msg_written == true)
         {
             /* Unlocking to allow the message_sent_handler to
              * make calls like destroy_socket_comm_session */
@@ -374,4 +379,51 @@ void *socket_comm_loop(void *data)
     pcep_log(LOG_NOTICE, "[%ld-%ld] Finished socket_comm_loop thread", time(NULL), pthread_self());
 
     return NULL;
+}
+
+int pceplib_external_socket_read(int fd, void *payload)
+{
+    pcep_socket_comm_handle *socket_comm_handle = (pcep_socket_comm_handle *) payload;
+    if (socket_comm_handle == NULL)
+    {
+        return -1;
+    }
+
+    FD_SET(fd, &(socket_comm_handle->read_master_set));
+
+    handle_reads(socket_comm_handle);
+
+    /* Get the socket_comm_session */
+    pcep_socket_comm_session find_session = {.socket_fd = fd};
+    pthread_mutex_lock(&(socket_comm_handle->socket_comm_mutex));
+    ordered_list_node *node = ordered_list_find(socket_comm_handle->read_list, &find_session);
+    pthread_mutex_unlock(&(socket_comm_handle->socket_comm_mutex));
+
+    /* read again */
+    if (node != NULL)
+    {
+        socket_comm_handle->socket_read_func(
+                socket_comm_handle->external_infra_data,
+                &((pcep_socket_comm_session *) node)->external_socket_data,
+                fd, socket_comm_handle);
+    }
+
+    return 0;
+}
+
+int pceplib_external_socket_write(int fd, void *payload)
+{
+    pcep_socket_comm_handle *socket_comm_handle = (pcep_socket_comm_handle *) payload;
+    if (socket_comm_handle == NULL)
+    {
+        return -1;
+    }
+
+    FD_SET(fd, &(socket_comm_handle->write_master_set));
+
+    handle_writes(socket_comm_handle);
+
+    /* TODO do we need to cancel this FD from writing?? */
+
+    return 0;
 }

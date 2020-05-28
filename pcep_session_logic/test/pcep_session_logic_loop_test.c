@@ -48,7 +48,7 @@ void pcep_session_logic_loop_test_setup()
 {
     /* We need to setup the session_logic_handle_ without starting the thread */
     session_logic_handle_ = malloc(sizeof(pcep_session_logic_handle));
-    bzero(session_logic_handle_, sizeof(pcep_session_logic_handle));
+    memset(session_logic_handle_, 0, sizeof(pcep_session_logic_handle));
     session_logic_handle_->active = true;
     session_logic_handle_->session_logic_condition = false;
     session_logic_handle_->session_list = ordered_list_initialize(session_id_compare_function);
@@ -96,7 +96,7 @@ void test_session_logic_msg_ready_handler()
     /* Read from an empty file should return 0, thus session_logic_msg_ready_handler returns -1 */
     int fd = fileno(tmpfile());
     pcep_session session;
-    bzero(&session, sizeof(pcep_session));
+    memset(&session, 0, sizeof(pcep_session));
     session.session_id = 100;
     CU_ASSERT_EQUAL(session_logic_msg_ready_handler(&session, fd), 0);
     CU_ASSERT_EQUAL(session_logic_handle_->session_event_queue->num_entries, 1);
@@ -135,7 +135,7 @@ void test_session_logic_conn_except_notifier()
 
     /* A pcep_session_event should be created */
     pcep_session session;
-    bzero(&session, sizeof(pcep_session));
+    memset(&session, 0, sizeof(pcep_session));
     session.session_id = 100;
     session_logic_conn_except_notifier(&session, 10);
     CU_ASSERT_EQUAL(session_logic_handle_->session_event_queue->num_entries, 1);
@@ -158,7 +158,7 @@ void test_session_logic_timer_expire_handler()
 
     /* A pcep_session_event should be created */
     pcep_session session;
-    bzero(&session, sizeof(pcep_session));
+    memset(&session, 0, sizeof(pcep_session));
     session.session_id = 100;
     session_logic_timer_expire_handler(&session, 42);
     CU_ASSERT_EQUAL(session_logic_handle_->session_event_queue->num_entries, 1);

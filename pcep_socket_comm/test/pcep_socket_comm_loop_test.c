@@ -72,7 +72,7 @@ void test_loop_conn_except_notifier(void *session_data, int socket_fd)
 void pcep_socket_comm_loop_test_setup()
 {
     test_socket_comm_handle = malloc(sizeof(pcep_socket_comm_handle));
-    bzero(test_socket_comm_handle, sizeof(pcep_socket_comm_handle));
+    memset(test_socket_comm_handle, 0, sizeof(pcep_socket_comm_handle));
     test_socket_comm_handle->active = false;
     test_socket_comm_handle->read_list = ordered_list_initialize(socket_fd_node_compare);
     test_socket_comm_handle->write_list = ordered_list_initialize(socket_fd_node_compare);
@@ -81,7 +81,7 @@ void pcep_socket_comm_loop_test_setup()
     test_socket_comm_handle->num_active_sessions = 0;
 
     test_comm_session = malloc(sizeof(pcep_socket_comm_session));
-    bzero(test_comm_session, sizeof(pcep_socket_comm_session));
+    memset(test_comm_session, 0, sizeof(pcep_socket_comm_session));
     test_comm_session->message_ready_to_read_handler = test_loop_message_ready_to_read_handler;
     ordered_list_add_node(test_socket_comm_handle->session_list, test_comm_session);
 

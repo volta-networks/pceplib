@@ -25,7 +25,6 @@
 
 #include <errno.h>
 #include <limits.h>
-#include <malloc.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -39,6 +38,7 @@
 #include "pcep_utils_counters.h"
 #include "pcep_utils_ordered_list.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 /*
  * public API function implementations for the session_logic
@@ -62,7 +62,7 @@ int session_id_compare_function(void *list_entry, void *new_entry)
 }
 
 
-bool run_session_logic()
+static bool run_session_logic_common()
 {
     if (session_logic_handle_ != NULL)
     {
@@ -70,8 +70,8 @@ bool run_session_logic()
         return false;
     }
 
-    session_logic_handle_ = malloc(sizeof(pcep_session_logic_handle));
-    bzero(session_logic_handle_, sizeof(pcep_session_logic_handle));
+    session_logic_handle_ = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_session_logic_handle));
+    memset(session_logic_handle_, 0, sizeof(pcep_session_logic_handle));
 
     session_logic_handle_->active = true;
     session_logic_handle_->session_logic_condition = false;
@@ -79,17 +79,11 @@ bool run_session_logic()
     session_logic_handle_->session_event_queue = queue_initialize();
 
     /* Initialize the event queue */
-    session_logic_event_queue_ = malloc(sizeof(pcep_event_queue));
+    session_logic_event_queue_ = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_event_queue));
     session_logic_event_queue_->event_queue = queue_initialize();
     if (pthread_mutex_init(&(session_logic_event_queue_->event_queue_mutex), NULL) != 0)
     {
         pcep_log(LOG_ERR, "Cannot initialize session_logic event queue mutex.");
-        return false;
-    }
-
-    if (!initialize_timers(session_logic_timer_expire_handler))
-    {
-        pcep_log(LOG_ERR, "Cannot initialize session_logic timers.");
         return false;
     }
 
@@ -110,6 +104,81 @@ bool run_session_logic()
     return true;
 }
 
+
+bool run_session_logic()
+{
+    if (!run_session_logic_common())
+    {
+        return false;
+    }
+
+    if (!initialize_timers(session_logic_timer_expire_handler))
+    {
+        pcep_log(LOG_ERR, "Cannot initialize session_logic timers.");
+        return false;
+    }
+
+    /* No need to call initialize_socket_comm_loop() since it will be
+     * called internally when the first socket_comm_session is created. */
+
+    return true;
+}
+
+
+bool run_session_logic_with_infra(pceplib_infra_config *infra_config)
+{
+    if (infra_config == NULL)
+    {
+        return run_session_logic();
+    }
+
+    /* Initialize the memory infrastructure before anything gets allocated */
+    if (infra_config->pceplib_infra_mt != NULL &&
+        infra_config->pceplib_messages_mt != NULL)
+    {
+        pceplib_memory_initialize(
+                infra_config->pceplib_infra_mt,
+                infra_config->pceplib_messages_mt,
+                infra_config->malloc_func,
+                infra_config->calloc_func,
+                infra_config->realloc_func,
+                infra_config->strdup_func,
+                infra_config->free_func);
+    }
+
+    if (!run_session_logic_common())
+    {
+        return false;
+    }
+
+    session_logic_event_queue_->event_callback = infra_config->pcep_event_func;
+    session_logic_event_queue_->event_callback_data = infra_config->external_infra_data;
+
+    if (!initialize_timers_external_infra(
+            session_logic_timer_expire_handler,
+            infra_config->external_infra_data,
+            infra_config->timer_create_func,
+            infra_config->timer_cancel_func))
+    {
+        pcep_log(LOG_ERR, "Cannot initialize session_logic timers with infra.");
+        return false;
+    }
+
+    if (infra_config->socket_read_func != NULL &&
+        infra_config->socket_write_func != NULL)
+    {
+        if (!initialize_socket_comm_external_infra(
+                infra_config->external_infra_data,
+                infra_config->socket_read_func,
+                infra_config->socket_write_func))
+        {
+            pcep_log(LOG_ERR, "Cannot initialize session_logic socket comm with infra.");
+            return false;
+        }
+    }
+
+    return true;
+}
 
 bool run_session_logic_wait_for_completion()
 {
@@ -149,12 +218,12 @@ bool stop_session_logic()
     /* destroy the event_queue */
     pthread_mutex_destroy(&(session_logic_event_queue_->event_queue_mutex));
     queue_destroy(session_logic_event_queue_->event_queue);
-    free(session_logic_event_queue_);
+    pceplib_free(PCEPLIB_INFRA, session_logic_event_queue_);
 
     /* Explicitly stop the socket comm loop started by the pcep_sessions */
     destroy_socket_comm_loop();
 
-    free(session_logic_handle_);
+    pceplib_free(PCEPLIB_INFRA, session_logic_handle_);
     session_logic_handle_ = NULL;
 
     return true;
@@ -199,15 +268,15 @@ void destroy_pcep_session(pcep_session *session)
 
     if (session->pcc_config.pcep_msg_versioning != NULL)
     {
-        free(session->pcc_config.pcep_msg_versioning);
+        pceplib_free(PCEPLIB_INFRA, session->pcc_config.pcep_msg_versioning);
     }
 
     if (session->pce_config.pcep_msg_versioning != NULL)
     {
-        free(session->pce_config.pcep_msg_versioning);
+        pceplib_free(PCEPLIB_INFRA, session->pce_config.pcep_msg_versioning);
     }
 
-    free(session);
+    pceplib_free(PCEPLIB_INFRA, session);
 }
 
 void pcep_session_cancel_timers(pcep_session *session)
@@ -258,7 +327,7 @@ static pcep_session *create_pcep_session_pre_setup(pcep_configuration *config)
         return NULL;
     }
 
-    pcep_session *session = malloc(sizeof(pcep_session));
+    pcep_session *session = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_session));
     memset(session, 0, sizeof(pcep_session));
     session->session_id = get_next_session_id();
     session->session_state = SESSION_STATE_INITIALIZED;
@@ -280,9 +349,9 @@ static pcep_session *create_pcep_session_pre_setup(pcep_configuration *config)
     memcpy(&(session->pce_config), config, sizeof(pcep_configuration));
     if (config->pcep_msg_versioning != NULL)
     {
-        session->pcc_config.pcep_msg_versioning = malloc(sizeof(struct pcep_versioning));
+        session->pcc_config.pcep_msg_versioning = pceplib_malloc(PCEPLIB_INFRA, sizeof(struct pcep_versioning));
         memcpy(session->pcc_config.pcep_msg_versioning, config->pcep_msg_versioning, sizeof(struct pcep_versioning));
-        session->pce_config.pcep_msg_versioning = malloc(sizeof(struct pcep_versioning));
+        session->pce_config.pcep_msg_versioning = pceplib_malloc(PCEPLIB_INFRA, sizeof(struct pcep_versioning));
         memcpy(session->pce_config.pcep_msg_versioning, config->pcep_msg_versioning, sizeof(struct pcep_versioning));
     }
 
@@ -336,6 +405,8 @@ pcep_session *create_pcep_session(pcep_configuration *config, struct in_addr *pc
             pce_ip,
             ((config->dst_pcep_port == 0) ? PCEP_TCP_PORT : config->dst_pcep_port),
             config->socket_connect_timeout_millis,
+            config->tcp_authentication_str,
+            config->is_tcp_auth_md5,
             session);
     if (session->socket_comm_session == NULL)
     {
@@ -377,6 +448,8 @@ pcep_session *create_pcep_session_ipv6(pcep_configuration *config, struct in6_ad
             pce_ip,
             ((config->dst_pcep_port == 0) ? PCEP_TCP_PORT : config->dst_pcep_port),
             config->socket_connect_timeout_millis,
+            config->tcp_authentication_str,
+            config->is_tcp_auth_md5,
             session);
     if (session->socket_comm_session == NULL)
     {
@@ -476,7 +549,7 @@ struct pcep_message *create_pcep_open(pcep_session *session)
             dll_append(sub_tlv_list, sr_pce_cap_tlv);
         }
 
-        uint8_t *pst = malloc(sizeof(uint8_t));
+        uint8_t *pst = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(uint8_t));
         *pst = SR_TE_PST;
         double_linked_list *pst_list = dll_initialize();
         dll_append(pst_list, pst);

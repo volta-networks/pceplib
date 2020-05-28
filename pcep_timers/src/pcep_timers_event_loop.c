@@ -24,16 +24,15 @@
 
 
 #include <errno.h>
-#include <malloc.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdio.h>
-#include <strings.h>
 #include <sys/select.h>
 
 #include "pcep_timer_internals.h"
 #include "pcep_utils_ordered_list.h"
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 /* For each expired timer: remove the timer from the list, call the
  * expire_handler, and free the timer. */
@@ -57,7 +56,7 @@ void walk_and_process_timers(pcep_timers_context *timers_context)
             ordered_list_remove_first_node(timers_context->timer_list);
             /* call the timer expired handler */
             timers_context->expire_handler(timer_data->data, timer_data->timer_id);
-            free(timer_data);
+            pceplib_free(PCEPLIB_INFRA, timer_data);
         }
         else
         {

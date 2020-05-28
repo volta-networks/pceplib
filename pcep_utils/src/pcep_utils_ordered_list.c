@@ -23,12 +23,11 @@
  */
 
 
-#include <malloc.h>
-#include <stdbool.h>
 #include <stdio.h>
-#include <strings.h>
+#include <string.h>
 
 #include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 #include "pcep_utils_ordered_list.h"
 
 /* Compare function that simply compares pointers.
@@ -44,7 +43,8 @@ int pointer_compare_function(void *list_entry, void *new_entry)
 
 ordered_list_handle *ordered_list_initialize(ordered_compare_function func_ptr)
 {
-    ordered_list_handle *handle = malloc(sizeof(ordered_list_handle));
+    ordered_list_handle *handle = pceplib_malloc(PCEPLIB_INFRA, sizeof(ordered_list_handle));
+    memset(handle, 0, sizeof(ordered_list_handle));
     handle->head = NULL;
     handle->num_entries = 0;
     handle->compare_function = func_ptr;
@@ -70,11 +70,11 @@ void ordered_list_destroy(ordered_list_handle *handle)
     while(node != NULL)
     {
         next = node->next_node;
-        free(node);
+        pceplib_free(PCEPLIB_INFRA, node);
         node = next;
     }
 
-    free(handle);
+    pceplib_free(PCEPLIB_INFRA, handle);
 }
 
 
@@ -87,7 +87,8 @@ ordered_list_node *ordered_list_add_node(ordered_list_handle *handle, void *data
     }
     handle->num_entries++;
 
-    ordered_list_node *new_node = malloc(sizeof(ordered_list_node));
+    ordered_list_node *new_node = pceplib_malloc(PCEPLIB_INFRA, sizeof(ordered_list_node));
+    memset(new_node, 0, sizeof(ordered_list_node));
     new_node->data = data;
     new_node->next_node = NULL;
 
@@ -135,11 +136,12 @@ ordered_list_node *ordered_list_add_node(ordered_list_handle *handle, void *data
 }
 
 
-ordered_list_node *ordered_list_find(ordered_list_handle *handle, void *data)
+ordered_list_node *ordered_list_find2(ordered_list_handle *handle, void *data,
+        ordered_compare_function compare_func)
 {
     if (handle == NULL)
     {
-        pcep_log(LOG_WARNING, "ordered_list_find, the list has not been initialized");
+        pcep_log(LOG_WARNING, "ordered_list_find2, the list has not been initialized");
         return NULL;
     }
 
@@ -148,7 +150,7 @@ ordered_list_node *ordered_list_find(ordered_list_handle *handle, void *data)
 
     while(node != NULL)
     {
-        compare_result = handle->compare_function(node->data, data);
+        compare_result = compare_func(node->data, data);
         if (compare_result == 0)
         {
             return node;
@@ -160,6 +162,18 @@ ordered_list_node *ordered_list_find(ordered_list_handle *handle, void *data)
     }
 
     return NULL;
+}
+
+
+ordered_list_node *ordered_list_find(ordered_list_handle *handle, void *data)
+{
+    if (handle == NULL)
+    {
+        pcep_log(LOG_WARNING, "ordered_list_find, the list has not been initialized");
+        return NULL;
+    }
+
+    return ordered_list_find2(handle, data, handle->compare_function);
 }
 
 
@@ -180,7 +194,7 @@ void *ordered_list_remove_first_node(ordered_list_handle *handle)
 
     void *data = handle->head->data;
     ordered_list_node *next_node = handle->head->next_node;
-    free(handle->head);
+    pceplib_free(PCEPLIB_INFRA, handle->head);
     handle->head = next_node;
 
     return data;
@@ -229,7 +243,7 @@ void *ordered_list_remove_first_node_equals2(ordered_list_handle *handle,
                 prev_node->next_node = node->next_node;
             }
 
-            free(node);
+            pceplib_free(PCEPLIB_INFRA, node);
         }
         else
         {
@@ -280,7 +294,40 @@ void *ordered_list_remove_node(ordered_list_handle *handle, ordered_list_node *p
         prev_node->next_node = node_toRemove->next_node;
     }
 
-    free(node_toRemove);
+    pceplib_free(PCEPLIB_INFRA, node_toRemove);
 
     return return_data;
+}
+
+void *ordered_list_remove_node2(ordered_list_handle *handle, ordered_list_node *node_to_remove)
+{
+    if (handle == NULL)
+    {
+        pcep_log(LOG_WARNING, "ordered_list_remove_node2, the list has not been initialized");
+        return NULL;
+    }
+
+    if (handle->head == NULL)
+    {
+        pcep_log(LOG_WARNING, "ordered_list_remove_node2, empty list");
+        return NULL;
+    }
+
+    ordered_list_node *node = handle->head;
+    ordered_list_node *prev_node = handle->head;
+
+    while(node != NULL)
+    {
+        if (node == node_to_remove)
+        {
+            return(ordered_list_remove_node(handle, prev_node, node));
+        }
+        else
+        {
+            prev_node = node;
+            node = node->next_node;
+        }
+    }
+
+    return NULL;
 }
