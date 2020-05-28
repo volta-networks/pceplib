@@ -1,0 +1,2 @@
+For active development, a feature/topic branch should be created off of the devel branch.
+Pull Requests to master will be rejected.
