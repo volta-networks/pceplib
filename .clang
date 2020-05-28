@@ -1,0 +1,10 @@
+-I./pcep_messages/include/
+-I./pcep_pcc/include
+-I./pcep_session_logic/include
+-I./pcep_session_logic/src
+-I./pcep_socket_comm/include/
+-I./pcep_socket_comm/src/
+-I./pcep_timers/include/
+-I./pcep_utils/include
+-I./pcep_utils/include/
+-I./pcep_timers/src
