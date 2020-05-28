@@ -3,3 +3,6 @@ Pull Requests to master will be rejected.
 Periodically, master will be rebased with devel and relevant tags will be created.
 As releases are created, a devel-X.Y branch will be created where bug fixes for that release
 should be pushed, and later cherry-pick'ed on the devel branch.
+
+Release branch devel-1.0:
+- tested version of PCEPlib with FRR pathd PCC.
