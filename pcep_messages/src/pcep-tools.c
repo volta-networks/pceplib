@@ -1,7 +1,7 @@
 /*
- * This file is part of the libpcep, a PCEP library.
+ * This file is part of the PCEPlib, a PCEP protocol library.
  *
- * Copyright (C) 2011 Acreo AB http://www.acreo.se
+ * Copyright (C) 2020 Volta Networks https://voltanet.io/
  *
  * This library is free software; you can redistribute it and/or
  * modify it under the terms of the GNU Lesser General Public
@@ -18,8 +18,10 @@
  * Free Software Foundation, Inc., 59 Temple Place - Suite 330,
  * Boston, MA 02111-1307, USA.
  *
- * Author : Viktor Nordell <viktor.nordell@acreo.se>
+ * Author : Brady Johnson <brady@voltanet.io>
+ *
  */
+
 
 #include <errno.h>
 #include <stdio.h>
