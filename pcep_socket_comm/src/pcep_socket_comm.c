@@ -635,7 +635,7 @@ bool socket_comm_session_teardown(pcep_socket_comm_session *socket_comm_session)
 
 
 void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_session,
-                                      char *message,
+                                      const char *encoded_message,
                                       unsigned int msg_length,
                                       bool free_after_send)
 {
@@ -646,7 +646,7 @@ void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_sess
     }
 
     pcep_socket_comm_queued_message *queued_message = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(pcep_socket_comm_queued_message));
-    queued_message->unmarshalled_message = message;
+    queued_message->encoded_message = encoded_message;
     queued_message->msg_length = msg_length;
     queued_message->free_after_send = free_after_send;
 

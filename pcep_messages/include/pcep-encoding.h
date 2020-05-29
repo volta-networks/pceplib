@@ -82,27 +82,29 @@ void pcep_encode_message(struct pcep_message *message, struct pcep_versioning *v
 
 /* Decode the message header and return the message length.
  * Returns < 0 for invalid message headers. */
-int16_t pcep_decode_validate_msg_header(uint8_t *msg_buf);
+int16_t pcep_decode_validate_msg_header(const uint8_t *msg_buf);
 
 /* Decode the entire message */
-struct pcep_message *pcep_decode_message(uint8_t *message_buffer);
+struct pcep_message *pcep_decode_message(const uint8_t *message_buffer);
 
 
 /*
  * Object encoding / decoding functions
  */
 
-/* Implemented in pcep-objects-encoding.c */
+/* Implemented in pcep-objects-encoding.c
+ * Encode the object in struct pcep_object_header* into the uint8_t *buf,
+ * and return the encoded object_length. */
 uint16_t pcep_encode_object(struct pcep_object_header* object_hdr, struct pcep_versioning *versioning, uint8_t *buf);
 
 /* Implemented in pcep-objects-encoding.c
  * Decode the object, including the TLVs (if any) and return the object.
  * Returns object on success, NULL otherwise. */
-struct pcep_object_header *pcep_decode_object(uint8_t *msg_buf);
+struct pcep_object_header *pcep_decode_object(const uint8_t *msg_buf);
 
 /* Internal util functions implemented in pcep-objects-encoding.c */
 void encode_ipv6(struct in6_addr *src_ipv6, uint32_t *dst);
-void decode_ipv6(uint32_t *src, struct in6_addr *dst_ipv6);
+void decode_ipv6(const uint32_t *src, struct in6_addr *dst_ipv6);
 uint16_t normalize_length(uint16_t length);
 bool pcep_object_has_tlvs(struct pcep_object_header *object_hdr);
 uint16_t pcep_object_get_length_by_hdr(struct pcep_object_header *object_hdr);
@@ -113,10 +115,13 @@ uint16_t pcep_object_get_length(enum pcep_object_classes object_class, enum pcep
  * TLV encoding / decoding functions
  */
 
-/* Implemented in pcep-tlv-encoding.c */
+/* Implemented in pcep-tlv-encoding.c
+ * Encode the tlv in struct pcep_tlv_header* into the uint8_t *buf,
+ * and return the encoded tlv_length. */
 uint16_t pcep_encode_tlv(struct pcep_object_tlv_header *tlv_hdr, struct pcep_versioning *versioning, uint8_t *buf);
 
-struct pcep_object_tlv_header *pcep_decode_tlv(uint8_t *obj_buf);
+/* Decode the TLV in tlv_buf and return a pointer to the object */
+struct pcep_object_tlv_header *pcep_decode_tlv(const uint8_t *tlv_buf);
 
 
 #ifdef __cplusplus

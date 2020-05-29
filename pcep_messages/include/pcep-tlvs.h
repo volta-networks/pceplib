@@ -79,7 +79,7 @@ struct pcep_object_tlv_header
 {
     enum pcep_object_tlv_types type;
     /* Pointer into encoded_message field from the pcep_message */
-    uint8_t *encoded_tlv;
+    const uint8_t *encoded_tlv;
     uint16_t encoded_tlv_length;
 };
 
@@ -310,7 +310,7 @@ struct pcep_object_tlv_ipv6_lsp_identifier*        pcep_tlv_create_ipv6_lsp_iden
                                                                                         uint16_t lsp_id, uint16_t tunnel_id,
                                                                                         struct in6_addr *ipv6_tunnel_endpoint);
     /* symbolic_path_name_length should NOT include the null terminator and cannot be zero */
-struct pcep_object_tlv_symbolic_path_name*         pcep_tlv_create_symbolic_path_name(char *symbolic_path_name,
+struct pcep_object_tlv_symbolic_path_name*         pcep_tlv_create_symbolic_path_name(const char *symbolic_path_name,
                                                                                       uint16_t symbolic_path_name_length);
 struct pcep_object_tlv_lsp_error_code*             pcep_tlv_create_lsp_error_code(enum pcep_tlv_lsp_error_codes lsp_error_code);
 struct pcep_object_tlv_rsvp_error_spec*            pcep_tlv_create_rsvp_ipv4_error_spec(struct in_addr *error_node_ip,
@@ -321,9 +321,9 @@ struct pcep_object_tlv_rsvp_error_spec*            pcep_tlv_create_rsvp_ipv6_err
 struct pcep_object_tlv_nopath_vector*              pcep_tlv_create_nopath_vector(uint32_t error_code);
 struct pcep_object_tlv_vendor_info*                pcep_tlv_create_vendor_info(uint32_t enterprise_number, uint32_t enterprise_specific_info);
 
-struct pcep_object_tlv_arbitrary*                  pcep_tlv_create_tlv_arbitrary(char *data,
-                                                                                      uint16_t data_length,
-                                                                                      int tlv_id);
+struct pcep_object_tlv_arbitrary*                  pcep_tlv_create_tlv_arbitrary(const char *data,
+                                                                                 uint16_t data_length,
+                                                                                 int tlv_id);
 /*
  * SRPAG (SR Association Group) TLVs
  */

@@ -171,7 +171,7 @@ static bool validate_msg_header(uint8_t msg_version, uint8_t msg_flags, uint8_t 
 }
 
 /* Internal util function */
-static void pcep_decode_msg_header(uint8_t *msg_buf, uint8_t *msg_version, uint8_t *msg_flags, uint8_t *msg_type, uint16_t *msg_length)
+static void pcep_decode_msg_header(const uint8_t *msg_buf, uint8_t *msg_version, uint8_t *msg_flags, uint8_t *msg_type, uint16_t *msg_length)
 {
     *msg_version = (msg_buf[0] >> 5) & 0x07;
     *msg_flags = (msg_buf[0] & 0x1f);
@@ -181,7 +181,7 @@ static void pcep_decode_msg_header(uint8_t *msg_buf, uint8_t *msg_version, uint8
 }
 
 /* Decode the message header and return the message length */
-int16_t pcep_decode_validate_msg_header(uint8_t *msg_buf)
+int16_t pcep_decode_validate_msg_header(const uint8_t *msg_buf)
 {
     uint8_t msg_version;
     uint8_t msg_flags;
@@ -240,7 +240,7 @@ bool validate_message_objects(struct pcep_message *msg)
     return true;
 }
 
-struct pcep_message *pcep_decode_message(uint8_t *msg_buf)
+struct pcep_message *pcep_decode_message(const uint8_t *msg_buf)
 {
     uint8_t msg_version;
     uint8_t msg_flags;

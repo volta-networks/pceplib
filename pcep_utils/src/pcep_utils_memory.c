@@ -120,7 +120,7 @@ void* pceplib_realloc(void *mem_type, void *ptr, size_t size)
     }
 }
 
-void* pceplib_strdup(void *mem_type, char *str)
+void* pceplib_strdup(void *mem_type, const char *str)
 {
     if (sfunc == NULL)
     {

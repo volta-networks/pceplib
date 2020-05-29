@@ -50,7 +50,7 @@
  */
 
 /* message received handler that receives the message data and message length */
-typedef void (*message_received_handler)(void *session_data, char *message_data, unsigned int message_length);
+typedef void (*message_received_handler)(void *session_data, const char *message_data, unsigned int message_length);
 /* message ready received handler that should read the message on socket_fd
  * and return the number of bytes read */
 typedef int (*message_ready_to_read_handler)(void *session_data, int socket_fd);
@@ -178,7 +178,7 @@ bool socket_comm_session_close_tcp(pcep_socket_comm_session *socket_comm_session
 bool socket_comm_session_close_tcp_after_write(pcep_socket_comm_session *socket_comm_session);
 
 void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_session,
-                                  char *unmarshalled_message,
+                                  const char *encoded_message,
                                   unsigned int msg_length,
                                   bool free_after_send);
 

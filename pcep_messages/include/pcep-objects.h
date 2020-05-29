@@ -121,7 +121,7 @@ struct pcep_object_header
     bool flag_i;   /* PCE Ignore bit: indicates to a PCC whether or not an optional object was processed */
     double_linked_list *tlv_list;
     /* Pointer into encoded_message field from the pcep_message */
-    uint8_t *encoded_object;
+    const uint8_t *encoded_object;
     uint16_t encoded_object_length;
 };
 

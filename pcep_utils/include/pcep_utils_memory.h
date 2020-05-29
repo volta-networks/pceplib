@@ -24,7 +24,7 @@
 typedef void* (*pceplib_malloc_func)  (void *mem_type, size_t size);
 typedef void* (*pceplib_calloc_func)  (void *mem_type, size_t count, size_t size);
 typedef void* (*pceplib_realloc_func) (void *mem_type, void *ptr, size_t size);
-typedef void* (*pceplib_strdup_func)  (void *mem_type, char *str);
+typedef void* (*pceplib_strdup_func)  (void *mem_type, const char *str);
 typedef void  (*pceplib_free_func)    (void *mem_type, void *ptr);
 
 /* Either an internal pceplib_memory_type pointer
@@ -65,7 +65,7 @@ bool pceplib_memory_initialize(
 void* pceplib_malloc(void *mem_type, size_t size);
 void* pceplib_calloc(void *mem_type, size_t count, size_t size);
 void* pceplib_realloc(void *mem_type, void *ptr, size_t size);
-void* pceplib_strdup(void *mem_type, char *str);
+void* pceplib_strdup(void *mem_type, const char *str);
 void  pceplib_free(void *mem_type, void *ptr);
 
 #endif /* PCEP_UTILS_INCLUDE_PCEP_UTILS_MEMORY_H_ */
