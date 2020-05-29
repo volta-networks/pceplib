@@ -50,6 +50,12 @@ queue_handle *queue_initialize_with_size(unsigned int max_entries)
 
 void queue_destroy(queue_handle *handle)
 {
+    if (handle == NULL)
+    {
+        pcep_log(LOG_DEBUG, "queue_destroy, the queue has not been initialized");
+        return;
+    }
+
     while (queue_dequeue(handle) != NULL) {}
     pceplib_free(PCEPLIB_INFRA, handle);
 }
@@ -108,7 +114,7 @@ void *queue_dequeue(queue_handle *handle)
 {
     if (handle == NULL)
     {
-        pcep_log(LOG_WARNING, "queue_dequeue, the queue has not been initialized");
+        pcep_log(LOG_DEBUG, "queue_dequeue, the queue has not been initialized");
         return NULL;
     }
 

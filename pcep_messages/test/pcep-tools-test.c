@@ -23,7 +23,6 @@
  */
 
 
-#include <malloc.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -34,6 +33,8 @@
 #include "pcep-messages.h"
 #include "pcep-tools.h"
 #include "pcep_utils_double_linked_list.h"
+#include "pcep_utils_logging.h"
+#include "pcep_utils_memory.h"
 
 const uint8_t any_obj_class = 255;
 
@@ -166,6 +167,27 @@ char *pcep_initiate_cisco_pcc_hexbyte_strs[] = {
     "00", "00", "01", "4d", "25", "10", "00", "08",
     "00", "00", "00", "64", "07", "10", "00", "04"
 };
+
+int pcep_tools_test_suite_setup(void)
+{
+    pceplib_memory_reset();
+    return 0;
+}
+
+int pcep_tools_test_suite_teardown(void)
+{
+    printf("\n");
+    pceplib_memory_dump();
+    return 0;
+}
+
+void pcep_tools_test_setup(void)
+{
+}
+
+void pcep_tools_test_teardown(void)
+{
+}
 
 /* Reads an array of hexbyte strs, and writes them to a temporary file.
  * The caller should close the returned file. */
@@ -903,15 +925,15 @@ void test_validate_message_header()
 /* Internal util function */
 struct pcep_message *create_message(uint8_t msg_type, uint8_t obj1_class, uint8_t obj2_class, uint8_t obj3_class, uint8_t obj4_class)
 {
-    struct pcep_message *msg = malloc(sizeof(struct pcep_message));
+    struct pcep_message *msg = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_message));
     msg->obj_list = dll_initialize();
-    msg->msg_header = malloc(sizeof(struct pcep_message_header));
+    msg->msg_header = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_message_header));
     msg->msg_header->type = msg_type;
     msg->encoded_message = NULL;
 
     if (obj1_class > 0)
     {
-        struct pcep_object_header *obj_hdr = malloc(sizeof(struct pcep_object_header));
+        struct pcep_object_header *obj_hdr = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_object_header));
         obj_hdr->object_class = obj1_class;
         obj_hdr->tlv_list = NULL;
         dll_append(msg->obj_list, obj_hdr);
@@ -919,7 +941,7 @@ struct pcep_message *create_message(uint8_t msg_type, uint8_t obj1_class, uint8_
 
     if (obj2_class > 0)
     {
-        struct pcep_object_header *obj_hdr = malloc(sizeof(struct pcep_object_header));
+        struct pcep_object_header *obj_hdr = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_object_header));
         obj_hdr->object_class = obj2_class;
         obj_hdr->tlv_list = NULL;
         dll_append(msg->obj_list, obj_hdr);
@@ -927,7 +949,7 @@ struct pcep_message *create_message(uint8_t msg_type, uint8_t obj1_class, uint8_
 
     if (obj3_class > 0)
     {
-        struct pcep_object_header *obj_hdr = malloc(sizeof(struct pcep_object_header));
+        struct pcep_object_header *obj_hdr = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_object_header));
         obj_hdr->object_class = obj3_class;
         obj_hdr->tlv_list = NULL;
         dll_append(msg->obj_list, obj_hdr);
@@ -935,7 +957,7 @@ struct pcep_message *create_message(uint8_t msg_type, uint8_t obj1_class, uint8_
 
     if (obj4_class > 0)
     {
-        struct pcep_object_header *obj_hdr = malloc(sizeof(struct pcep_object_header));
+        struct pcep_object_header *obj_hdr = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_object_header));
         obj_hdr->object_class = obj4_class;
         obj_hdr->tlv_list = NULL;
         dll_append(msg->obj_list, obj_hdr);

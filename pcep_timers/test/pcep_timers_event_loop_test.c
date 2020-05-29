@@ -29,6 +29,7 @@
 
 #include "pcep_timers.h"
 #include "pcep_timer_internals.h"
+#include "pcep_utils_memory.h"
 
 
 typedef struct timer_expire_handler_info_
@@ -62,7 +63,7 @@ static void test_timer_expire_handler(void *data, int timerId)
  * Declared in pcep_timers_tests.c */
 void pcep_timers_event_loop_test_setup()
 {
-    test_timers_context = malloc(sizeof(pcep_timers_context));
+    test_timers_context = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_timers_context));
     memset(test_timers_context, 0, sizeof(pcep_timers_context));
     if (pthread_mutex_init(&(test_timers_context->timer_list_lock), NULL) != 0)
     {
@@ -86,7 +87,7 @@ void pcep_timers_event_loop_test_teardown()
     pthread_mutex_unlock(&test_timers_context->timer_list_lock);
     pthread_mutex_destroy(&(test_timers_context->timer_list_lock));
     ordered_list_destroy(test_timers_context->timer_list);
-    free(test_timers_context);
+    pceplib_free(PCEPLIB_INFRA, test_timers_context);
     test_timers_context = NULL;
 }
 
@@ -128,8 +129,8 @@ void test_walk_and_process_timers_timer_not_expired()
 
 void test_walk_and_process_timers_timer_expired()
 {
-    /* We need to malloc it, since it will be free'd in walk_and_process_timers */
-    pcep_timer *timer = malloc(sizeof(pcep_timer));
+    /* We need to alloc it, since it will be free'd in walk_and_process_timers */
+    pcep_timer *timer = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_timer));
     timer->data = timer;
     // Set the timer to expire 10 seconds ago
     timer->expire_time = time(NULL) - 10;

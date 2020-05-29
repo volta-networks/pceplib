@@ -32,10 +32,28 @@
 
 #include "pcep_pcc_api.h"
 #include "pcep_socket_comm_mock.h"
+#include "pcep_utils_memory.h"
 
 extern pcep_event_queue *session_logic_event_queue_;
 extern const char MESSAGE_RECEIVED_STR[];
 extern const char UNKNOWN_EVENT_STR[];
+
+/*
+ * Test suite setup and teardown called before AND after the test suite.
+ */
+
+int pcep_pcc_api_test_suite_setup()
+{
+    pceplib_memory_reset();
+    return 0;
+}
+
+int pcep_pcc_api_test_suite_teardown()
+{
+    printf("\n");
+    pceplib_memory_dump();
+    return 0;
+}
 
 /*
  * Test case setup and teardown called before AND after each test.
@@ -88,7 +106,7 @@ void test_connect_pce()
     pcep_msg_free_message(open_msg);
     destroy_pcep_session(session);
     destroy_pcep_configuration(config);
-    free(encoded_msg);
+    pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
 }
 
 void test_connect_pce_ipv6()
@@ -118,7 +136,7 @@ void test_connect_pce_ipv6()
     pcep_msg_free_message(open_msg);
     destroy_pcep_session(session);
     destroy_pcep_configuration(config);
-    free(encoded_msg);
+    pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
 }
 
 void test_connect_pce_with_src_ip()
@@ -144,7 +162,7 @@ void test_connect_pce_with_src_ip()
     pcep_msg_free_message(open_msg);
     destroy_pcep_session(session);
     destroy_pcep_configuration(config);
-    free(encoded_msg);
+    pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
 }
 
 void test_disconnect_pce()
@@ -168,7 +186,7 @@ void test_disconnect_pce()
     CU_ASSERT_PTR_NOT_NULL(msg);
     CU_ASSERT_EQUAL(msg->msg_header->type, PCEP_TYPE_OPEN);
     pcep_msg_free_message(msg);
-    free(encoded_msg);
+    pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
 
     /* Then there should be a close message from disconnect_pce() */
     encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
@@ -180,7 +198,7 @@ void test_disconnect_pce()
     pcep_msg_free_message(msg);
     destroy_pcep_session(session);
     destroy_pcep_configuration(config);
-    free(encoded_msg);
+    pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
 }
 
 
@@ -215,7 +233,7 @@ void test_event_queue()
     destroy_pcep_event(NULL);
 
     /* Create an empty event and put it on the queue */
-    pcep_event *event = malloc(sizeof(pcep_event));
+    pcep_event *event = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_event));
     memset(event, 0, sizeof(pcep_event));
     pthread_mutex_lock(&session_logic_event_queue_->event_queue_mutex);
     queue_enqueue(session_logic_event_queue_->event_queue, event);

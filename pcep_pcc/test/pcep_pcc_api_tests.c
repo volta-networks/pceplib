@@ -28,6 +28,8 @@
 #include <CUnit/TestDB.h>
 
 
+extern int pcep_pcc_api_test_suite_setup();
+extern int pcep_pcc_api_test_suite_teardown();
 extern void pcep_pcc_api_test_setup();
 extern void pcep_pcc_api_test_teardown();
 extern void test_initialize_pcc();
@@ -48,7 +50,8 @@ int main(int argc, char **argv)
      */
     CU_pSuite test_pcc_api_suite = CU_add_suite_with_setup_and_teardown(
             "PCEP PCC API Test Suite",
-            NULL, NULL, // suite setup and cleanup function pointers
+            pcep_pcc_api_test_suite_setup, // suite setup and cleanup function pointers
+            pcep_pcc_api_test_suite_teardown,
             pcep_pcc_api_test_setup,      // test case setup function pointer
             pcep_pcc_api_test_teardown);  // test case teardown function pointer
 

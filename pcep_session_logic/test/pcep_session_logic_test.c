@@ -33,6 +33,23 @@
 #include "pcep_session_logic.h"
 
 /*
+ * Test suite setup and teardown called before AND after the test suite.
+ */
+
+int pcep_session_logic_test_suite_setup(void)
+{
+    pceplib_memory_reset();
+    return 0;
+}
+
+int pcep_session_logic_test_suite_teardown(void)
+{
+    printf("\n");
+    pceplib_memory_dump();
+    return 0;
+}
+
+/*
  * Test case setup and teardown called before AND after each test.
  */
 
@@ -114,7 +131,7 @@ void test_create_destroy_pcep_session()
     CU_ASSERT_EQUAL(open_msg->encoded_message_length, 12);
     destroy_pcep_session(session);
     pcep_msg_free_message(open_msg);
-    free(encoded_msg);
+    pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
 }
 
 
@@ -149,7 +166,7 @@ void test_create_destroy_pcep_session_ipv6()
     CU_ASSERT_EQUAL(open_msg->encoded_message_length, 12);
     destroy_pcep_session(session);
     pcep_msg_free_message(open_msg);
-    free(encoded_msg);
+    pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
 }
 
 
@@ -193,7 +210,7 @@ void test_create_pcep_session_open_tlvs()
 
     destroy_pcep_session(session);
     pcep_msg_free_message(open_msg);
-    free(encoded_msg);
+    pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
 
     /* Verify the created Open message only has 2 TLVs:
      *   pcep_tlv_create_stateful_pce_capability()
@@ -226,7 +243,7 @@ void test_create_pcep_session_open_tlvs()
 
     destroy_pcep_session(session);
     pcep_msg_free_message(open_msg);
-    free(encoded_msg);
+    pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
 
 
     /* Verify the created Open message only has 4 TLVs:
@@ -266,7 +283,7 @@ void test_create_pcep_session_open_tlvs()
 
     destroy_pcep_session(session);
     pcep_msg_free_message(open_msg);
-    free(encoded_msg);
+    pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
 
     /* Verify the created Open message only has 4 TLVs:
      *   pcep_tlv_create_stateful_pce_capability()
@@ -309,7 +326,7 @@ void test_create_pcep_session_open_tlvs()
     destroy_pcep_versioning(config.pcep_msg_versioning);
     destroy_pcep_session(session);
     pcep_msg_free_message(open_msg);
-    free(encoded_msg);
+    pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
 }
 
 

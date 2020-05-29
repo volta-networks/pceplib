@@ -29,6 +29,7 @@
 #include <CUnit/CUnit.h>
 
 #include "pcep_socket_comm_internals.h"
+#include "pcep_utils_memory.h"
 
 /*
  * Functions to be tested, implemented in pcep_socket_comm_loop.c
@@ -71,7 +72,7 @@ void test_loop_conn_except_notifier(void *session_data, int socket_fd)
  */
 void pcep_socket_comm_loop_test_setup()
 {
-    test_socket_comm_handle = malloc(sizeof(pcep_socket_comm_handle));
+    test_socket_comm_handle = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_socket_comm_handle));
     memset(test_socket_comm_handle, 0, sizeof(pcep_socket_comm_handle));
     test_socket_comm_handle->active = false;
     test_socket_comm_handle->read_list = ordered_list_initialize(socket_fd_node_compare);
@@ -80,7 +81,7 @@ void pcep_socket_comm_loop_test_setup()
     pthread_mutex_init(&test_socket_comm_handle->socket_comm_mutex, NULL);
     test_socket_comm_handle->num_active_sessions = 0;
 
-    test_comm_session = malloc(sizeof(pcep_socket_comm_session));
+    test_comm_session = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_socket_comm_session));
     memset(test_comm_session, 0, sizeof(pcep_socket_comm_session));
     test_comm_session->message_ready_to_read_handler = test_loop_message_ready_to_read_handler;
     ordered_list_add_node(test_socket_comm_handle->session_list, test_comm_session);
@@ -99,12 +100,12 @@ void pcep_socket_comm_loop_test_teardown()
     ordered_list_destroy(test_socket_comm_handle->read_list);
     ordered_list_destroy(test_socket_comm_handle->write_list);
     ordered_list_destroy(test_socket_comm_handle->session_list);
-    free(test_socket_comm_handle);
+    pceplib_free(PCEPLIB_INFRA, test_socket_comm_handle);
     test_socket_comm_handle = NULL;
 
     if (test_comm_session != NULL)
     {
-        free(test_comm_session);
+        pceplib_free(PCEPLIB_INFRA, test_comm_session);
         test_comm_session = NULL;
     }
 }

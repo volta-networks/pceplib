@@ -35,10 +35,29 @@
 #include "pcep_session_logic_internals.h"
 #include "pcep_timers.h"
 #include "pcep_utils_ordered_list.h"
+#include "pcep_utils_memory.h"
 
 
 extern pcep_session_logic_handle *session_logic_handle_;
 extern int session_id_compare_function(void *list_entry, void *new_entry);
+
+/*
+ * Test suite setup and teardown called before AND after the test suite.
+ */
+
+int pcep_session_logic_loop_test_suite_setup(void)
+{
+    pceplib_memory_reset();
+    return 0;
+}
+
+int pcep_session_logic_loop_test_suite_teardown(void)
+{
+    printf("\n");
+    pceplib_memory_dump();
+    return 0;
+}
+
 
 /*
  * Test case setup and teardown called before AND after each test.
@@ -47,7 +66,7 @@ extern int session_id_compare_function(void *list_entry, void *new_entry);
 void pcep_session_logic_loop_test_setup()
 {
     /* We need to setup the session_logic_handle_ without starting the thread */
-    session_logic_handle_ = malloc(sizeof(pcep_session_logic_handle));
+    session_logic_handle_ = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_session_logic_handle));
     memset(session_logic_handle_, 0, sizeof(pcep_session_logic_handle));
     session_logic_handle_->active = true;
     session_logic_handle_->session_logic_condition = false;
@@ -64,7 +83,7 @@ void pcep_session_logic_loop_test_teardown()
     queue_destroy(session_logic_handle_->session_event_queue);
     pthread_mutex_unlock(&(session_logic_handle_->session_logic_mutex));
     pthread_mutex_destroy(&(session_logic_handle_->session_logic_mutex));
-    free(session_logic_handle_);
+    pceplib_free(PCEPLIB_INFRA, session_logic_handle_);
     session_logic_handle_ = NULL;
 }
 
@@ -104,7 +123,7 @@ void test_session_logic_msg_ready_handler()
             (pcep_session_event *) queue_dequeue(session_logic_handle_->session_event_queue);
     CU_ASSERT_PTR_NOT_NULL(socket_event);
     CU_ASSERT_TRUE(socket_event->socket_closed);
-    free(socket_event);
+    pceplib_free(PCEPLIB_INFRA, socket_event);
 
     /* A pcep_session_event should be created */
     struct pcep_versioning *versioning = create_default_pcep_versioning();
@@ -123,7 +142,7 @@ void test_session_logic_msg_ready_handler()
     pcep_msg_free_message_list(socket_event->received_msg_list);
     pcep_msg_free_message(keep_alive_msg);
     destroy_pcep_versioning(versioning);
-    free(socket_event);
+    pceplib_free(PCEPLIB_INFRA, socket_event);
     close(fd);
 }
 
@@ -147,7 +166,7 @@ void test_session_logic_conn_except_notifier()
     CU_ASSERT_EQUAL(socket_event->expired_timer_id, TIMER_ID_NOT_SET);
     CU_ASSERT_PTR_NULL(socket_event->received_msg_list);
 
-    free(socket_event);
+    pceplib_free(PCEPLIB_INFRA, socket_event);
 }
 
 
@@ -170,5 +189,5 @@ void test_session_logic_timer_expire_handler()
     CU_ASSERT_EQUAL(socket_event->expired_timer_id, 42);
     CU_ASSERT_PTR_NULL(socket_event->received_msg_list);
 
-    free(socket_event);
+    pceplib_free(PCEPLIB_INFRA, socket_event);
 }

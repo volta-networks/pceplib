@@ -32,6 +32,7 @@
 #include "pcep-objects.h"
 #include "pcep-tools.h"
 #include "pcep_utils_double_linked_list.h"
+#include "pcep_utils_memory.h"
 
 /*
  * Notice:
@@ -40,6 +41,19 @@
  */
 
 static struct pcep_versioning *versioning = NULL;
+
+int pcep_messages_test_suite_setup(void)
+{
+    pceplib_memory_reset();
+    return 0;
+}
+
+int pcep_messages_test_suite_teardown(void)
+{
+    printf("\n");
+    pceplib_memory_dump();
+    return 0;
+}
 
 void pcep_messages_test_setup()
 {

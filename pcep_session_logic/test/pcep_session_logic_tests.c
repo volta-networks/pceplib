@@ -28,6 +28,8 @@
 #include <CUnit/TestDB.h>
 
 /* Test functions defined in pcep_session_logic_test.c */
+extern int pcep_session_logic_test_suite_setup(void);
+extern int pcep_session_logic_test_suite_teardown(void);
 extern void pcep_session_logic_test_setup(void);
 extern void pcep_session_logic_test_teardown(void);
 extern void test_run_stop_session_logic(void);
@@ -40,6 +42,8 @@ extern void test_create_pcep_session_open_tlvs(void);
 extern void test_destroy_pcep_session_null_session(void);
 
 /* Test functions defined in pcep_session_logic_loop_test.c */
+extern int pcep_session_logic_loop_test_suite_setup(void);
+extern int pcep_session_logic_loop_test_suite_teardown(void);
 extern void pcep_session_logic_loop_test_setup(void);
 extern void pcep_session_logic_loop_test_teardown(void);
 extern void test_session_logic_loop_null_data(void);
@@ -49,6 +53,8 @@ extern void test_session_logic_conn_except_notifier(void);
 extern void test_session_logic_timer_expire_handler(void);
 
 /* Test functions defined in pcep_session_logic_states_test.c */
+extern int pcep_session_logic_states_test_suite_setup(void);
+extern int pcep_session_logic_states_test_suite_teardown(void);
 extern void pcep_session_logic_states_test_setup(void);
 extern void pcep_session_logic_states_test_teardown(void);
 extern void test_handle_timer_event_dead_timer(void);
@@ -79,7 +85,8 @@ int main(int argc, char **argv)
      */
     CU_pSuite test_session_logic_suite = CU_add_suite_with_setup_and_teardown(
             "PCEP Session Logic Test Suite",
-            NULL, NULL, // suite setup and cleanup function pointers
+            pcep_session_logic_test_suite_setup, // suite setup and cleanup function pointers
+            pcep_session_logic_test_suite_teardown,
             pcep_session_logic_test_setup,     // test case setup function pointer
             pcep_session_logic_test_teardown); // test case teardown function pointer
 
@@ -110,7 +117,8 @@ int main(int argc, char **argv)
 
     CU_pSuite test_session_logic_loop_suite = CU_add_suite_with_setup_and_teardown(
             "PCEP Session Logic Loop Test Suite",
-            NULL, NULL, // suite setup and cleanup function pointers
+            pcep_session_logic_loop_test_suite_setup, // suite setup and cleanup function pointers
+            pcep_session_logic_loop_test_suite_teardown,
             pcep_session_logic_loop_test_setup,     // test case setup function pointer
             pcep_session_logic_loop_test_teardown); // test case teardown function pointer
 
@@ -132,7 +140,8 @@ int main(int argc, char **argv)
 
     CU_pSuite test_session_logic_states_suite = CU_add_suite_with_setup_and_teardown(
             "PCEP Session Logic States Test Suite",
-            NULL, NULL, // suite setup and cleanup function pointers
+            pcep_session_logic_states_test_suite_setup, // suite setup and cleanup function pointers
+            pcep_session_logic_states_test_suite_teardown,
             pcep_session_logic_states_test_setup,     // test case setup function pointer
             pcep_session_logic_states_test_teardown); // test case teardown function pointer
 
