@@ -28,6 +28,8 @@
 #include <CUnit/TestDB.h>
 
 /* functions to be tested from pcep-messages.c */
+extern int pcep_messages_test_suite_setup(void);
+extern int pcep_messages_test_suite_teardown(void);
 extern void pcep_messages_test_setup(void);
 extern void pcep_messages_test_teardown(void);
 extern void test_pcep_msg_create_open(void);
@@ -43,6 +45,8 @@ extern void test_pcep_msg_create_update(void);
 extern void test_pcep_msg_create_initiate(void);
 
 /* functions to be tested from pcep-tlvs.c */
+extern int pcep_tlvs_test_suite_setup(void);
+extern int pcep_tlvs_test_suite_teardown(void);
 extern void pcep_tlvs_test_setup(void);
 extern void pcep_tlvs_test_teardown(void);
 extern void test_pcep_tlv_create_stateful_pce_capability(void);
@@ -66,6 +70,8 @@ extern void test_pcep_tlv_create_nopath_vector(void);
 extern void test_pcep_tlv_create_arbitrary(void);
 
 /* functions to be tested from pcep-objects.c */
+extern int pcep_objects_test_suite_setup(void);
+extern int pcep_objects_test_suite_teardown(void);
 extern void pcep_objects_test_setup(void);
 extern void pcep_objects_test_teardown(void);
 extern void test_pcep_obj_create_open(void);
@@ -102,6 +108,10 @@ extern void test_pcep_obj_create_ro_subobj_sr_unnumbered_ipv4_adj(void);
 extern void test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj(void);
 
 /* functions to be tested from pcep-tools.c */
+extern int pcep_tools_test_suite_setup(void);
+extern int pcep_tools_test_suite_teardown(void);
+extern void pcep_tools_test_setup(void);
+extern void pcep_tools_test_teardown(void);
 extern void test_pcep_msg_read_pcep_initiate(void);
 extern void test_pcep_msg_read_pcep_initiate2(void);
 extern void test_pcep_msg_read_pcep_update(void);
@@ -122,7 +132,7 @@ int main(int argc, char **argv)
 
     CU_pSuite messages_suite = CU_add_suite_with_setup_and_teardown(
             "PCEP Messages Test Suite",
-            NULL, NULL, /* suite setup and cleanup function pointers */
+            pcep_messages_test_suite_setup, pcep_messages_test_suite_teardown, /* suite setup and cleanup function pointers */
             pcep_messages_test_setup, pcep_messages_test_teardown);
     CU_add_test(messages_suite, "test_pcep_msg_create_open", test_pcep_msg_create_open);
     CU_add_test(messages_suite, "test_pcep_msg_create_request", test_pcep_msg_create_request);
@@ -138,7 +148,7 @@ int main(int argc, char **argv)
 
     CU_pSuite tlvs_suite = CU_add_suite_with_setup_and_teardown(
             "PCEP TLVs Test Suite",
-            NULL, NULL, /* suite setup and cleanup function pointers */
+            pcep_tlvs_test_suite_setup, pcep_tlvs_test_suite_teardown, /* suite setup and cleanup function pointers */
             pcep_tlvs_test_setup, pcep_tlvs_test_teardown);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_stateful_pce_capability", test_pcep_tlv_create_stateful_pce_capability);
     CU_add_test(tlvs_suite, "test_pcep_tlv_create_speaker_entity_id", test_pcep_tlv_create_speaker_entity_id);
@@ -162,7 +172,7 @@ int main(int argc, char **argv)
 
     CU_pSuite objects_suite = CU_add_suite_with_setup_and_teardown(
             "PCEP Objects Test Suite",
-            NULL, NULL, /* suite setup and cleanup function pointers */
+            pcep_objects_test_suite_setup, pcep_objects_test_suite_teardown, /* suite setup and cleanup function pointers */
             pcep_objects_test_setup, pcep_objects_test_teardown);
     CU_add_test(objects_suite, "test_pcep_obj_create_open", test_pcep_obj_create_open);
     CU_add_test(objects_suite, "test_pcep_obj_create_open", test_pcep_obj_create_open_with_tlvs);
@@ -201,7 +211,10 @@ int main(int argc, char **argv)
     CU_add_test(objects_suite, "test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj",
             test_pcep_obj_create_ro_subobj_sr_linklocal_ipv6_adj);
 
-    CU_pSuite tools_suite = CU_add_suite("PCEP Tools Test Suite", NULL, NULL);
+    CU_pSuite tools_suite = CU_add_suite_with_setup_and_teardown(
+            "PCEP Tools Test Suite",
+            pcep_tools_test_suite_setup, pcep_tools_test_suite_teardown,
+            pcep_tools_test_setup, pcep_tools_test_teardown);
     CU_add_test(tools_suite, "test_pcep_msg_read_pcep_initiate", test_pcep_msg_read_pcep_initiate);
     CU_add_test(tools_suite, "test_pcep_msg_read_pcep_initiate2", test_pcep_msg_read_pcep_initiate2);
     CU_add_test(tools_suite, "test_pcep_msg_read_pcep_update", test_pcep_msg_read_pcep_update);

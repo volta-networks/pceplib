@@ -34,6 +34,7 @@
 #include "pcep_timers.h"
 #include "pcep_utils_ordered_list.h"
 #include "pcep_utils_double_linked_list.h"
+#include "pcep_utils_memory.h"
 #include "pcep-objects.h"
 #include "pcep-tools.h"
 
@@ -52,15 +53,32 @@ static bool msg_enqueued;
 void destroy_message_for_test();
 
 /*
+ * Test suite setup and teardown called before AND after the test suite.
+ */
+
+int pcep_session_logic_states_test_suite_setup(void)
+{
+    pceplib_memory_reset();
+    return 0;
+}
+
+int pcep_session_logic_states_test_suite_teardown(void)
+{
+    printf("\n");
+    pceplib_memory_dump();
+    return 0;
+}
+
+/*
  * Test case setup and teardown called before AND after each test.
  */
 
 void pcep_session_logic_states_test_setup()
 {
-    session_logic_handle_ = malloc(sizeof(pcep_session_logic_handle));
+    session_logic_handle_ = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_session_logic_handle));
     memset(session_logic_handle_, 0, sizeof(pcep_session_logic_handle));
 
-    session_logic_event_queue_ = malloc(sizeof(pcep_event_queue));
+    session_logic_event_queue_ = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_event_queue));
     memset(session_logic_event_queue_, 0, sizeof(pcep_event_queue));
     session_logic_event_queue_->event_queue = queue_initialize();
 
@@ -88,9 +106,9 @@ void pcep_session_logic_states_test_setup()
 void pcep_session_logic_states_test_teardown()
 {
     destroy_message_for_test();
-    free(session_logic_handle_);
+    pceplib_free(PCEPLIB_INFRA, session_logic_handle_);
     queue_destroy(session_logic_event_queue_->event_queue);
-    free(session_logic_event_queue_);
+    pceplib_free(PCEPLIB_INFRA, session_logic_event_queue_);
     session_logic_handle_ = NULL;
     session_logic_event_queue_ = NULL;
     queue_destroy_with_data(session.num_unknown_messages_time_queue);
@@ -103,10 +121,10 @@ void create_message_for_test(uint8_t msg_type, bool free_msg_list_at_teardown, b
     free_msg_list = free_msg_list_at_teardown;
     msg_enqueued = was_msg_enqueued;
 
-    message = malloc(sizeof(struct pcep_message));
+    message = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_message));
     memset(message, 0, sizeof(struct pcep_message));
 
-    message->msg_header = malloc(sizeof(struct pcep_message_header));
+    message->msg_header = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_message_header));
     memset(message->msg_header, 0, sizeof(struct pcep_message_header));
     message->obj_list = dll_initialize();
     message->msg_header->type = msg_type;
@@ -151,7 +169,7 @@ void test_handle_timer_event_dead_timer()
 
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(PCE_DEAD_TIMER_EXPIRED, e->event_type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
 
     /* verify_socket_comm_times_called(
      *     initialized, teardown, connect, send_message, close_after_write, close, destroy); */
@@ -185,7 +203,7 @@ void test_handle_timer_event_open_keep_wait()
 
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(PCE_OPEN_KEEP_WAIT_TIMER_EXPIRED, e->event_type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
 
     /* If the state is not SESSION_STATE_PCEP_CONNECTED, then nothing should happen */
     reset_mock_socket_comm_info();
@@ -213,7 +231,7 @@ void test_handle_timer_event_pc_req_wait()
 
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(PCE_OPEN_KEEP_WAIT_TIMER_EXPIRED, e->event_type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
 
     /* If the state is not SESSION_STATE_PCEP_CONNECTED, then nothing should happen */
     reset_mock_socket_comm_info();
@@ -251,7 +269,7 @@ void test_handle_socket_comm_event_close()
 
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(PCE_CLOSED_SOCKET, e->event_type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
 }
 
 
@@ -280,7 +298,7 @@ void test_handle_socket_comm_event_open()
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
     CU_ASSERT_EQUAL(PCEP_TYPE_OPEN, e->message->msg_header->type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
     destroy_message_for_test();
 
     /*
@@ -307,10 +325,10 @@ void test_handle_socket_comm_event_open()
     e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
     CU_ASSERT_EQUAL(PCEP_TYPE_OPEN, e->message->msg_header->type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
     e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(PCC_CONNECTED_TO_PCE, e->event_type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
     destroy_message_for_test();
 
     /*
@@ -340,7 +358,7 @@ void test_handle_socket_comm_event_open()
     CU_ASSERT_EQUAL(PCEP_ERRT_ATTEMPT_TO_ESTABLISH_2ND_PCEP_SESSION, error_obj->error_type);
     CU_ASSERT_EQUAL(PCEP_ERRV_RECVD_INVALID_OPEN_MSG, error_obj->error_value);
     pcep_msg_free_message(msg);
-    free(encoded_msg);
+    pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
 }
 
 
@@ -386,7 +404,7 @@ void test_handle_socket_comm_event_keep_alive()
      * PCE and PCC Open messages have been accepted */
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(PCC_CONNECTED_TO_PCE, e->event_type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
 }
 
 
@@ -405,7 +423,7 @@ void test_handle_socket_comm_event_pcrep()
     verify_socket_comm_times_called(0, 0, 0, 0, 0, 0, 0);
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
 }
 
 
@@ -433,7 +451,7 @@ void test_handle_socket_comm_event_pcreq()
     CU_ASSERT_EQUAL(PCEP_ERRT_CAPABILITY_NOT_SUPPORTED, obj->error_type);
     CU_ASSERT_EQUAL(PCEP_ERRV_UNASSIGNED, obj->error_value);
     pcep_msg_free_message(error_msg);
-    free(encoded_msg);
+    pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
 }
 
 
@@ -461,7 +479,7 @@ void test_handle_socket_comm_event_report()
     CU_ASSERT_EQUAL(PCEP_ERRT_CAPABILITY_NOT_SUPPORTED, obj->error_type);
     CU_ASSERT_EQUAL(PCEP_ERRV_UNASSIGNED, obj->error_value);
     pcep_msg_free_message(error_msg);
-    free(encoded_msg);
+    pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
 }
 
 
@@ -489,7 +507,7 @@ void test_handle_socket_comm_event_update()
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
     CU_ASSERT_EQUAL(PCEP_TYPE_UPDATE, e->message->msg_header->type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
 }
 
 
@@ -511,7 +529,7 @@ void test_handle_socket_comm_event_initiate()
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
     CU_ASSERT_EQUAL(PCEP_TYPE_INITIATE, e->message->msg_header->type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
 }
 
 
@@ -525,7 +543,7 @@ void test_handle_socket_comm_event_notify()
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
     CU_ASSERT_EQUAL(PCEP_TYPE_PCNOTF, e->message->msg_header->type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
 }
 
 
@@ -539,7 +557,7 @@ void test_handle_socket_comm_event_error()
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
     CU_ASSERT_EQUAL(PCEP_TYPE_ERROR, e->message->msg_header->type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
 }
 
 
@@ -568,7 +586,7 @@ void test_handle_socket_comm_event_unknown_msg()
     CU_ASSERT_EQUAL(PCEP_ERRT_CAPABILITY_NOT_SUPPORTED, error_obj->error_type);
     CU_ASSERT_EQUAL(PCEP_ERRV_UNASSIGNED, error_obj->error_value);
     pcep_msg_free_message(msg);
-    free(encoded_msg);
+    pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
     destroy_message_for_test();
 
     /* Send another unsupported message type, an error should be sent and
@@ -597,7 +615,7 @@ void test_handle_socket_comm_event_unknown_msg()
     CU_ASSERT_EQUAL(PCEP_ERRT_CAPABILITY_NOT_SUPPORTED, error_obj->error_type);
     CU_ASSERT_EQUAL(PCEP_ERRV_UNASSIGNED, error_obj->error_value);
     pcep_msg_free_message(msg);
-    free(encoded_msg);
+    pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
 
     /* Verify the Close message */
     encoded_msg = dll_delete_first_node(mock_info->sent_message_list);
@@ -612,7 +630,7 @@ void test_handle_socket_comm_event_unknown_msg()
     CU_ASSERT_EQUAL(PCEP_OBJ_TYPE_CLOSE, close_obj->header.object_type);
     CU_ASSERT_EQUAL(PCEP_CLOSE_REASON_UNREC_MSG, close_obj->reason);
     pcep_msg_free_message(msg);
-    free(encoded_msg);
+    pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
 }
 
 
@@ -644,7 +662,7 @@ void test_connection_failure(void)
     CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 1);
     pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(PCC_RCVD_INVALID_OPEN, e->event_type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
     destroy_message_for_test();
 
     /* Send the same erroneous Open again */
@@ -666,10 +684,10 @@ void test_connection_failure(void)
     CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 2);
     e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(PCC_RCVD_INVALID_OPEN, e->event_type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
     e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(PCC_CONNECTION_FAILURE, e->event_type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
 
     destroy_message_for_test();
 
@@ -696,10 +714,10 @@ void test_connection_failure(void)
     e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(MESSAGE_RECEIVED, e->event_type);
     CU_ASSERT_EQUAL(PCEP_TYPE_ERROR, e->message->msg_header->type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
     e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(PCC_SENT_INVALID_OPEN, e->event_type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
     destroy_message_for_test();
 
     /* Send a socket close while connecting, which should
@@ -717,8 +735,8 @@ void test_connection_failure(void)
     CU_ASSERT_EQUAL(session_logic_event_queue_->event_queue->num_entries, 2);
     e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(PCE_CLOSED_SOCKET, e->event_type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
     e = queue_dequeue(session_logic_event_queue_->event_queue);
     CU_ASSERT_EQUAL(PCC_CONNECTION_FAILURE, e->event_type);
-    free(e);
+    pceplib_free(PCEPLIB_INFRA, e);
 }

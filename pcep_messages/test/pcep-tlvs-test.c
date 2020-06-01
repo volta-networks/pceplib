@@ -31,6 +31,7 @@
 #include "pcep-objects.h"
 #include "pcep-tlvs.h"
 #include "pcep-tools.h"
+#include "pcep_utils_memory.h"
 
 /*
  * Notice:
@@ -41,6 +42,19 @@
 
 static struct pcep_versioning *versioning = NULL;
 static uint8_t tlv_buf[2000];
+
+int pcep_tlvs_test_suite_setup(void)
+{
+    pceplib_memory_reset();
+    return 0;
+}
+
+int pcep_tlvs_test_suite_teardown(void)
+{
+    printf("\n");
+    pceplib_memory_dump();
+    return 0;
+}
 
 void reset_tlv_buffer()
 {
@@ -89,7 +103,7 @@ void test_pcep_tlv_create_speaker_entity_id()
     tlv = pcep_tlv_create_speaker_entity_id(list);
     CU_ASSERT_PTR_NULL(tlv);
 
-    uint32_t *speaker_entity = malloc(sizeof(uint32_t));
+    uint32_t *speaker_entity = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(uint32_t));
     *speaker_entity = 42;
     dll_append(list, speaker_entity);
     tlv = pcep_tlv_create_speaker_entity_id(list);
@@ -162,9 +176,9 @@ void test_pcep_tlv_create_path_setup_type_capability()
     CU_ASSERT_PTR_NULL(tlv);
 
     /* Test only populating the pst list */
-    uint8_t *pst1 = malloc(1);
-    uint8_t *pst2 = malloc(1);
-    uint8_t *pst3 = malloc(1);
+    uint8_t *pst1 = pceplib_malloc(PCEPLIB_MESSAGES, 1);
+    uint8_t *pst2 = pceplib_malloc(PCEPLIB_MESSAGES, 1);
+    uint8_t *pst3 = pceplib_malloc(PCEPLIB_MESSAGES, 1);
     *pst1 = 1;
     *pst2 = 2;
     *pst3 = 3;
@@ -190,7 +204,7 @@ void test_pcep_tlv_create_path_setup_type_capability()
             pcep_tlv_create_sr_pce_capability(true, true, 0);
     pst_list = dll_initialize();
     sub_tlv_list = dll_initialize();
-    pst1 = malloc(1);
+    pst1 = pceplib_malloc(PCEPLIB_MESSAGES, 1);
     *pst1 = 1;
     dll_append(pst_list, pst1);
     dll_append(sub_tlv_list, sub_tlv);
@@ -385,9 +399,7 @@ void test_pcep_tlv_create_srpag_pol_id_ipv4()
     struct pcep_object_tlv_srpag_pol_id *dec_tlv = (struct pcep_object_tlv_srpag_pol_id*)dec_hdr;
     CU_ASSERT_EQUAL(tlv->color, dec_tlv->color);
 
-    free(dec_hdr);
-
-
+    pceplib_free(PCEPLIB_MESSAGES, dec_hdr);
     pcep_obj_free_tlv(&tlv->header);
 }
 void test_pcep_tlv_create_srpag_pol_id_ipv6()
@@ -412,7 +424,7 @@ void test_pcep_tlv_create_srpag_pol_id_ipv6()
     struct pcep_object_tlv_srpag_pol_id *dec_tlv = (struct pcep_object_tlv_srpag_pol_id*)dec_hdr;
     CU_ASSERT_EQUAL(tlv->color, dec_tlv->color);
 
-    free(dec_hdr);
+    pceplib_free(PCEPLIB_MESSAGES, dec_hdr);
     pcep_obj_free_tlv(&tlv->header);
 }
 void test_pcep_tlv_create_srpag_pol_name()
@@ -455,8 +467,7 @@ void test_pcep_tlv_create_srpag_cp_id()
     struct pcep_object_tlv_srpag_cp_id *dec_tlv = (struct pcep_object_tlv_srpag_cp_id*)dec_hdr;
     CU_ASSERT_EQUAL(tlv->proto, dec_tlv->proto);
 
-    free(dec_hdr);
-
+    pceplib_free(PCEPLIB_MESSAGES, dec_hdr);
     pcep_obj_free_tlv(&tlv->header);
 }
 
@@ -479,9 +490,7 @@ void test_pcep_tlv_create_srpag_cp_pref()
     struct pcep_object_tlv_srpag_cp_pref *dec_tlv = (struct pcep_object_tlv_srpag_cp_pref*)dec_hdr;
     CU_ASSERT_EQUAL(tlv->preference, dec_tlv->preference);
 
-    free(dec_hdr);
-
-
+    pceplib_free(PCEPLIB_MESSAGES, dec_hdr);
     pcep_obj_free_tlv(&tlv->header);
 }
 void test_pcep_tlv_create_lsp_error_code()

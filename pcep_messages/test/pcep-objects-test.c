@@ -30,6 +30,7 @@
 #include "pcep-encoding.h"
 #include "pcep-objects.h"
 #include "pcep-tools.h"
+#include "pcep_utils_memory.h"
 
 /*
  * Notice:
@@ -40,6 +41,19 @@
 
 static struct pcep_versioning *versioning = NULL;
 static uint8_t object_buf[2000];
+
+int pcep_objects_test_suite_setup(void)
+{
+    pceplib_memory_reset();
+    return 0;
+}
+
+int pcep_objects_test_suite_teardown(void)
+{
+    printf("\n");
+    pceplib_memory_dump();
+    return 0;
+}
 
 void reset_objects_buffer()
 {
@@ -393,7 +407,7 @@ void test_pcep_obj_create_svec()
     CU_ASSERT_PTR_NULL(svec);
 
     double_linked_list *id_list = dll_initialize();
-    uint32_t *uint32_ptr = malloc(sizeof(uint32_t));
+    uint32_t *uint32_ptr = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(uint32_t));
     *uint32_ptr = 10;
     dll_append(id_list, uint32_ptr);
 

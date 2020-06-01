@@ -60,6 +60,40 @@ bool pceplib_memory_initialize(
     return true;
 }
 
+void pceplib_memory_reset()
+{
+    pceplib_infra_mt.total_bytes_allocated = 0;
+    pceplib_infra_mt.num_allocates = 0;
+    pceplib_infra_mt.total_bytes_freed = 0;
+    pceplib_infra_mt.num_frees = 0;
+
+    pceplib_messages_mt.total_bytes_allocated = 0;
+    pceplib_messages_mt.num_allocates = 0;
+    pceplib_messages_mt.total_bytes_freed = 0;
+    pceplib_messages_mt.num_frees = 0;
+}
+
+void pceplib_memory_dump()
+{
+    if (PCEPLIB_INFRA)
+    {
+        pcep_log(LOG_INFO, "Memory Type [%s] Total [allocs, alloc bytes, frees] [%d, %d, %d]",
+                ((struct pceplib_memory_type *) PCEPLIB_INFRA)->memory_type_name,
+                ((struct pceplib_memory_type *) PCEPLIB_INFRA)->num_allocates,
+                ((struct pceplib_memory_type *) PCEPLIB_INFRA)->total_bytes_allocated,
+                ((struct pceplib_memory_type *) PCEPLIB_INFRA)->num_frees);
+    }
+
+    if (PCEPLIB_MESSAGES)
+    {
+        pcep_log(LOG_INFO, "Memory Type [%s] Total [allocs, alloc bytes, frees] [%d, %d, %d]",
+                ((struct pceplib_memory_type *) PCEPLIB_MESSAGES)->memory_type_name,
+                ((struct pceplib_memory_type *) PCEPLIB_MESSAGES)->num_allocates,
+                ((struct pceplib_memory_type *) PCEPLIB_MESSAGES)->total_bytes_allocated,
+                ((struct pceplib_memory_type *) PCEPLIB_MESSAGES)->num_frees);
+    }
+}
+
 /* PCEPlib memory functions:
  * They either call the supplied function pointers, or use the internal
  * implementations, which just increment simple counters and call the

@@ -56,6 +56,10 @@ bool pceplib_memory_initialize(
         pceplib_strdup_func sfunc,
         pceplib_free_func ffunc);
 
+/* Reset the internal allocation/free counters. Used mainly for internal testing. */
+void pceplib_memory_reset();
+void pceplib_memory_dump();
+
 /* Memory functions to be used throughout the PCEPlib. Internally, these
  * functions will either used the function pointers passed in via
  * pceplib_memory_initialize() or a simple internal implementation. The

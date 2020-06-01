@@ -347,7 +347,9 @@ pcep_obj_free_object(struct pcep_object_header *obj)
     case PCEP_OBJ_CLASS_SWITCH_LAYER:
         if (((struct pcep_object_switch_layer *) obj)->switch_layer_rows != NULL)
         {
-            dll_destroy_with_data(((struct pcep_object_switch_layer *) obj)->switch_layer_rows);
+            dll_destroy_with_data_memtype(
+                    ((struct pcep_object_switch_layer *) obj)->switch_layer_rows,
+                    PCEPLIB_MESSAGES);
         }
         break;
 

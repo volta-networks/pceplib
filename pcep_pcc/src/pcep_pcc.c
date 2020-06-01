@@ -180,27 +180,6 @@ struct cmd_line_args *get_cmdline_args(int argc, char *argv[])
     return cmd_line_args;
 }
 
-void dump_memory_stats()
-{
-    if (PCEPLIB_INFRA)
-    {
-        pcep_log(LOG_INFO, "Memory Type [%s] Total [allocs, alloc bytes, frees] [%d, %d, %d]",
-                ((struct pceplib_memory_type *) PCEPLIB_INFRA)->memory_type_name,
-                ((struct pceplib_memory_type *) PCEPLIB_INFRA)->num_allocates,
-                ((struct pceplib_memory_type *) PCEPLIB_INFRA)->total_bytes_allocated,
-                ((struct pceplib_memory_type *) PCEPLIB_INFRA)->num_frees);
-    }
-
-    if (PCEPLIB_MESSAGES)
-    {
-        pcep_log(LOG_INFO, "Memory Type [%s] Total [allocs, alloc bytes, frees] [%d, %d, %d]",
-                ((struct pceplib_memory_type *) PCEPLIB_MESSAGES)->memory_type_name,
-                ((struct pceplib_memory_type *) PCEPLIB_MESSAGES)->num_allocates,
-                ((struct pceplib_memory_type *) PCEPLIB_MESSAGES)->total_bytes_allocated,
-                ((struct pceplib_memory_type *) PCEPLIB_MESSAGES)->num_frees);
-    }
-}
-
 void handle_signal_action(int sig_number)
 {
     if (sig_number == SIGINT)
@@ -219,7 +198,7 @@ void handle_signal_action(int sig_number)
     {
         pcep_log(LOG_INFO, "SIGUSR1 was caught, dumping counters");
         dump_pcep_session_counters(session);
-        dump_memory_stats();
+        pceplib_memory_dump();
     }
     else if (sig_number == SIGUSR2)
     {
@@ -520,7 +499,7 @@ int main(int argc, char **argv)
         pcep_log(LOG_NOTICE, "Error stopping PCC.");
     }
 
-    dump_memory_stats();
+    pceplib_memory_dump();
 
     return 0;
 }
