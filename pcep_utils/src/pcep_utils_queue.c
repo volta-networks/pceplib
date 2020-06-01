@@ -63,6 +63,12 @@ void queue_destroy(queue_handle *handle)
 
 void queue_destroy_with_data(queue_handle *handle)
 {
+    if (handle == NULL)
+    {
+        pcep_log(LOG_DEBUG, "queue_destroy_with_data, the queue has not been initialized");
+        return;
+    }
+
     void *data = queue_dequeue(handle);
     while (data != NULL)
     {
@@ -77,13 +83,13 @@ queue_node *queue_enqueue(queue_handle *handle, void *data)
 {
     if (handle == NULL)
     {
-        pcep_log(LOG_WARNING, "queue_enqueue, the queue has not been initialized");
+        pcep_log(LOG_DEBUG, "queue_enqueue, the queue has not been initialized");
         return NULL;
     }
 
     if (handle->max_entries > 0 && handle->num_entries >= handle->max_entries)
     {
-        pcep_log(LOG_WARNING, "queue_enqueue, cannot enqueue: max entries hit [%u]",
+        pcep_log(LOG_DEBUG, "queue_enqueue, cannot enqueue: max entries hit [%u]",
                 handle->num_entries);
         return NULL;
     }
