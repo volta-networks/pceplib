@@ -634,6 +634,35 @@ void handle_timer_event(pcep_session_event *event)
     }
 }
 
+void log_pcc_pce_connection(pcep_session *session)
+{
+    char ipv6_buf[40];
+    if (session->socket_comm_session == NULL)
+    {
+        /* This only happens in UT */
+        return;
+    }
+
+    pcep_log(LOG_INFO, "[%ld-%ld] Successful PCC [%s:%d] connection to PCE [%s:%d]",
+        time(NULL), pthread_self(),
+        (session->socket_comm_session->is_ipv6 ?
+            inet_ntop(AF_INET6,
+                &session->socket_comm_session->src_sock_addr.src_sock_addr_ipv6.sin6_addr,
+                ipv6_buf, sizeof(ipv6_buf)) :
+            inet_ntoa(session->socket_comm_session->src_sock_addr.src_sock_addr_ipv4.sin_addr)),
+        htons(session->socket_comm_session->is_ipv6 ?
+            session->socket_comm_session->src_sock_addr.src_sock_addr_ipv6.sin6_port :
+            session->socket_comm_session->src_sock_addr.src_sock_addr_ipv4.sin_port),
+        (session->socket_comm_session->is_ipv6 ?
+            inet_ntop(AF_INET6,
+                &session->socket_comm_session->dest_sock_addr.dest_sock_addr_ipv6.sin6_addr,
+                ipv6_buf, sizeof(ipv6_buf)) :
+            inet_ntoa(session->socket_comm_session->dest_sock_addr.dest_sock_addr_ipv4.sin_addr)),
+        htons(session->socket_comm_session->is_ipv6 ?
+            session->socket_comm_session->dest_sock_addr.dest_sock_addr_ipv6.sin6_port :
+            session->socket_comm_session->dest_sock_addr.dest_sock_addr_ipv4.sin_port));
+}
+
 
 /* State machine handling for received messages.
  * This event was created in session_logic_msg_ready_handler() in
@@ -706,6 +735,7 @@ void handle_socket_comm_event(pcep_session_event *event)
                 if (session->pcc_open_accepted)
                 {
                     /* If both the PCC and PCE Opens are accepted, then the session is connected */
+                    log_pcc_pce_connection(session);
                     session->session_state = SESSION_STATE_PCEP_CONNECTED;
                     increment_event_counters(session, PCEP_EVENT_COUNTER_ID_PCE_CONNECT);
                     enqueue_event(session, PCC_CONNECTED_TO_PCE, NULL);
@@ -724,6 +754,7 @@ void handle_socket_comm_event(pcep_session_event *event)
                 if (session->pce_open_accepted)
                 {
                     /* If both the PCC and PCE Opens are accepted, then the session is connected */
+                    log_pcc_pce_connection(session);
                     session->session_state = SESSION_STATE_PCEP_CONNECTED;
                     increment_event_counters(session, PCEP_EVENT_COUNTER_ID_PCC_CONNECT);
                     enqueue_event(session, PCC_CONNECTED_TO_PCE, NULL);
