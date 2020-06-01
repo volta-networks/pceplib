@@ -293,11 +293,11 @@ void handle_writes(pcep_socket_comm_handle *socket_comm_handle)
                 msg_written = true;
                 write_message(
                         comm_session->socket_fd,
-                        queued_message->unmarshalled_message,
+                        queued_message->encoded_message,
                         queued_message->msg_length);
                 if (queued_message->free_after_send)
                 {
-                    pceplib_free(PCEPLIB_MESSAGES, queued_message->unmarshalled_message);
+                    pceplib_free(PCEPLIB_MESSAGES, (void *) queued_message->encoded_message);
                 }
                 pceplib_free(PCEPLIB_MESSAGES, queued_message);
                 queued_message = queue_dequeue(comm_session->message_queue);

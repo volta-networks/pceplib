@@ -56,7 +56,7 @@ typedef struct pcep_socket_comm_handle_
 
 typedef struct pcep_socket_comm_queued_message_
 {
-    char *unmarshalled_message;
+    const char *encoded_message;
     int msg_length;
     bool free_after_send;
 

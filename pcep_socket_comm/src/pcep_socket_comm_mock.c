@@ -281,7 +281,7 @@ bool socket_comm_session_connect_tcp(pcep_socket_comm_session *socket_comm_sessi
 
 
 void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_session,
-                                  char *unmarshalled_message,
+                                  const char *encoded_message,
                                   unsigned int msg_length,
                                   bool delete_after_send)
 {
@@ -290,13 +290,13 @@ void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_sess
     if (mock_socket_metadata.send_message_save_message == true)
     {
         /* the caller/test case is responsible for freeing the message */
-        dll_append(mock_socket_metadata.sent_message_list, unmarshalled_message);
+        dll_append(mock_socket_metadata.sent_message_list, (char *) encoded_message);
     }
     else
     {
         if (delete_after_send == true)
         {
-            free(unmarshalled_message);
+            free((void *) encoded_message);
         }
     }
 

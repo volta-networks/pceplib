@@ -50,7 +50,7 @@ static uint32_t connect_timeout_millis = 500;
 /*
  * Different socket_comm handler test implementations
  */
-static void test_message_received_handler(void *session_data, char *message_data, unsigned int message_length)
+static void test_message_received_handler(void *session_data, const char *message_data, unsigned int message_length)
 {
 }
 

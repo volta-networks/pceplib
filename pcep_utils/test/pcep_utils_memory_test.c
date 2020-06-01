@@ -40,7 +40,7 @@ void* test_pceplib_realloc(void *mem_type, void *ptr, size_t size)
     return realloc(ptr, size);
 }
 
-void* test_pceplib_strdup(void *mem_type, char *str)
+void* test_pceplib_strdup(void *mem_type, const char *str)
 {
     ((struct test_memory_type *) mem_type)->num_strdup_calls++;
     return strdup(str);

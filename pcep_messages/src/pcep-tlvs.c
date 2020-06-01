@@ -221,7 +221,7 @@ pcep_tlv_create_ipv6_lsp_identifiers(struct in6_addr *ipv6_tunnel_sender,
 }
 
 struct pcep_object_tlv_symbolic_path_name*
-pcep_tlv_create_symbolic_path_name(char *symbolic_path_name, uint16_t symbolic_path_name_length)
+pcep_tlv_create_symbolic_path_name(const char *symbolic_path_name, uint16_t symbolic_path_name_length)
 {
     /* symbolic_path_name_length should NOT include the null terminator and cannot be zero */
     if (symbolic_path_name == NULL || symbolic_path_name_length == 0)
@@ -410,7 +410,7 @@ pcep_tlv_create_srpag_cp_pref(uint32_t pref)
 }
 
 struct pcep_object_tlv_arbitrary*
-pcep_tlv_create_tlv_arbitrary(char *data, uint16_t data_length, int tlv_id)
+pcep_tlv_create_tlv_arbitrary(const char *data, uint16_t data_length, int tlv_id)
 {
     if (data == NULL || data_length == 0)
     {

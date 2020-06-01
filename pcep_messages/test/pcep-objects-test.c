@@ -58,7 +58,7 @@ void pcep_objects_test_teardown()
 }
 
 /* Internal util verification function */
-static void verify_pcep_obj_header2(uint8_t obj_class, uint8_t obj_type, uint16_t obj_length, uint8_t *obj_buf)
+static void verify_pcep_obj_header2(uint8_t obj_class, uint8_t obj_type, uint16_t obj_length, const uint8_t *obj_buf)
 {
     /* Object Header
      *
