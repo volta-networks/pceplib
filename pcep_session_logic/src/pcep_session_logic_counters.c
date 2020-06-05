@@ -35,24 +35,6 @@
 #include "pcep_utils_counters.h"
 #include "pcep_utils_logging.h"
 
-/*
- * Counters Sub-groups definitions
- */
-typedef enum pcep_session_counters_subgroup_ids
-{
-    COUNTER_SUBGROUP_ID_RX_MSG          = 0,
-    COUNTER_SUBGROUP_ID_TX_MSG          = 1,
-    COUNTER_SUBGROUP_ID_RX_OBJ          = 2,
-    COUNTER_SUBGROUP_ID_TX_OBJ          = 3,
-    COUNTER_SUBGROUP_ID_RX_SUBOBJ       = 4,
-    COUNTER_SUBGROUP_ID_TX_SUBOBJ       = 5,
-    COUNTER_SUBGROUP_ID_RX_RO_SR_SUBOBJ = 6,
-    COUNTER_SUBGROUP_ID_TX_RO_SR_SUBOBJ = 7,
-    COUNTER_SUBGROUP_ID_RX_TLV          = 8,
-    COUNTER_SUBGROUP_ID_TX_TLV          = 9,
-    COUNTER_SUBGROUP_ID_EVENT           = 10
-
-} pcep_session_counters_subgroup_ids;
 
 void create_session_counters(pcep_session *session)
 {
@@ -127,7 +109,6 @@ void create_session_counters(pcep_session *session)
     create_subgroup_counter(rx_subobj_subgroup, RO_SUBOBJ_TYPE_UNNUM,      "RO Sub-Object Unnum");
     create_subgroup_counter(rx_subobj_subgroup, RO_SUBOBJ_TYPE_ASN,        "RO Sub-Object ASN");
     create_subgroup_counter(rx_subobj_subgroup, RO_SUBOBJ_TYPE_SR,         "RO Sub-Object SR");
-    create_subgroup_counter(rx_subobj_subgroup, RO_SUBOBJ_TYPE_SR_DRAFT07, "RO Sub-Object SR draft07");
     create_subgroup_counter(rx_subobj_subgroup, RO_SUBOBJ_UNKNOWN,         "RO Sub-Object Unknown");
     create_subgroup_counter(rx_subobj_subgroup, RO_SUBOBJ_UNKNOWN + 1,     "RO Sub-Object Erroneous");
 
@@ -225,7 +206,7 @@ void create_session_counters(pcep_session *session)
     create_subgroup_counter(events_subgroup,
             PCEP_EVENT_COUNTER_ID_TIMER_OPENKEEPWAIT,  "Timer OpenKeepWait expired");
     create_subgroup_counter(events_subgroup,
-            PCEP_EVENT_COUNTER_ID_TIMER_PCREQWAIT,     "Timer PcReq Wait expired");
+            PCEP_EVENT_COUNTER_ID_TIMER_OPENKEEPALIVE, "Timer OpenKeepAlive expired");
 
     /*
      * Create the parent counters group

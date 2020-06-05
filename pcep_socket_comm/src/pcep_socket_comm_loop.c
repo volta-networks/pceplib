@@ -71,7 +71,7 @@ void write_message(int socket_fd, const char *message, unsigned int msg_length)
     {
         bytes_sent = write(socket_fd, message + total_bytes_sent, msg_length);
 
-        pcep_log(LOG_INFO, "[%ld-%ld] socket_comm writing on socket [%d] msg_lenth [%u] bytes sent [%d]",
+        pcep_log(LOG_INFO, "[%ld-%ld] socket_comm writing on socket fd [%d] msg_lenth [%u] bytes sent [%d]",
                 time(NULL), pthread_self(), socket_fd, msg_length, bytes_sent);
 
         if (bytes_sent < 0)
@@ -95,7 +95,7 @@ unsigned int read_message(int socket_fd, char *received_message, unsigned int ma
 {
     /* TODO what if bytes_read == max_message_size? there could be more to read */
     unsigned int bytes_read = read(socket_fd, received_message, max_message_size);
-    pcep_log(LOG_INFO, "[%ld-%ld] socket_comm read message bytes_read [%u] on socket [%d]",
+    pcep_log(LOG_INFO, "[%ld-%ld] socket_comm read message bytes_read [%u] on socket fd [%d]",
             time(NULL), pthread_self(), bytes_read, socket_fd);
 
     return bytes_read;
@@ -243,7 +243,7 @@ void handle_reads(pcep_socket_comm_handle *socket_comm_handle)
             else if (received_bytes < 0)
             {
                 /* TODO should we call conn_except_notifier() here ? */
-                pcep_log(LOG_WARNING, "Error on socket [%d] : errno [%d][%s]",
+                pcep_log(LOG_WARNING, "Error on socket fd [%d] : errno [%d][%s]",
                         comm_session->socket_fd, errno, strerror(errno));
             }
             else
@@ -277,7 +277,6 @@ void handle_writes(pcep_socket_comm_handle *socket_comm_handle)
         if (!comm_session_exists(socket_comm_handle, comm_session))
         {
             /* This comm_session has been deleted, move on to the next one */
-            pthread_mutex_unlock(&(socket_comm_handle->socket_comm_mutex));
             continue;
         }
 
@@ -311,9 +310,11 @@ void handle_writes(pcep_socket_comm_handle *socket_comm_handle)
             {
                 /* TODO check to make sure modifying the write_list while
                  *      iterating it doesnt cause problems. */
+                pcep_log(LOG_DEBUG, "handle_writes close() socket fd [%d]", comm_session->socket_fd);
                 ordered_list_remove_first_node_equals(socket_comm_handle->read_list, comm_session);
                 ordered_list_remove_first_node_equals(socket_comm_handle->write_list, comm_session);
                 close(comm_session->socket_fd);
+                comm_session->socket_fd = -1;
             }
         }
 
@@ -368,7 +369,8 @@ void *socket_comm_loop(void *data)
                 &timer) < 0)
         {
             /* TODO handle the error */
-            pcep_log(LOG_WARNING, "ERROR socket_comm_loop on select");
+            pcep_log(LOG_WARNING, "ERROR socket_comm_loop on select : errno [%d][%s]",
+                    errno, strerror(errno));
         }
 
         handle_reads(socket_comm_handle);
@@ -389,7 +391,9 @@ int pceplib_external_socket_read(int fd, void *payload)
         return -1;
     }
 
+    pthread_mutex_lock(&(socket_comm_handle->socket_comm_mutex));
     FD_SET(fd, &(socket_comm_handle->read_master_set));
+    pthread_mutex_unlock(&(socket_comm_handle->socket_comm_mutex));
 
     handle_reads(socket_comm_handle);
 
@@ -397,7 +401,6 @@ int pceplib_external_socket_read(int fd, void *payload)
     pcep_socket_comm_session find_session = {.socket_fd = fd};
     pthread_mutex_lock(&(socket_comm_handle->socket_comm_mutex));
     ordered_list_node *node = ordered_list_find(socket_comm_handle->read_list, &find_session);
-    pthread_mutex_unlock(&(socket_comm_handle->socket_comm_mutex));
 
     /* read again */
     if (node != NULL)
@@ -407,6 +410,7 @@ int pceplib_external_socket_read(int fd, void *payload)
                 &((pcep_socket_comm_session *) node)->external_socket_data,
                 fd, socket_comm_handle);
     }
+    pthread_mutex_unlock(&(socket_comm_handle->socket_comm_mutex));
 
     return 0;
 }
@@ -419,7 +423,9 @@ int pceplib_external_socket_write(int fd, void *payload)
         return -1;
     }
 
+    pthread_mutex_lock(&(socket_comm_handle->socket_comm_mutex));
     FD_SET(fd, &(socket_comm_handle->write_master_set));
+    pthread_mutex_unlock(&(socket_comm_handle->socket_comm_mutex));
 
     handle_writes(socket_comm_handle);
 

@@ -103,7 +103,7 @@ void test_pcep_msg_create_request()
     CU_ASSERT_PTR_NULL(message);
 
     /* Test IPv4 */
-    struct pcep_object_rp *rp_obj = pcep_obj_create_rp(0, false, false, false, 10, NULL);
+    struct pcep_object_rp *rp_obj = pcep_obj_create_rp(0, false, false, false, false, 10, NULL);
     struct in_addr src_addr, dst_addr;
     struct pcep_object_endpoints_ipv4 *ipv4_obj = pcep_obj_create_endpoint_ipv4(&src_addr, &dst_addr);
     message = pcep_msg_create_request(rp_obj, ipv4_obj, NULL);
@@ -122,7 +122,7 @@ void test_pcep_msg_create_request()
     pcep_msg_free_message(message);
 
     /* Test IPv6 */
-    rp_obj = pcep_obj_create_rp(0, false, false, false, 10, NULL);
+    rp_obj = pcep_obj_create_rp(0, false, false, false, false, 10, NULL);
     struct in6_addr src_addr_ipv6, dst_addr_ipv6;
     struct pcep_object_endpoints_ipv6 *ipv6_obj = pcep_obj_create_endpoint_ipv6(&src_addr_ipv6, &dst_addr_ipv6);
     message = pcep_msg_create_request_ipv6(rp_obj, ipv6_obj, NULL);
@@ -141,7 +141,7 @@ void test_pcep_msg_create_request()
     pcep_msg_free_message(message);
 
     /* The objects get deleted with the message, so they need to be created again */
-    rp_obj = pcep_obj_create_rp(0, false, false, false, 10, NULL);
+    rp_obj = pcep_obj_create_rp(0, false, false, false, false, 10, NULL);
     ipv4_obj = pcep_obj_create_endpoint_ipv4(&src_addr, &dst_addr);
     struct pcep_object_bandwidth *bandwidth_obj = pcep_obj_create_bandwidth(4.2);
     double_linked_list *obj_list = dll_initialize();
@@ -171,7 +171,7 @@ void test_pcep_msg_create_request_svec()
 
 void test_pcep_msg_create_reply_nopath()
 {
-    struct pcep_object_rp *rp_obj = pcep_obj_create_rp(0, false, false, false, 10, NULL);
+    struct pcep_object_rp *rp_obj = pcep_obj_create_rp(0, false, false, false, false, 10, NULL);
     struct pcep_object_nopath *nopath_obj = pcep_obj_create_nopath(false, false, PCEP_NOPATH_TLV_ERR_NO_TLV);
     double_linked_list *obj_list = dll_initialize();
     dll_append(obj_list, nopath_obj);
@@ -215,7 +215,7 @@ void test_pcep_msg_create_reply()
 
     double_linked_list *object_list = dll_initialize();
     dll_append(object_list, ero);
-    struct pcep_object_rp *rp_obj = pcep_obj_create_rp(0, false, false, false, 10, NULL);
+    struct pcep_object_rp *rp_obj = pcep_obj_create_rp(0, false, false, false, false, 10, NULL);
     message = pcep_msg_create_reply(rp_obj, object_list);
     CU_ASSERT_PTR_NOT_NULL(message);
     pcep_encode_message(message, versioning);
@@ -405,6 +405,51 @@ void test_pcep_msg_create_initiate()
             lsp->header.encoded_object_length +
             ero->header.encoded_object_length);
     CU_ASSERT_EQUAL(message->msg_header->type, PCEP_TYPE_INITIATE);
+    CU_ASSERT_EQUAL(message->msg_header->pcep_version, PCEP_MESSAGE_HEADER_VERSION);
+
+    pcep_msg_free_message(message);
+}
+
+void test_pcep_msg_create_notify(void)
+{
+    struct pcep_object_notify *notify_obj = pcep_obj_create_notify(
+            PCEP_NOTIFY_TYPE_PENDING_REQUEST_CANCELLED,
+            PCEP_NOTIFY_VALUE_PCC_CANCELLED_REQUEST);
+
+    /* Should return NULL if the notify obj is empty */
+    struct pcep_message *message = pcep_msg_create_notify(NULL, NULL);
+    CU_ASSERT_PTR_NULL(message);
+
+    message = pcep_msg_create_notify(notify_obj, NULL);
+    CU_ASSERT_PTR_NOT_NULL(message);
+    pcep_encode_message(message, versioning);
+    CU_ASSERT_PTR_NOT_NULL(message->obj_list);
+    CU_ASSERT_EQUAL(message->obj_list->num_entries, 1);
+    CU_ASSERT_EQUAL(message->encoded_message_length,
+            MESSAGE_HEADER_LENGTH +
+            notify_obj->header.encoded_object_length);
+    CU_ASSERT_EQUAL(message->msg_header->type, PCEP_TYPE_PCNOTF);
+    CU_ASSERT_EQUAL(message->msg_header->pcep_version, PCEP_MESSAGE_HEADER_VERSION);
+
+    pcep_msg_free_message(message);
+
+    struct pcep_object_rp *rp_obj = pcep_obj_create_rp(0, false, false, false, false, 10, NULL);
+    double_linked_list *obj_list = dll_initialize();
+    dll_append(obj_list, rp_obj);
+    notify_obj = pcep_obj_create_notify(
+            PCEP_NOTIFY_TYPE_PENDING_REQUEST_CANCELLED,
+            PCEP_NOTIFY_VALUE_PCC_CANCELLED_REQUEST);
+
+    message = pcep_msg_create_notify(notify_obj, obj_list);
+    CU_ASSERT_PTR_NOT_NULL(message);
+    pcep_encode_message(message, versioning);
+    CU_ASSERT_PTR_NOT_NULL(message->obj_list);
+    CU_ASSERT_EQUAL(message->obj_list->num_entries, 2);
+    CU_ASSERT_EQUAL(message->encoded_message_length,
+            MESSAGE_HEADER_LENGTH +
+            notify_obj->header.encoded_object_length +
+            rp_obj->header.encoded_object_length);
+    CU_ASSERT_EQUAL(message->msg_header->type, PCEP_TYPE_PCNOTF);
     CU_ASSERT_EQUAL(message->msg_header->pcep_version, PCEP_MESSAGE_HEADER_VERSION);
 
     pcep_msg_free_message(message);

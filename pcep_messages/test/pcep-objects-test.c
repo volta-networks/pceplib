@@ -181,10 +181,10 @@ void test_pcep_obj_create_rp()
     uint8_t invalid_priority = 100;
     uint8_t priority = 7;
 
-    struct pcep_object_rp *rp = pcep_obj_create_rp(invalid_priority, true, false, false, reqid, NULL);
+    struct pcep_object_rp *rp = pcep_obj_create_rp(invalid_priority, true, false, false, true, reqid, NULL);
     CU_ASSERT_PTR_NULL(rp);
 
-    rp = pcep_obj_create_rp(priority, true, false, false, reqid, NULL);
+    rp = pcep_obj_create_rp(priority, true, false, false, true, reqid, NULL);
     CU_ASSERT_PTR_NOT_NULL(rp);
     pcep_encode_object(&rp->header, versioning, object_buf);
     verify_pcep_obj_header(PCEP_OBJ_CLASS_RP, PCEP_OBJ_TYPE_RP, &rp->header);
@@ -194,6 +194,7 @@ void test_pcep_obj_create_rp()
     CU_ASSERT_EQUAL(rp->header.encoded_object[6], 0);
     CU_ASSERT_EQUAL((rp->header.encoded_object[7] & 0x07), priority);
     CU_ASSERT_TRUE(rp->header.encoded_object[7] & OBJECT_RP_FLAG_R);
+    CU_ASSERT_TRUE(rp->header.encoded_object[7] & OBJECT_RP_FLAG_OF);
     CU_ASSERT_TRUE(rp->header.encoded_object[7] & ~OBJECT_RP_FLAG_B);
     CU_ASSERT_TRUE(rp->header.encoded_object[7] & ~OBJECT_RP_FLAG_O);
     CU_ASSERT_EQUAL(*((uint32_t *) (rp->header.encoded_object + 8)), htonl(reqid));

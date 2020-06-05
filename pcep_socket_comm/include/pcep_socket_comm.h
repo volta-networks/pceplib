@@ -62,6 +62,12 @@ typedef void (*connection_except_notifier)(void *session_data, int socket_fd);
 /* Function pointers when an external socket infrastructure is used */
 typedef int (*ext_socket_write)(void *infra_data, void **infra_socket_data, int fd, void *data);
 typedef int (*ext_socket_read)(void *infra_data, void **infra_socket_data, int fd, void *data);
+typedef int (*ext_socket_pthread_create_callback)(
+        pthread_t *pthread_id,
+        const pthread_attr_t *attr,
+        void *(*start_routine) (void *),
+        void *data,
+        const char *thread_name);
 
 typedef struct pcep_socket_comm_session_
 {
@@ -105,10 +111,14 @@ typedef struct pcep_socket_comm_session_
 
 /* Initialize the Socket Comm infrastructure with an internal pthread */
 bool initialize_socket_comm_loop();
-/* Initialize the Socket Comm infrastructure with an external infrastructure */
-bool initialize_socket_comm_external_infra(void *external_infra_data,
-                                           ext_socket_read socket_read_cb,
-                                           ext_socket_write socket_write_cb);
+/* Initialize the Socket Comm infrastructure with an external infrastructure.
+ * Notice: If the thread_create_func is set, then both the socket_read_cb
+ *         and the socket_write_cb SHOULD be NULL. */
+bool initialize_socket_comm_external_infra(
+        void *external_infra_data,
+        ext_socket_read socket_read_cb,
+        ext_socket_write socket_write_cb,
+        ext_socket_pthread_create_callback thread_create_func);
 
 /* The msg_rcv_handler and msg_ready_handler are mutually exclusive, and only
  * one can be set (as explained above), else NULL will be returned. */

@@ -76,7 +76,7 @@ pcep_obj_create_open(uint8_t keepalive, uint8_t deadtimer, uint8_t sid, double_l
 }
 
 struct pcep_object_rp*
-pcep_obj_create_rp(uint8_t priority, bool flag_r, bool flag_b, bool flag_s, uint32_t reqid, double_linked_list *tlv_list)
+pcep_obj_create_rp(uint8_t priority, bool flag_r, bool flag_b, bool flag_s, bool flag_of, uint32_t reqid, double_linked_list *tlv_list)
 {
     if (priority > OBJECT_RP_MAX_PRIORITY)
     {
@@ -94,6 +94,7 @@ pcep_obj_create_rp(uint8_t priority, bool flag_r, bool flag_b, bool flag_s, uint
     obj->flag_reoptimization = flag_r;
     obj->flag_bidirectional = flag_b;
     obj->flag_strict = flag_s;
+    obj->flag_of = flag_of;
     obj->request_id = reqid;
 
     return obj;
@@ -428,6 +429,20 @@ pcep_obj_create_server_indication(enum pcep_switching_capability sw_cap,
     return obj;
 }
 
+struct pcep_object_objective_function*
+pcep_obj_create_objective_function(uint16_t of_code, double_linked_list *tlv_list)
+{
+    struct pcep_object_objective_function *obj =
+            (struct pcep_object_objective_function *) pcep_obj_create_common_with_tlvs(
+                    sizeof(struct pcep_object_objective_function),
+                    PCEP_OBJ_CLASS_OF, PCEP_OBJ_TYPE_OF,
+                    tlv_list);
+
+    obj->of_code = of_code;
+
+    return obj;
+}
+
 /* Wrap a list of ro subobjects in a structure with an object header */
 struct pcep_object_ro*
 pcep_obj_create_ero(double_linked_list* ero_list)
@@ -567,8 +582,6 @@ static struct pcep_ro_subobj_sr*
 pcep_obj_create_ro_subobj_sr_common(enum pcep_sr_subobj_nai nai_type, bool loose_hop, bool f_flag,
         bool s_flag, bool c_flag_in, bool m_flag_in)
 {
-    /* The difference between RO_SUBOBJ_TYPE_SR and RO_SUBOBJ_TYPE_SR_DRAFT07
-     * will be used/set when the object is encoded */
     struct pcep_ro_subobj_sr *obj =
             (struct pcep_ro_subobj_sr *) pcep_obj_create_ro_subobj_common(
                     sizeof(struct pcep_ro_subobj_sr), RO_SUBOBJ_TYPE_SR, loose_hop);

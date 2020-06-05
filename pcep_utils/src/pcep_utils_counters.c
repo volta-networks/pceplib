@@ -216,7 +216,7 @@ bool delete_counters_group(struct counters_group *group)
 
 bool delete_counters_subgroup(struct counters_subgroup *subgroup)
 {
-    if (subgroup == NULL)
+    if (subgroup == NULL || subgroup->counters == NULL)
     {
         pcep_log(LOG_INFO, "Cannot delete subgroup counters: counters_subgroup is NULL.");
         return false;
@@ -292,7 +292,7 @@ bool increment_counter(struct counters_group *group, uint16_t subgroup_id, uint1
 
     if (subgroup_id >= group->max_subgroups)
     {
-        pcep_log(LOG_INFO, "Cannot increment counter: subgroup_id [%d] is larger than the group max_subgroups [%d].",
+        pcep_log(LOG_DEBUG, "Cannot increment counter: subgroup_id [%d] is larger than the group max_subgroups [%d].",
                 subgroup_id, group->max_subgroups);
         return false;
     }
@@ -317,7 +317,7 @@ bool increment_subgroup_counter(struct counters_subgroup *subgroup, uint16_t cou
 
     if (counter_id >= subgroup->max_counters)
     {
-        pcep_log(LOG_INFO, "Cannot increment counter: counter_id [%d] is larger than the subgroup max_counters [%d].",
+        pcep_log(LOG_DEBUG, "Cannot increment counter: counter_id [%d] is larger than the subgroup max_counters [%d].",
                 counter_id, subgroup->max_counters);
         return false;
     }
@@ -381,4 +381,42 @@ bool dump_counters_subgroup_to_log(struct counters_subgroup *subgroup)
     }
 
     return true;
+}
+
+struct counters_subgroup *find_subgroup(const struct counters_group *group, uint16_t subgroup_id)
+{
+    int i = 0;
+    for (; i <= group->max_subgroups; i++)
+    {
+        struct counters_subgroup *subgroup = group->subgroups[i];
+        if (subgroup != NULL)
+        {
+            if (subgroup->subgroup_id == subgroup_id)
+            {
+                return subgroup;
+            }
+        }
+    }
+
+    return NULL;
+}
+
+uint32_t subgroup_counters_total(struct counters_subgroup *subgroup)
+{
+    if (subgroup == NULL)
+    {
+        return 0;
+    }
+    uint32_t counter_total = 0;
+    int i = 0;
+    for (; i <= subgroup->max_counters; i++)
+    {
+        struct counter *counter = subgroup->counters[i];
+        if (counter != NULL)
+        {
+            counter_total += counter->counter_value;
+        }
+    }
+
+    return counter_total;
 }

@@ -60,6 +60,7 @@ uint16_t pcep_encode_obj_inter_layer(struct pcep_object_header *obj, struct pcep
 uint16_t pcep_encode_obj_switch_layer(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_req_adap_cap(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 uint16_t pcep_encode_obj_server_ind(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
+uint16_t pcep_encode_obj_objective_function(struct pcep_object_header *obj, struct pcep_versioning *versioning, uint8_t *buf);
 typedef uint16_t (*object_encoder_funcptr)(struct pcep_object_header *, struct pcep_versioning *versioning, uint8_t *buf);
 
 #define MAX_OBJECT_ENCODER_INDEX 64
@@ -88,11 +89,13 @@ struct pcep_object_header *pcep_decode_obj_inter_layer(struct pcep_object_header
 struct pcep_object_header *pcep_decode_obj_switch_layer(struct pcep_object_header *hdr, const uint8_t *buf);
 struct pcep_object_header *pcep_decode_obj_req_adap_cap(struct pcep_object_header *hdr, const uint8_t *buf);
 struct pcep_object_header *pcep_decode_obj_server_ind(struct pcep_object_header *hdr, const uint8_t *buf);
+struct pcep_object_header *pcep_decode_obj_objective_function(struct pcep_object_header *hdr, const uint8_t *buf);
 typedef struct pcep_object_header* (*object_decoder_funcptr)(struct pcep_object_header *, const uint8_t *buf);
 
 object_decoder_funcptr object_decoders[MAX_OBJECT_ENCODER_INDEX];
 
-/* Used by pcep_object_get_length() and pcep_object_has_tlvs() */
+/* Object lengths, including the Object Header.
+ * Used by pcep_object_get_length() and pcep_object_has_tlvs() */
 static uint8_t pcep_object_class_lengths[] = {
         0,   /* Object class 0 unused */
         8,   /* PCEP_OBJ_CLASS_OPEN = 1 */
@@ -110,8 +113,10 @@ static uint8_t pcep_object_class_lengths[] = {
         8,   /* PCEP_OBJ_CLASS_ERROR = 13 */
         0,   /* Object class 14 unused */
         8,   /* PCEP_OBJ_CLASS_CLOSE = 15 */
-        0, 0, 0, 0, 0, 0, 0, 0,   /* Object classes 16 - 23 are not used */
-        0, 0, 0, 0, 0, 0, 0, 0,   /* Object classes 24 - 31 are not used */
+        0, 0, 0, 0, 0, /* Object classes 16 - 20 are not used */
+        8,   /* PCEP_OBJ_CLASS_OF = 21 */
+        0, 0, 0, 0, 0,   /* Object classes 22 - 26 are not used */
+        0, 0, 0, 0, 0,   /* Object classes 27 - 31 are not used */
         8,   /* PCEP_OBJ_CLASS_LSP = 32 */
         12,  /* PCEP_OBJ_CLASS_SRP = 33 */
         12,  /* PCEP_OBJ_CLASS_VENDOR_INFO = 34 */
@@ -159,6 +164,7 @@ static void initialize_object_coders()
     object_encoders[PCEP_OBJ_CLASS_REQ_ADAP_CAP]= pcep_encode_obj_req_adap_cap;
     object_encoders[PCEP_OBJ_CLASS_SERVER_IND]  = pcep_encode_obj_server_ind;
     object_encoders[PCEP_OBJ_CLASS_VENDOR_INFO] = pcep_encode_obj_vendor_info;
+    object_encoders[PCEP_OBJ_CLASS_OF]          = pcep_encode_obj_objective_function;
 
     /* Decoders */
     memset(object_decoders, 0, sizeof(object_decoder_funcptr) * MAX_OBJECT_ENCODER_INDEX);
@@ -184,6 +190,7 @@ static void initialize_object_coders()
     object_decoders[PCEP_OBJ_CLASS_REQ_ADAP_CAP]= pcep_decode_obj_req_adap_cap;
     object_decoders[PCEP_OBJ_CLASS_SERVER_IND]  = pcep_decode_obj_server_ind;
     object_decoders[PCEP_OBJ_CLASS_VENDOR_INFO] = pcep_decode_obj_vendor_info;
+    object_decoders[PCEP_OBJ_CLASS_OF]          = pcep_decode_obj_objective_function;
 }
 
 /*
@@ -285,6 +292,7 @@ uint16_t pcep_encode_obj_rp(struct pcep_object_header *hdr, struct pcep_versioni
     obj_body_buf[3] = ((rp->flag_strict == true ? OBJECT_RP_FLAG_O : 0x00) |
                        (rp->flag_bidirectional == true ? OBJECT_RP_FLAG_B : 0x00) |
                        (rp->flag_reoptimization == true ? OBJECT_RP_FLAG_R : 0x00) |
+                       (rp->flag_of == true ? OBJECT_RP_FLAG_OF : 0x00) |
                        (rp->priority & 0x07));
     uint32_t *uint32_ptr = (uint32_t *) (obj_body_buf + 4);
     *uint32_ptr = htonl(rp->request_id);
@@ -519,8 +527,8 @@ uint16_t pcep_encode_obj_req_adap_cap(struct pcep_object_header *hdr, struct pce
 {
     struct pcep_object_req_adap_cap *obj = (struct pcep_object_req_adap_cap *) hdr;
 
-    obj->switching_capability = obj_body_buf[0];
-    obj->encoding = obj_body_buf[1];
+    obj_body_buf[0] = obj->switching_capability;
+    obj_body_buf[1] = obj->encoding;
 
     return LENGTH_1WORD;
 }
@@ -529,8 +537,18 @@ uint16_t pcep_encode_obj_server_ind(struct pcep_object_header *hdr, struct pcep_
 {
     struct pcep_object_server_indication *obj = (struct pcep_object_server_indication *) hdr;
 
-    obj->switching_capability = obj_body_buf[0];
-    obj->encoding = obj_body_buf[1];
+    obj_body_buf[0] = obj->switching_capability;
+    obj_body_buf[1] = obj->encoding;
+
+    return LENGTH_1WORD;
+}
+
+uint16_t pcep_encode_obj_objective_function(struct pcep_object_header *hdr, struct pcep_versioning *versioning, uint8_t *obj_body_buf)
+{
+    struct pcep_object_objective_function *obj = (struct pcep_object_objective_function *) hdr;
+
+    uint16_t *uint16_ptr = (uint16_t *) obj_body_buf;
+    *uint16_ptr = htons(obj->of_code);
 
     return LENGTH_1WORD;
 }
@@ -557,11 +575,8 @@ uint16_t pcep_encode_obj_ro(struct pcep_object_header *hdr, struct pcep_versioni
     for (; node != NULL; node = node->next_node)
     {
         struct pcep_object_ro_subobj *ro_subobj = node->data;
-        uint8_t ro_subobj_type =
-                (ro_subobj->ro_subobj_type == RO_SUBOBJ_TYPE_SR && versioning->draft_ietf_pce_segment_routing_07)
-                ? RO_SUBOBJ_TYPE_SR_DRAFT07 : ro_subobj->ro_subobj_type;
         obj_body_buf[index++] = ((ro_subobj->flag_subobj_loose_hop == true ? 0x80 : 0x00) |
-                                 (ro_subobj_type));
+                                 (ro_subobj->ro_subobj_type));
         /* The length will be written below, depending on the subobj type */
         uint8_t *length_ptr = &(obj_body_buf[index++]);
         uint32_t *uint32_ptr = (uint32_t *) (obj_body_buf + index);
@@ -896,6 +911,7 @@ struct pcep_object_header *pcep_decode_obj_rp(struct pcep_object_header *hdr, co
     obj->flag_reoptimization = (obj_buf[3] & OBJECT_RP_FLAG_R);
     obj->flag_bidirectional  = (obj_buf[3] & OBJECT_RP_FLAG_B);
     obj->flag_strict         = (obj_buf[3] & OBJECT_RP_FLAG_O);
+    obj->flag_of             = (obj_buf[3] & OBJECT_RP_FLAG_OF);
     obj->priority            = (obj_buf[3] & 0x07);
     obj->request_id          = ntohl(*((uint32_t *) (obj_buf + 4)));
 
@@ -1161,6 +1177,18 @@ struct pcep_object_header *pcep_decode_obj_server_ind(struct pcep_object_header 
     return (struct pcep_object_header *) obj;
 }
 
+struct pcep_object_header *pcep_decode_obj_objective_function(struct pcep_object_header *hdr, const uint8_t *obj_buf)
+{
+    struct pcep_object_objective_function *obj =
+            (struct pcep_object_objective_function *) common_object_create(
+                    hdr, sizeof(struct pcep_object_objective_function));
+
+    uint16_t *uint16_ptr = (uint16_t *) obj_buf;
+    obj->of_code = ntohs(*uint16_ptr);
+
+    return (struct pcep_object_header *) obj;
+}
+
 void set_ro_subobj_fields(struct pcep_object_ro_subobj *subobj, bool flag_l, uint8_t subobj_type)
 {
    subobj->flag_subobj_loose_hop = flag_l;
@@ -1283,7 +1311,6 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, co
         break;
 
         case RO_SUBOBJ_TYPE_SR:
-        case RO_SUBOBJ_TYPE_SR_DRAFT07:
         {
             /* SR-ERO subobject format
              *
@@ -1300,8 +1327,7 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, co
 
             struct pcep_ro_subobj_sr *sr_subobj = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(struct pcep_ro_subobj_sr));
             sr_subobj->ro_subobj.flag_subobj_loose_hop = flag_l;
-            /* Overwrite RO_SUBOBJ_TYPE_SR_DRAFT07 with RO_SUBOBJ_TYPE_SR */
-            sr_subobj->ro_subobj.ro_subobj_type = RO_SUBOBJ_TYPE_SR;
+            sr_subobj->ro_subobj.ro_subobj_type = subobj_type;
             dll_append(obj->sub_objects, sr_subobj);
 
             sr_subobj->nai_list = dll_initialize();
@@ -1421,6 +1447,8 @@ struct pcep_object_header *pcep_decode_obj_ro(struct pcep_object_header *hdr, co
         break;
 
         default:
+            pcep_log(LOG_INFO, "pcep_decode_obj_ro skipping unrecognized sub-object type [%d]", subobj_type);
+            read_count += subobj_length;
             break;
         }
     }

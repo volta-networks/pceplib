@@ -113,6 +113,20 @@ int main(int argc, char **argv)
      */
     CU_basic_set_mode(CU_BRM_VERBOSE);
     CU_basic_run_tests();
+    CU_FailureRecord *failure_record = CU_get_failure_list();
+    if (failure_record != NULL)
+    {
+        printf("\nFailed tests:\n\t [Suite] [Test] [File:line-number]\n");
+        do
+        {
+            printf("\t [%s] [%s] [%s:%d]\n",
+                   failure_record->pSuite->pName, failure_record->pTest->pName,
+                   failure_record->strFileName, failure_record->uiLineNumber);
+            failure_record = failure_record->pNext;
+
+        } while (failure_record != NULL);
+    }
+
     CU_pRunSummary run_summary = CU_get_run_summary();
     int result = run_summary->nTestsFailed;
     CU_cleanup_registry();

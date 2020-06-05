@@ -34,6 +34,7 @@
 #include "pcep_utils_logging.h"
 #include "pcep_utils_memory.h"
 
+#define TIMER_OPEN_KEEP_ALIVE_SECONDS 1
 
 /* Session Logic Handle managed in pcep_session_logic.c */
 extern pcep_event_queue *session_logic_event_queue_;
@@ -46,7 +47,7 @@ void send_keep_alive(pcep_session *session)
 {
     struct pcep_message *keep_alive_msg = pcep_msg_create_keepalive();
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send keep_alive message for session_id [%d]",
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send keep_alive message for session [%d]",
             time(NULL), pthread_self(), session->session_id);
 
     session_send_message(session, keep_alive_msg);
@@ -64,7 +65,7 @@ void send_pcep_error_with_object(pcep_session *session, enum pcep_error_type err
     dll_append(obj_list, object);
     struct pcep_message *error_msg = pcep_msg_create_error_with_objects(error_type, error_value, obj_list);
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send error message with object [%d][%d] for session_id [%d]",
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send error message with object [%d][%d] for session [%d]",
             time(NULL), pthread_self(), error_type, error_value, session->session_id);
 
     session_send_message(session, error_msg);
@@ -75,7 +76,7 @@ void send_pcep_error(pcep_session *session, enum pcep_error_type error_type, enu
 {
     struct pcep_message *error_msg = pcep_msg_create_error(error_type, error_value);
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send error message [%d][%d] for session_id [%d]",
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send error message [%d][%d] for session [%d]",
             time(NULL), pthread_self(), error_type, error_value, session->session_id);
 
     session_send_message(session, error_msg);
@@ -84,16 +85,24 @@ void send_pcep_error(pcep_session *session, enum pcep_error_type error_type, enu
 
 void reset_dead_timer(pcep_session *session)
 {
+    /* Default to configured dead_timer if its not set yet or set to 0 by the PCE */
+    int dead_timer_seconds =
+            (session->pcc_config.dead_timer_pce_negotiated_seconds == 0) ?
+                    session->pcc_config.dead_timer_seconds :
+                    session->pcc_config.dead_timer_pce_negotiated_seconds;
+
     if (session->timer_id_dead_timer == TIMER_ID_NOT_SET)
     {
-        pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic set dead timer [%d secs] for session_id [%d]",
-                time(NULL), pthread_self(), session->pce_config.dead_timer_seconds, session->session_id);
-        session->timer_id_dead_timer = create_timer(session->pce_config.dead_timer_seconds, session);
+        session->timer_id_dead_timer = create_timer(dead_timer_seconds, session);
+        pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic set dead timer [%d secs] id [%d] for session [%d]",
+                time(NULL), pthread_self(), dead_timer_seconds,
+                session->timer_id_dead_timer, session->session_id);
     }
     else
     {
-        pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic reset dead timer [%d secs] for session_id [%d]",
-                time(NULL), pthread_self(), session->pce_config.dead_timer_seconds, session->session_id);
+        pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic reset dead timer [%d secs] id [%d] for session [%d]",
+                time(NULL), pthread_self(), dead_timer_seconds,
+                session->timer_id_dead_timer, session->session_id);
         reset_timer(session->timer_id_dead_timer);
     }
 }
@@ -103,7 +112,8 @@ void enqueue_event(pcep_session *session, pcep_event_type event_type, struct pce
 {
     if (event_type == MESSAGE_RECEIVED && message == NULL)
     {
-        pcep_log(LOG_WARNING, "enqueue_event cannot enqueue a NULL message");
+        pcep_log(LOG_WARNING, "enqueue_event cannot enqueue a NULL message session [%d]",
+                session->session_id);
         return;
     }
 
@@ -336,10 +346,17 @@ bool handle_pcep_open(pcep_session *session, struct pcep_message *open_msg)
         return false;
     }
 
-    /* Open Message accepted */
-    session->pce_config.dead_timer_seconds = open_object->open_deadtimer;
-    session->pce_config.keep_alive_seconds = open_object->open_keepalive;
-    send_keep_alive(session);
+    /*
+     * Open Message accepted
+     * Sending the keep-alive response will be managed the function caller
+     */
+
+    session->timer_id_open_keep_alive = create_timer(TIMER_OPEN_KEEP_ALIVE_SECONDS, session);
+    session->pcc_config.dead_timer_pce_negotiated_seconds = (int) open_object->open_deadtimer;
+    /* Cancel the timer so we can change the dead_timer value */
+    cancel_timer(session->timer_id_dead_timer);
+    session->timer_id_dead_timer = TIMER_ID_NOT_SET;
+    reset_dead_timer(session);
 
     return true;
 }
@@ -363,29 +380,54 @@ void send_reconciled_pcep_open(pcep_session *session, struct pcep_message *error
 
     struct pcep_object_open *open_obj =
             (struct pcep_object_open *) pcep_obj_get(open_msg->obj_list, PCEP_OBJ_CLASS_OPEN);
-    if (error_open_obj->open_deadtimer >= session->pce_config.min_dead_timer_seconds &&
-        error_open_obj->open_deadtimer <= session->pce_config.max_dead_timer_seconds)
+
+    if (error_open_obj->open_deadtimer != session->pce_config.dead_timer_seconds)
     {
-        open_obj->open_deadtimer = error_open_obj->open_deadtimer;
-    }
-    else
-    {
-        pcep_log(LOG_INFO, "Can not reconcile Open with suggested deadtimer [%d]", error_open_obj->open_deadtimer);
+        if (error_open_obj->open_deadtimer >= session->pce_config.min_dead_timer_seconds &&
+            error_open_obj->open_deadtimer <= session->pce_config.max_dead_timer_seconds)
+        {
+            open_obj->open_deadtimer = error_open_obj->open_deadtimer;
+            session->pcc_config.dead_timer_pce_negotiated_seconds = error_open_obj->open_deadtimer;
+            pcep_log(LOG_INFO, "Open deadtimer value [%d] rejected, using PCE value [%d]",
+                    session->pcc_config.dead_timer_seconds,
+                    session->pcc_config.dead_timer_pce_negotiated_seconds);
+            /* Reset the timer with the new value */
+            cancel_timer(session->timer_id_dead_timer);
+            session->timer_id_dead_timer = TIMER_ID_NOT_SET;
+            reset_dead_timer(session);
+        }
+        else
+        {
+            pcep_log(LOG_INFO, "Can not reconcile Open with suggested deadtimer [%d]",
+                    error_open_obj->open_deadtimer);
+        }
     }
 
-    if (error_open_obj->open_keepalive >= session->pce_config.min_keep_alive_seconds &&
-        error_open_obj->open_keepalive <= session->pce_config.max_keep_alive_seconds)
+    if (error_open_obj->open_keepalive != session->pce_config.keep_alive_seconds)
     {
-        open_obj->open_keepalive = error_open_obj->open_keepalive;
-    }
-    else
-    {
-        pcep_log(LOG_INFO, "Can not reconcile Open with suggested keepalive [%d]", error_open_obj->open_keepalive);
+        if (error_open_obj->open_keepalive >= session->pce_config.min_keep_alive_seconds &&
+            error_open_obj->open_keepalive <= session->pce_config.max_keep_alive_seconds)
+        {
+            open_obj->open_keepalive = error_open_obj->open_keepalive;
+            session->pcc_config.keep_alive_pce_negotiated_timer_seconds = error_open_obj->open_keepalive;
+            pcep_log(LOG_INFO, "Open keep alive value [%d] rejected, using PCE value [%d]",
+                    session->pcc_config.keep_alive_seconds,
+                    session->pcc_config.keep_alive_pce_negotiated_timer_seconds);
+            /* Cancel the timer, the timer will be set again with the new value
+             * when this open message is sent */
+            cancel_timer(session->timer_id_keep_alive);
+            session->timer_id_keep_alive = TIMER_ID_NOT_SET;
+        }
+        else
+        {
+            pcep_log(LOG_INFO, "Can not reconcile Open with suggested keepalive [%d]", error_open_obj->open_keepalive);
+        }
     }
 
     /* TODO reconcile the TLVs */
 
     session_send_message(session, open_msg);
+    reset_timer(session->timer_id_open_keep_alive);
 }
 
 
@@ -555,8 +597,72 @@ void increment_unknown_message(pcep_session *session)
 
     if (session->num_unknown_messages_time_queue->num_entries >= session->pcc_config.max_unknown_messages)
     {
+        pcep_log(LOG_INFO, "[%ld-%ld] Max unknown messages reached [%d] closing session [%d]",
+                time(NULL), pthread_self(), session->pcc_config.max_unknown_messages,
+                session->session_id);
+
         close_pcep_session_with_reason(session, PCEP_CLOSE_REASON_UNREC_MSG);
+        enqueue_event(session, PCC_RCVD_MAX_UNKOWN_MSGS, NULL);
     }
+}
+
+bool check_and_send_open_keep_alive(pcep_session *session)
+{
+    if (session->pce_open_received == true &&
+        session->pce_open_rejected == false &&
+        session->pce_open_keep_alive_sent == false)
+    {
+        /* Send the PCE Open keep-alive response if it hasnt been sent yet */
+        cancel_timer(session->timer_id_open_keep_alive);
+        session->timer_id_open_keep_alive = TIMER_ID_NOT_SET;
+        send_keep_alive(session);
+        session->pce_open_keep_alive_sent = true;
+
+        return true;
+    }
+
+    return false;
+}
+
+void log_pcc_pce_connection(pcep_session *session)
+{
+    if (session->socket_comm_session == NULL)
+    {
+        /* This only happens in UT */
+        return;
+    }
+
+    char src_ip_buf[40], dst_ip_buf[40];
+    uint16_t src_port, dst_port;
+
+    if (session->socket_comm_session->is_ipv6)
+    {
+        inet_ntop(AF_INET6,
+                  &session->socket_comm_session->src_sock_addr.src_sock_addr_ipv6.sin6_addr,
+                  src_ip_buf, sizeof(src_ip_buf));
+        inet_ntop(AF_INET6,
+                  &session->socket_comm_session->dest_sock_addr.dest_sock_addr_ipv6.sin6_addr,
+                  dst_ip_buf, sizeof(dst_ip_buf));
+        src_port = htons(session->socket_comm_session->src_sock_addr.src_sock_addr_ipv6.sin6_port);
+        dst_port = htons(session->socket_comm_session->dest_sock_addr.dest_sock_addr_ipv6.sin6_port);
+    }
+    else
+    {
+        inet_ntop(AF_INET,
+                  &session->socket_comm_session->src_sock_addr.src_sock_addr_ipv4.sin_addr,
+                  src_ip_buf, sizeof(src_ip_buf));
+        inet_ntop(AF_INET,
+                  &session->socket_comm_session->dest_sock_addr.dest_sock_addr_ipv4.sin_addr,
+                  dst_ip_buf, sizeof(dst_ip_buf));
+        src_port = htons(session->socket_comm_session->src_sock_addr.src_sock_addr_ipv4.sin_port);
+        dst_port = htons(session->socket_comm_session->dest_sock_addr.dest_sock_addr_ipv4.sin_port);
+    }
+
+    pcep_log(LOG_INFO, "[%ld-%ld] Successful PCC [%s:%d] connection to PCE [%s:%d] session [%d] fd [%d]",
+        time(NULL), pthread_self(),
+        src_ip_buf, src_port, dst_ip_buf, dst_port,
+        session->session_id,
+        session->socket_comm_session->socket_fd);
 }
 
 /*
@@ -576,10 +682,10 @@ void handle_timer_event(pcep_session_event *event)
 
     pcep_session *session = event->session;
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic handle_timer_event: session_id [%d] event timer_id [%d] "
-            "session timers [OKW, PRW, DT, KA] [%d, %d, %d, %d]",
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic handle_timer_event: session [%d] event timer_id [%d] "
+            "session timers [OKW, OKA, DT, KA] [%d, %d, %d, %d]",
             time(NULL), pthread_self(), session->session_id, event->expired_timer_id,
-            session->timer_id_open_keep_wait, session->timer_id_pc_req_wait,
+            session->timer_id_open_keep_wait, session->timer_id_open_keep_alive,
             session->timer_id_dead_timer, session->timer_id_keep_alive);
 
     /*
@@ -617,59 +723,34 @@ void handle_timer_event(pcep_session_event *event)
             session->timer_id_open_keep_wait = TIMER_ID_NOT_SET;
             enqueue_event(session, PCE_OPEN_KEEP_WAIT_TIMER_EXPIRED, NULL);
         }
-        break;
 
-    case SESSION_STATE_WAIT_PCREQ:
-        if (event->expired_timer_id == session->timer_id_pc_req_wait)
+        if (event->expired_timer_id == session->timer_id_open_keep_alive)
         {
-            pcep_log(LOG_INFO, "handle_timer_event PCReq_wait timer expired for session [%d]", session->session_id);
-            increment_event_counters(session, PCEP_EVENT_COUNTER_ID_TIMER_PCREQWAIT);
-            /* TODO is this the right reason?? */
-            close_pcep_session_with_reason(session, PCEP_CLOSE_REASON_DEADTIMER);
-            session->timer_id_pc_req_wait = TIMER_ID_NOT_SET;
-            enqueue_event(session, PCE_OPEN_KEEP_WAIT_TIMER_EXPIRED, NULL);
+            increment_event_counters(session, PCEP_EVENT_COUNTER_ID_TIMER_OPENKEEPALIVE);
+            session->timer_id_open_keep_alive = TIMER_ID_NOT_SET;
+            if (check_and_send_open_keep_alive(session) == true)
+            {
+                if (session->pcc_open_accepted == true &&
+                    session->session_state != SESSION_STATE_PCEP_CONNECTED)
+                {
+                    log_pcc_pce_connection(session);
+                    session->session_state = SESSION_STATE_PCEP_CONNECTED;
+                    increment_event_counters(session, PCEP_EVENT_COUNTER_ID_PCE_CONNECT);
+                    enqueue_event(session, PCC_CONNECTED_TO_PCE, NULL);
+                }
+            }
+            return;
         }
         break;
 
-    case SESSION_STATE_IDLE:
     case SESSION_STATE_INITIALIZED:
     case SESSION_STATE_PCEP_CONNECTED:
     default:
-        pcep_log(LOG_INFO, "handle_timer_event unrecognized state transition, timer_id [%d] state [%d] session_id [%d]",
+        pcep_log(LOG_INFO, "handle_timer_event unrecognized state transition, timer_id [%d] state [%d] session [%d]",
                 event->expired_timer_id, session->session_state, session->session_id);
         break;
     }
 }
-
-void log_pcc_pce_connection(pcep_session *session)
-{
-    char ipv6_buf[40];
-    if (session->socket_comm_session == NULL)
-    {
-        /* This only happens in UT */
-        return;
-    }
-
-    pcep_log(LOG_INFO, "[%ld-%ld] Successful PCC [%s:%d] connection to PCE [%s:%d]",
-        time(NULL), pthread_self(),
-        (session->socket_comm_session->is_ipv6 ?
-            inet_ntop(AF_INET6,
-                &session->socket_comm_session->src_sock_addr.src_sock_addr_ipv6.sin6_addr,
-                ipv6_buf, sizeof(ipv6_buf)) :
-            inet_ntoa(session->socket_comm_session->src_sock_addr.src_sock_addr_ipv4.sin_addr)),
-        htons(session->socket_comm_session->is_ipv6 ?
-            session->socket_comm_session->src_sock_addr.src_sock_addr_ipv6.sin6_port :
-            session->socket_comm_session->src_sock_addr.src_sock_addr_ipv4.sin_port),
-        (session->socket_comm_session->is_ipv6 ?
-            inet_ntop(AF_INET6,
-                &session->socket_comm_session->dest_sock_addr.dest_sock_addr_ipv6.sin6_addr,
-                ipv6_buf, sizeof(ipv6_buf)) :
-            inet_ntoa(session->socket_comm_session->dest_sock_addr.dest_sock_addr_ipv4.sin_addr)),
-        htons(session->socket_comm_session->is_ipv6 ?
-            session->socket_comm_session->dest_sock_addr.dest_sock_addr_ipv6.sin6_port :
-            session->socket_comm_session->dest_sock_addr.dest_sock_addr_ipv4.sin_port));
-}
-
 
 /* State machine handling for received messages.
  * This event was created in session_logic_msg_ready_handler() in
@@ -684,7 +765,7 @@ void handle_socket_comm_event(pcep_session_event *event)
 
     pcep_session *session = event->session;
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic handle_socket_comm_event: session_id [%d] num messages [%d] socket_closed [%d]",
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic handle_socket_comm_event: session [%d] num messages [%d] socket_closed [%d]",
             time(NULL), pthread_self(),
             session->session_id,
             (event->received_msg_list == NULL ? -1 : event->received_msg_list->num_entries),
@@ -742,6 +823,8 @@ void handle_socket_comm_event(pcep_session_event *event)
                 if (session->pcc_open_accepted)
                 {
                     /* If both the PCC and PCE Opens are accepted, then the session is connected */
+
+                    check_and_send_open_keep_alive(session);
                     log_pcc_pce_connection(session);
                     session->session_state = SESSION_STATE_PCEP_CONNECTED;
                     increment_event_counters(session, PCEP_EVENT_COUNTER_ID_PCE_CONNECT);
@@ -758,6 +841,8 @@ void handle_socket_comm_event(pcep_session_event *event)
                 session->timer_id_open_keep_wait = TIMER_ID_NOT_SET;
                 session->pcc_open_accepted = true;
                 session->pcc_open_rejected = false;
+                check_and_send_open_keep_alive(session);
+
                 if (session->pce_open_accepted)
                 {
                     /* If both the PCC and PCE Opens are accepted, then the session is connected */
@@ -771,18 +856,8 @@ void handle_socket_comm_event(pcep_session_event *event)
             break;
 
         case PCEP_TYPE_PCREP:
-            if (session->session_state == SESSION_STATE_WAIT_PCREQ)
-            {
-                session->session_state = SESSION_STATE_IDLE;
-                cancel_timer(session->timer_id_pc_req_wait);
-                session->timer_id_pc_req_wait = TIMER_ID_NOT_SET;
-                enqueue_event(session, MESSAGE_RECEIVED, msg);
-                message_enqueued = true;
-            }
-            else
-            {
-                send_pcep_error(session, PCEP_ERRT_UNKNOWN_REQ_REF, PCEP_ERRV_UNASSIGNED);
-            }
+            enqueue_event(session, MESSAGE_RECEIVED, msg);
+            message_enqueued = true;
             break;
 
         case PCEP_TYPE_CLOSE:
@@ -828,18 +903,32 @@ void handle_socket_comm_event(pcep_session_event *event)
             break;
 
         case PCEP_TYPE_ERROR:
-            enqueue_event(session, MESSAGE_RECEIVED, msg);
-            message_enqueued = true;
+            if (msg->obj_list != NULL && msg->obj_list->num_entries > 0)
+            {
+                struct pcep_object_header *obj_hdr =
+                        pcep_obj_get(msg->obj_list, PCEP_OBJ_CLASS_ERROR);
+                if (obj_hdr != NULL)
+                {
+                    struct pcep_object_error *error_obj =
+                            (struct pcep_object_error *) obj_hdr;
+                    pcep_log(LOG_DEBUG, "Error object [type, value] = [%s, %s]",
+                            get_error_type_str(error_obj->error_type),
+                            get_error_value_str(error_obj->error_type, error_obj->error_value));
+                }
+            }
+
             if (session->session_state == SESSION_STATE_PCEP_CONNECTING)
             {
                 /* A PCC_CONNECTION_FAILURE event will be sent when the socket is
                  * closed, if the state is SESSION_STATE_PCEP_CONNECTING, in case
                  * the PCE allows more than 2 failed open messages. */
-                pcep_log(LOG_INFO, "PCC Open message rejected by PCC");
-                enqueue_event(session, PCC_SENT_INVALID_OPEN, NULL);
+                pcep_log(LOG_INFO, "PCC Open message rejected by PCE");
                 session->pcc_open_rejected = true;
                 send_reconciled_pcep_open(session, msg);
+                enqueue_event(session, PCC_SENT_INVALID_OPEN, NULL);
             }
+            enqueue_event(session, MESSAGE_RECEIVED, msg);
+            message_enqueued = true;
             break;
 
         default:

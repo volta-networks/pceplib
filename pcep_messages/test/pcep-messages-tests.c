@@ -43,6 +43,7 @@ extern void test_pcep_msg_create_keepalive(void);
 extern void test_pcep_msg_create_report(void);
 extern void test_pcep_msg_create_update(void);
 extern void test_pcep_msg_create_initiate(void);
+extern void test_pcep_msg_create_notify(void);
 
 /* functions to be tested from pcep-tlvs.c */
 extern int pcep_tlvs_test_suite_setup(void);
@@ -125,6 +126,14 @@ extern void test_pcep_msg_read_pcep_update_cisco_pce(void);
 extern void test_pcep_msg_read_pcep_report_cisco_pcc(void);
 extern void test_pcep_msg_read_pcep_initiate_cisco_pcc(void);
 
+/* functions to be tested from pcep-object-error-types.c */
+extern int pcep_object_error_types_test_suite_setup(void);
+extern int pcep_object_error_types_test_suite_teardown(void);
+extern void pcep_object_error_types_test_setup(void);
+extern void pcep_object_error_types_test_teardown(void);
+extern void test_get_error_type_str(void);
+extern void test_get_error_value_str(void);
+
 
 int main(int argc, char **argv)
 {
@@ -145,6 +154,7 @@ int main(int argc, char **argv)
     CU_add_test(messages_suite, "test_pcep_msg_create_report", test_pcep_msg_create_report);
     CU_add_test(messages_suite, "test_pcep_msg_create_update", test_pcep_msg_create_update);
     CU_add_test(messages_suite, "test_pcep_msg_create_initiate", test_pcep_msg_create_initiate);
+    CU_add_test(messages_suite, "test_pcep_msg_create_notify", test_pcep_msg_create_notify);
 
     CU_pSuite tlvs_suite = CU_add_suite_with_setup_and_teardown(
             "PCEP TLVs Test Suite",
@@ -228,8 +238,31 @@ int main(int argc, char **argv)
     CU_add_test(tools_suite, "test_pcep_msg_read_pcep_report_cisco_pcc", test_pcep_msg_read_pcep_report_cisco_pcc);
     CU_add_test(tools_suite, "test_pcep_msg_read_pcep_initiate_cisco_pcc", test_pcep_msg_read_pcep_initiate_cisco_pcc);
 
+    CU_pSuite obj_errors_suite = CU_add_suite_with_setup_and_teardown(
+            "PCEP Object Error Types Test Suite",
+            pcep_object_error_types_test_suite_setup,
+            pcep_object_error_types_test_suite_teardown,
+            pcep_object_error_types_test_setup,
+            pcep_object_error_types_test_teardown);
+    CU_add_test(obj_errors_suite, "test_get_error_type_str", test_get_error_type_str);
+    CU_add_test(obj_errors_suite, "test_get_error_value_str", test_get_error_value_str);
+
     CU_basic_set_mode(CU_BRM_VERBOSE);
     CU_basic_run_tests();
+    CU_FailureRecord *failure_record = CU_get_failure_list();
+    if (failure_record != NULL)
+    {
+        printf("\nFailed tests:\n\t [Suite] [Test] [File:line-number]\n");
+        do
+        {
+            printf("\t [%s] [%s] [%s:%d]\n",
+                   failure_record->pSuite->pName, failure_record->pTest->pName,
+                   failure_record->strFileName, failure_record->uiLineNumber);
+            failure_record = failure_record->pNext;
+
+        } while (failure_record != NULL);
+    }
+
     CU_pRunSummary run_summary = CU_get_run_summary();
     int result = run_summary->nTestsFailed;
     CU_cleanup_registry();

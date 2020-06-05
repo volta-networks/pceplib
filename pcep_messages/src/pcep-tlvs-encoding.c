@@ -58,6 +58,7 @@ uint16_t pcep_encode_tlv_cpath_id(struct pcep_object_tlv_header *tlv, struct pce
 uint16_t pcep_encode_tlv_cpath_preference(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf);
 uint16_t pcep_encode_tlv_vendor_info(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf);
 uint16_t pcep_encode_tlv_arbitrary(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf);
+uint16_t pcep_encode_tlv_of_list(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf);
 typedef uint16_t (*tlv_encoder_funcptr)(struct pcep_object_tlv_header *, struct pcep_versioning *versioning, uint8_t *tlv_body_buf);
 
 #define MAX_TLV_ENCODER_INDEX 65533+1 // 65
@@ -84,6 +85,7 @@ struct pcep_object_tlv_header *pcep_decode_tlv_cpath_id(struct pcep_object_tlv_h
 struct pcep_object_tlv_header *pcep_decode_tlv_cpath_preference(struct pcep_object_tlv_header *tlv_hdr, const uint8_t *tlv_body_buf);
 struct pcep_object_tlv_header *pcep_decode_tlv_vendor_info(struct pcep_object_tlv_header *tlv_hdr, const uint8_t *tlv_body_buf);
 struct pcep_object_tlv_header *pcep_decode_tlv_arbitrary(struct pcep_object_tlv_header *tlv_hdr, const uint8_t *tlv_body_buf);
+struct pcep_object_tlv_header *pcep_decode_tlv_of_list(struct pcep_object_tlv_header *tlv_hdr, const uint8_t *tlv_body_buf);
 typedef struct pcep_object_tlv_header* (*tlv_decoder_funcptr)(struct pcep_object_tlv_header *tlv_hdr, const uint8_t *tlv_body_buf);
 
 tlv_decoder_funcptr tlv_decoders[MAX_TLV_ENCODER_INDEX];
@@ -120,6 +122,7 @@ static void initialize_tlv_coders()
     tlv_encoders[PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_PREFERENCE]   =  pcep_encode_tlv_cpath_preference;
     tlv_encoders[PCEP_OBJ_TLV_TYPE_VENDOR_INFO]                 =  pcep_encode_tlv_vendor_info;
     tlv_encoders[PCEP_OBJ_TLV_TYPE_ARBITRARY]                   =  pcep_encode_tlv_arbitrary;
+    tlv_encoders[PCEP_OBJ_TLV_TYPE_OBJECTIVE_FUNCTION_LIST]     =  pcep_encode_tlv_of_list;
 
     /* Decoders */
     memset(tlv_decoders, 0, sizeof(tlv_decoder_funcptr) * MAX_TLV_ENCODER_INDEX);
@@ -141,6 +144,7 @@ static void initialize_tlv_coders()
     tlv_decoders[PCEP_OBJ_TLV_TYPE_SRPOLICY_CPATH_PREFERENCE]   =  pcep_decode_tlv_cpath_preference;
     tlv_decoders[PCEP_OBJ_TLV_TYPE_VENDOR_INFO]                 =  pcep_decode_tlv_vendor_info;
     tlv_decoders[PCEP_OBJ_TLV_TYPE_ARBITRARY]                   =  pcep_decode_tlv_arbitrary;
+    tlv_decoders[PCEP_OBJ_TLV_TYPE_OBJECTIVE_FUNCTION_LIST]     =  pcep_decode_tlv_of_list;
 }
 
 uint16_t pcep_encode_tlv(struct pcep_object_tlv_header* tlv_hdr, struct pcep_versioning *versioning, uint8_t *buf)
@@ -481,6 +485,34 @@ uint16_t pcep_encode_tlv_arbitrary(struct pcep_object_tlv_header *tlv, struct pc
     return tlv_arbitrary->data_length;
 }
 
+uint16_t pcep_encode_tlv_of_list(struct pcep_object_tlv_header *tlv, struct pcep_versioning *versioning, uint8_t *tlv_body_buf)
+{
+    struct pcep_object_tlv_of_list *of_list = (struct pcep_object_tlv_of_list *) tlv;
+
+    if (of_list->of_list == NULL)
+    {
+        return 0;
+    }
+
+    int index = 0;
+    double_linked_list_node *node = of_list->of_list->head;
+    while (node != NULL)
+    {
+        uint16_t *of_code = (uint16_t *) node->data;
+        if (of_code == NULL)
+        {
+            return 0;
+        }
+
+        uint16_t* uint16_ptr = (uint16_t*) (tlv_body_buf + index);
+        *uint16_ptr = *of_code;
+        index += 2;
+
+        node = node->next_node;
+    }
+
+    return of_list->of_list->num_entries * 2;
+}
 
 /*
  * Decoding functions
@@ -846,4 +878,20 @@ struct pcep_object_tlv_header *pcep_decode_tlv_arbitrary(struct pcep_object_tlv_
     return (struct pcep_object_tlv_header *) tlv_arbitrary;
 }
 
+struct pcep_object_tlv_header *pcep_decode_tlv_of_list(struct pcep_object_tlv_header *tlv_hdr, const uint8_t *tlv_body_buf)
+{
+    struct pcep_object_tlv_of_list *of_tlv = (struct pcep_object_tlv_of_list *)
+        common_tlv_create(tlv_hdr, sizeof(struct pcep_object_tlv_of_list));
 
+    of_tlv->of_list = dll_initialize();
+    uint16_t *uint16_ptr = (uint16_t *) tlv_body_buf;
+    int i = 0;
+    for (; i < tlv_hdr->encoded_tlv_length && i < MAX_ITERATIONS; i++)
+    {
+        uint16_t *of_code_ptr = pceplib_malloc(PCEPLIB_MESSAGES, sizeof(uint16_t));
+        *of_code_ptr = ntohs(uint16_ptr[i]);
+        dll_append(of_tlv->of_list, of_code_ptr);
+    }
+
+    return (struct pcep_object_tlv_header *) of_tlv;
+}

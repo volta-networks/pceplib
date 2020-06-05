@@ -91,6 +91,8 @@ void test_connect_pce()
     mock_socket_comm_info *mock_info = get_mock_socket_comm_info();
     mock_info->send_message_save_message = true;
 
+    initialize_pcc();
+
     pcep_session *session = connect_pce(config, &dest_address);
 
     CU_ASSERT_PTR_NOT_NULL(session);
@@ -107,6 +109,8 @@ void test_connect_pce()
     destroy_pcep_session(session);
     destroy_pcep_configuration(config);
     pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
+
+    destroy_pcc();
 }
 
 void test_connect_pce_ipv6()
@@ -119,6 +123,8 @@ void test_connect_pce_ipv6()
     dest_address.__in6_u.__u6_addr32[3] = htonl(1);
     mock_socket_comm_info *mock_info = get_mock_socket_comm_info();
     mock_info->send_message_save_message = true;
+
+    initialize_pcc();
 
     pcep_session *session = connect_pce_ipv6(config, &dest_address);
 
@@ -137,6 +143,8 @@ void test_connect_pce_ipv6()
     destroy_pcep_session(session);
     destroy_pcep_configuration(config);
     pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
+
+    destroy_pcc();
 }
 
 void test_connect_pce_with_src_ip()
@@ -148,6 +156,8 @@ void test_connect_pce_with_src_ip()
     mock_socket_comm_info *mock_info = get_mock_socket_comm_info();
     mock_info->send_message_save_message = true;
     config->src_ip.src_ipv4.s_addr = 0x0a0a0102;
+
+    initialize_pcc();
 
     pcep_session *session = connect_pce(config, &dest_address);
 
@@ -163,6 +173,8 @@ void test_connect_pce_with_src_ip()
     destroy_pcep_session(session);
     destroy_pcep_configuration(config);
     pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
+
+    destroy_pcc();
 }
 
 void test_disconnect_pce()
@@ -173,6 +185,8 @@ void test_disconnect_pce()
     memcpy(&dest_address, host_info->h_addr, host_info->h_length);
     mock_socket_comm_info *mock_info = get_mock_socket_comm_info();
     mock_info->send_message_save_message = true;
+
+    initialize_pcc();
 
     pcep_session *session = connect_pce(config, &dest_address);
     disconnect_pce(session);
@@ -199,6 +213,8 @@ void test_disconnect_pce()
     destroy_pcep_session(session);
     destroy_pcep_configuration(config);
     pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
+
+    destroy_pcc();
 }
 
 
@@ -207,6 +223,9 @@ void test_send_message()
     pcep_configuration *config = create_default_pcep_configuration();
     struct hostent *host_info = gethostbyname("localhost");
     struct in_addr dest_address;
+
+    initialize_pcc();
+
     memcpy(&dest_address, host_info->h_addr, host_info->h_length);
     pcep_session *session = connect_pce(config, &dest_address);
     verify_socket_comm_times_called(0, 0, 1, 1, 0, 0, 0);
@@ -219,6 +238,8 @@ void test_send_message()
     pcep_msg_free_message(msg);
     destroy_pcep_session(session);
     destroy_pcep_configuration(config);
+
+    destroy_pcc();
 }
 
 void test_event_queue()

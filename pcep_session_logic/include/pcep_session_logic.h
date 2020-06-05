@@ -45,6 +45,8 @@ typedef struct pcep_configuration_
      * be sent to the PCE in the PCEP Open message */
     int keep_alive_seconds;
     int dead_timer_seconds;
+    int dead_timer_pce_negotiated_seconds; /* Config data negotiated with PCE */
+    int keep_alive_pce_negotiated_timer_seconds; /* Config data negotiated with PCE */
     int request_time_seconds;
 
     /* These are the acceptable ranges of values received by
@@ -131,9 +133,7 @@ typedef enum pcep_session_state_
     SESSION_STATE_UNKNOWN = 0,
     SESSION_STATE_INITIALIZED = 1,
     SESSION_STATE_PCEP_CONNECTING = 2,
-    SESSION_STATE_PCEP_CONNECTED = 3,
-    SESSION_STATE_WAIT_PCREQ = 4,
-    SESSION_STATE_IDLE = 5  /* Only used in conjunction with SESSION_STATE_WAIT_PCREQ */
+    SESSION_STATE_PCEP_CONNECTED = 3
 
 } pcep_session_state;
 
@@ -143,12 +143,13 @@ typedef struct pcep_session_
     int session_id;
     pcep_session_state session_state;
     int timer_id_open_keep_wait;
-    int timer_id_pc_req_wait;
+    int timer_id_open_keep_alive;
     int timer_id_dead_timer;
     int timer_id_keep_alive;
     bool pce_open_received;
     bool pce_open_rejected;
     bool pce_open_accepted;
+    bool pce_open_keep_alive_sent;
     bool pcc_open_rejected;
     bool pcc_open_accepted;
     bool stateful_pce;
@@ -195,6 +196,12 @@ typedef struct pcep_event
 } pcep_event;
 
 typedef void (*pceplib_pcep_event_callback)(void *cb_data, pcep_event *);
+typedef int (*pthread_create_callback)(
+        pthread_t *pthread_id,
+        const pthread_attr_t *attr,
+        void *(*start_routine) (void *),
+        void *data,
+        const char *thread_name);
 
 
 typedef struct pcep_event_queue
@@ -231,8 +238,29 @@ typedef struct pceplib_infra_config
     /* External pcep_event infrastructure */
     pceplib_pcep_event_callback pcep_event_func;
 
+    /* Callback to create pthreads */
+    pthread_create_callback pthread_create_func;
+
 } pceplib_infra_config;
 
+/*
+ * Counters Sub-groups definitions
+ */
+typedef enum pcep_session_counters_subgroup_ids
+{
+    COUNTER_SUBGROUP_ID_RX_MSG          = 0,
+    COUNTER_SUBGROUP_ID_TX_MSG          = 1,
+    COUNTER_SUBGROUP_ID_RX_OBJ          = 2,
+    COUNTER_SUBGROUP_ID_TX_OBJ          = 3,
+    COUNTER_SUBGROUP_ID_RX_SUBOBJ       = 4,
+    COUNTER_SUBGROUP_ID_TX_SUBOBJ       = 5,
+    COUNTER_SUBGROUP_ID_RX_RO_SR_SUBOBJ = 6,
+    COUNTER_SUBGROUP_ID_TX_RO_SR_SUBOBJ = 7,
+    COUNTER_SUBGROUP_ID_RX_TLV          = 8,
+    COUNTER_SUBGROUP_ID_TX_TLV          = 9,
+    COUNTER_SUBGROUP_ID_EVENT           = 10
+
+} pcep_session_counters_subgroup_ids;
 
 bool run_session_logic();
 bool run_session_logic_with_infra(pceplib_infra_config *infra_config);
@@ -260,5 +288,7 @@ void pcep_session_cancel_timers(pcep_session *session);
  * sub-objects, and TLVs in the message will be incremented.  Received counters
  * are incremented internally. */
 void increment_message_tx_counters(pcep_session *session, struct pcep_message *message);
+
+bool session_exists(pcep_session *session);
 
 #endif /* INCLUDE_PCEPSESSIONLOGIC_H_ */

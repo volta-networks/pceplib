@@ -55,6 +55,7 @@ extern "C" {
 enum pcep_object_tlv_types
 {
     PCEP_OBJ_TLV_TYPE_NO_PATH_VECTOR = 1,
+    PCEP_OBJ_TLV_TYPE_OBJECTIVE_FUNCTION_LIST = 4,      /* RFC 5541 */
     PCEP_OBJ_TLV_TYPE_VENDOR_INFO = 7,                  /* RFC 7470 */
     PCEP_OBJ_TLV_TYPE_STATEFUL_PCE_CAPABILITY = 16,     /* RFC 8231 */
     PCEP_OBJ_TLV_TYPE_SYMBOLIC_PATH_NAME = 17,          /* RFC 8232 */
@@ -279,6 +280,22 @@ struct pcep_object_tlv_arbitrary
     char data[MAX_ARBITRARY_SIZE];
 };
 
+/* Objective Functions List RFC 5541
+ * At least the following 6 OF codes must be supported */
+enum objective_function_codes {
+    PCEP_OF_CODE_MINIMUM_COST_PATH = 1,               /* MCP */
+    PCEP_OF_CODE_MINIMUM_LOAD_PATH = 2,               /* MLP */
+    PCEP_OF_CODE_MAXIMUM_BW_PATH = 3,                 /* MBP */
+    PCEP_OF_CODE_MINIMIZE_AGGR_BW_CONSUMPTION = 4,    /* MBC */
+    PCEP_OF_CODE_MINIMIZE_MOST_LOADED_LINK = 5,       /* MLL */
+    PCEP_OF_CODE_MINIMIZE_CUMULATIVE_COST_PATHS = 6,  /* MCC */
+};
+
+struct pcep_object_tlv_of_list
+{
+    struct pcep_object_tlv_header header;
+    double_linked_list *of_list; /* list of uint16_t OF code points */
+};
 
 /*
  * TLV creation functions
@@ -296,6 +313,7 @@ struct pcep_object_tlv_speaker_entity_identifier*  pcep_tlv_create_speaker_entit
 struct pcep_object_tlv_path_setup_type*            pcep_tlv_create_path_setup_type(uint8_t pst);
 struct pcep_object_tlv_path_setup_type_capability* pcep_tlv_create_path_setup_type_capability(double_linked_list *pst_list, double_linked_list *sub_tlv_list);
 struct pcep_object_tlv_sr_pce_capability*          pcep_tlv_create_sr_pce_capability(bool flag_n, bool flag_x, uint8_t max_sid_depth);
+struct pcep_object_tlv_of_list*                    pcep_tlv_create_of_list(double_linked_list *of_list);
 
 /*
  * LSP Object TLVs

@@ -50,6 +50,7 @@ typedef struct pcep_session_logic_handle_
     bool active;
 
     ordered_list_handle *session_list;
+    pthread_mutex_t session_list_mutex;
     /* Internal timers and socket events */
     queue_handle *session_event_queue;
 
@@ -77,7 +78,7 @@ typedef enum pcep_session_counters_event_counter_ids
     PCEP_EVENT_COUNTER_ID_TIMER_KEEPALIVE     = 4,
     PCEP_EVENT_COUNTER_ID_TIMER_DEADTIMER     = 5,
     PCEP_EVENT_COUNTER_ID_TIMER_OPENKEEPWAIT  = 6,
-    PCEP_EVENT_COUNTER_ID_TIMER_PCREQWAIT     = 7
+    PCEP_EVENT_COUNTER_ID_TIMER_OPENKEEPALIVE = 7
 
 } pcep_session_counters_event_counter_ids;
 
@@ -91,10 +92,14 @@ void session_logic_timer_expire_handler(void *data, int timer_id);
 void handle_timer_event(pcep_session_event *event);
 void handle_socket_comm_event(pcep_session_event *event);
 void session_send_message(pcep_session *session, struct pcep_message *message);
+
 /* defined in pcep_session_logic_states.c */
 void send_pcep_error(pcep_session *session,
                      enum pcep_error_type error_type,
                      enum pcep_error_value error_value);
+void enqueue_event(pcep_session *session, pcep_event_type event_type,
+                   struct pcep_message *message);
+void increment_unknown_message(pcep_session *session);
 
 /* defined in pcep_session_logic_counters.c */
 void create_session_counters(pcep_session *session);

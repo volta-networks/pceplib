@@ -30,6 +30,7 @@
 #ifndef PCEPTIMERS_H_
 #define PCEPTIMERS_H_
 
+#include <pthread.h>
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -45,6 +46,12 @@ typedef void (*timer_expire_handler)(void *, int);
 /* Function pointer when an external timer infrastructure is used */
 typedef void (*ext_timer_create)(void *infra_data, void **timer, int seconds, void *data);
 typedef void (*ext_timer_cancel)(void **timer);
+typedef int (*ext_pthread_create_callback)(
+        pthread_t *pthread_id,
+        const pthread_attr_t *attr,
+        void *(*start_routine) (void *),
+        void *data,
+        const char *thread_name);
 
 /*
  * Initialize the timers module.
@@ -60,7 +67,8 @@ bool initialize_timers_external_infra(
         timer_expire_handler expire_handler,
         void *external_timer_infra_data,
         ext_timer_create timer_create_func,
-        ext_timer_cancel timer_cancel_func);
+        ext_timer_cancel timer_cancel_func,
+        ext_pthread_create_callback thread_create_func);
 
 /*
  * Teardown the timers module.

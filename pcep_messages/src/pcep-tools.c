@@ -66,10 +66,10 @@ static const char* object_class_strs[] = {
         "ERROR",
         "NOT_IMPLEMENTED14",
         "CLOSE",
-        "NOT_IMPLEMENTED16", "NOT_IMPLEMENTED17", "NOT_IMPLEMENTED18", "NOT_IMPLEMENTED19",
-        "NOT_IMPLEMENTED20", "NOT_IMPLEMENTED21", "NOT_IMPLEMENTED22", "NOT_IMPLEMENTED23",
-        "NOT_IMPLEMENTED24", "NOT_IMPLEMENTED25", "NOT_IMPLEMENTED26", "NOT_IMPLEMENTED27",
-        "NOT_IMPLEMENTED28", "NOT_IMPLEMENTED29", "NOT_IMPLEMENTED30", "NOT_IMPLEMENTED31",
+        "NOT_IMPLEMENTED16", "NOT_IMPLEMENTED17", "NOT_IMPLEMENTED18", "NOT_IMPLEMENTED19", "NOT_IMPLEMENTED20",
+        "OBJECTIVE_FUNCTION",
+        "NOT_IMPLEMENTED22", "NOT_IMPLEMENTED23", "NOT_IMPLEMENTED24", "NOT_IMPLEMENTED25", "NOT_IMPLEMENTED26",
+        "NOT_IMPLEMENTED27", "NOT_IMPLEMENTED28", "NOT_IMPLEMENTED29", "NOT_IMPLEMENTED30", "NOT_IMPLEMENTED31",
         "LSP",
         "SRP",
         "VENDOR_INFO",
@@ -94,10 +94,11 @@ pcep_msg_read(int sock_fd)
     ret = read(sock_fd, &buffer, PCEP_MAX_SIZE);
 
     if(ret < 0) {
-        pcep_log(LOG_INFO, "pcep_msg_read: Failed to read from socket errno [%d %s]", errno, strerror(errno));
+        pcep_log(LOG_INFO, "pcep_msg_read: Failed to read from socket fd [%d] errno [%d %s]",
+                sock_fd, errno, strerror(errno));
         return NULL;
     } else if(ret == 0) {
-        pcep_log(LOG_INFO, "pcep_msg_read: Remote shutdown");
+        pcep_log(LOG_INFO, "pcep_msg_read: Remote shutdown fd [%d]", sock_fd);
         return NULL;
     }
 
@@ -112,7 +113,7 @@ pcep_msg_read(int sock_fd)
         {
             /* If the message header is invalid, we cant keep
              * reading since the length may be invalid */
-            pcep_log(LOG_INFO, "pcep_msg_read: Received an invalid message");
+            pcep_log(LOG_INFO, "pcep_msg_read: Received an invalid message fd [%d]", sock_fd);
             return msg_list;
         }
 
@@ -121,12 +122,14 @@ pcep_msg_read(int sock_fd)
         if((ret - buffer_read) < msg_hdr_length) {
             int read_len = (msg_hdr_length - (ret - buffer_read));
             int read_ret = 0;
-            pcep_log(LOG_INFO, "pcep_msg_read: Message not fully read! Trying to read %d bytes more", read_len);
+            pcep_log(LOG_INFO, "pcep_msg_read: Message not fully read! Trying to read %d bytes more, fd [%d]",
+                    read_len, sock_fd);
 
             read_ret = read(sock_fd, &buffer[ret], read_len);
 
             if(read_ret != read_len) {
-                pcep_log(LOG_INFO, "pcep_msg_read: Did not manage to read enough data (%d != %d)", read_ret, read_len);
+                pcep_log(LOG_INFO, "pcep_msg_read: Did not manage to read enough data (%d != %d) fd [%d]",
+                        read_ret, read_len, sock_fd);
                 return msg_list;
             }
         }

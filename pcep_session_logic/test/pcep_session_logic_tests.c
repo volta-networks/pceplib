@@ -60,10 +60,10 @@ extern void pcep_session_logic_states_test_teardown(void);
 extern void test_handle_timer_event_dead_timer(void);
 extern void test_handle_timer_event_keep_alive(void);
 extern void test_handle_timer_event_open_keep_wait(void);
-extern void test_handle_timer_event_pc_req_wait(void);
 extern void test_handle_socket_comm_event_null_params(void);
 extern void test_handle_socket_comm_event_close(void);
 extern void test_handle_socket_comm_event_open(void);
+extern void test_handle_socket_comm_event_open_error(void);
 extern void test_handle_socket_comm_event_keep_alive(void);
 extern void test_handle_socket_comm_event_pcrep(void);
 extern void test_handle_socket_comm_event_pcreq(void);
@@ -155,9 +155,6 @@ int main(int argc, char **argv)
                 "test_handle_timer_event_open_keep_wait",
                 test_handle_timer_event_open_keep_wait);
     CU_add_test(test_session_logic_states_suite,
-                "test_handle_timer_event_pc_req_wait",
-                test_handle_timer_event_pc_req_wait);
-    CU_add_test(test_session_logic_states_suite,
                 "test_handle_socket_comm_event_null_params",
                 test_handle_socket_comm_event_null_params);
     CU_add_test(test_session_logic_states_suite,
@@ -166,6 +163,9 @@ int main(int argc, char **argv)
     CU_add_test(test_session_logic_states_suite,
                 "test_handle_socket_comm_event_open",
                 test_handle_socket_comm_event_open);
+    CU_add_test(test_session_logic_states_suite,
+                "test_handle_socket_comm_event_open_error",
+                test_handle_socket_comm_event_open_error);
     CU_add_test(test_session_logic_states_suite,
                 "test_handle_socket_comm_event_keep_alive",
                 test_handle_socket_comm_event_keep_alive);
@@ -202,6 +202,20 @@ int main(int argc, char **argv)
      */
     CU_basic_set_mode(CU_BRM_VERBOSE);
     CU_basic_run_tests();
+    CU_FailureRecord *failure_record = CU_get_failure_list();
+    if (failure_record != NULL)
+    {
+        printf("\nFailed tests:\n\t [Suite] [Test] [File:line-number]\n");
+        do
+        {
+            printf("\t [%s] [%s] [%s:%d]\n",
+                   failure_record->pSuite->pName, failure_record->pTest->pName,
+                   failure_record->strFileName, failure_record->uiLineNumber);
+            failure_record = failure_record->pNext;
+
+        } while (failure_record != NULL);
+    }
+
     CU_pRunSummary run_summary = CU_get_run_summary();
     int result = run_summary->nTestsFailed;
     CU_cleanup_registry();

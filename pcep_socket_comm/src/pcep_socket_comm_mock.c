@@ -99,7 +99,8 @@ void verify_socket_comm_times_called(int initialized, int teardown, int connect,
 bool initialize_socket_comm_external_infra(
         void *external_infra_data,
         ext_socket_read socket_read_cb,
-        ext_socket_write socket_write_cb)
+        ext_socket_write socket_write_cb,
+        ext_socket_pthread_create_callback thread_create_func)
 {
     mock_socket_metadata.socket_comm_initialize_external_infra_times_called++;
 

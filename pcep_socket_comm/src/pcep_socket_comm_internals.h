@@ -65,5 +65,7 @@ typedef struct pcep_socket_comm_queued_message_
 
 /* Functions implemented in pcep_socket_comm_loop.c */
 void *socket_comm_loop(void *data);
+bool comm_session_exists(pcep_socket_comm_handle *socket_comm_handle, pcep_socket_comm_session *socket_comm_session);
+bool comm_session_exists_locking(pcep_socket_comm_handle *socket_comm_handle, pcep_socket_comm_session *socket_comm_session);
 
 #endif /* SRC_PCEPSOCKETCOMMINTERNALS_H_ */

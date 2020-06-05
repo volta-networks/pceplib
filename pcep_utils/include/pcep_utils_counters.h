@@ -201,6 +201,16 @@ bool dump_counters_group_to_log(struct counters_group *group);
  */
 bool dump_counters_subgroup_to_log(struct counters_subgroup *subgroup);
 
+/*
+ * Search for a counters_subgroup by subgroup_id in a counters_group
+ * and return it, if found, else return NULL.
+ */
+struct counters_subgroup *find_subgroup(const struct counters_group *group, uint16_t subgroup_id);
+
+/*
+ * Given a counters_subgroup, return the sum of all the counters.
+ */
+uint32_t subgroup_counters_total(struct counters_subgroup *subgroup);
 
 #ifdef __cplusplus
 }

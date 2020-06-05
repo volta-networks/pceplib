@@ -87,7 +87,8 @@ bool initialize_socket_comm_pre()
 bool initialize_socket_comm_external_infra(
         void *external_infra_data,
         ext_socket_read socket_read_cb,
-        ext_socket_write socket_write_cb)
+        ext_socket_write socket_write_cb,
+        ext_socket_pthread_create_callback thread_create_func)
 {
     if (socket_comm_handle_ != NULL)
     {
@@ -98,6 +99,19 @@ bool initialize_socket_comm_external_infra(
     if (initialize_socket_comm_pre() == false)
     {
         return false;
+    }
+
+    /* Notice: If the thread_create_func is set, then both the socket_read_cb
+     *         and the socket_write_cb SHOULD be NULL. */
+    if (thread_create_func != NULL)
+    {
+        if(thread_create_func(
+                &(socket_comm_handle_->socket_comm_thread),
+                NULL, socket_comm_loop, socket_comm_handle_, "pceplib_timers"))
+        {
+            pcep_log(LOG_ERR, "Cannot initialize external socket_comm thread.");
+            return false;
+        }
     }
 
     socket_comm_handle_->external_infra_data  = external_infra_data;
@@ -183,14 +197,6 @@ socket_comm_session_initialize_pre(message_received_handler message_handler,
 
     pcep_socket_comm_session *socket_comm_session = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_socket_comm_session));
     memset(socket_comm_session, 0, sizeof(pcep_socket_comm_session));
-
-    socket_comm_session->socket_fd = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (socket_comm_session->socket_fd == -1) {
-        pcep_log(LOG_WARNING, "Cannot create socket errno [%d %s].", errno, strerror(errno));
-        socket_comm_session_teardown(socket_comm_session);//socket_comm_session freed inside fn so NOLINT next.
-
-        return NULL;//NOLINT(clang-analyzer-unix.Malloc)
-    }
 
     socket_comm_handle_->num_active_sessions++;
     socket_comm_session->close_after_write = false;
@@ -538,7 +544,6 @@ bool socket_comm_session_connect_tcp(pcep_socket_comm_session *socket_comm_sessi
     pthread_mutex_lock(&(socket_comm_handle_->socket_comm_mutex));
     /* once the TCP connection is open, we should be ready to read at any time */
     ordered_list_add_node(socket_comm_handle_->read_list, socket_comm_session);
-    pthread_mutex_unlock(&(socket_comm_handle_->socket_comm_mutex));
 
     if (socket_comm_handle_->socket_read_func != NULL)
     {
@@ -548,6 +553,7 @@ bool socket_comm_session_connect_tcp(pcep_socket_comm_session *socket_comm_sessi
                 socket_comm_session->socket_fd,
                 socket_comm_handle_);
     }
+    pthread_mutex_unlock(&(socket_comm_handle_->socket_comm_mutex));
 
     return true;
 }
@@ -561,11 +567,15 @@ bool socket_comm_session_close_tcp(pcep_socket_comm_session *socket_comm_session
         return false;
     }
 
+    pcep_log(LOG_DEBUG, "socket_comm_session_close_tcp close() socket fd [%d]",
+            socket_comm_session->socket_fd);
+
     pthread_mutex_lock(&(socket_comm_handle_->socket_comm_mutex));
     ordered_list_remove_first_node_equals(socket_comm_handle_->read_list, socket_comm_session);
     ordered_list_remove_first_node_equals(socket_comm_handle_->write_list, socket_comm_session);
     // TODO should it be close() or shutdown()??
     close(socket_comm_session->socket_fd);
+    socket_comm_session->socket_fd = -1;
     pthread_mutex_unlock(&(socket_comm_handle_->socket_comm_mutex));
 
     return true;
@@ -602,7 +612,13 @@ bool socket_comm_session_teardown(pcep_socket_comm_session *socket_comm_session)
         return false;
     }
 
-    if (socket_comm_session->socket_fd > 0)
+    if (comm_session_exists_locking(socket_comm_handle_, socket_comm_session) == false)
+    {
+        pcep_log(LOG_WARNING, "Cannot teardown session that does not exist");
+        return false;
+    }
+
+    if (socket_comm_session->socket_fd >= 0)
     {
         shutdown(socket_comm_session->socket_fd, SHUT_RDWR);
         close(socket_comm_session->socket_fd);
@@ -616,7 +632,7 @@ bool socket_comm_session_teardown(pcep_socket_comm_session *socket_comm_session)
     socket_comm_handle_->num_active_sessions--;
     pthread_mutex_unlock(&(socket_comm_handle_->socket_comm_mutex));
 
-    pcep_log(LOG_INFO, "[%ld-%ld] socket_comm_session [%d] destroyed, [%d] sessions remaining",
+    pcep_log(LOG_INFO, "[%ld-%ld] socket_comm_session fd [%d] destroyed, [%d] sessions remaining",
             time(NULL), pthread_self(),
             socket_comm_session->socket_fd,
             socket_comm_handle_->num_active_sessions);
@@ -651,9 +667,36 @@ void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_sess
     queued_message->free_after_send = free_after_send;
 
     pthread_mutex_lock(&(socket_comm_handle_->socket_comm_mutex));
+
+    /* Do not proceed if the socket_comm_session has been deleted */
+    if (ordered_list_find(socket_comm_handle_->session_list, socket_comm_session) == NULL)
+    {
+        /* Should never get here, only if the session was deleted and someone still tries to write on it */
+        pcep_log(LOG_WARNING, "Cannot write a message on a deleted socket comm session, discarding message");
+        pthread_mutex_unlock(&(socket_comm_handle_->socket_comm_mutex));
+        pceplib_free(PCEPLIB_MESSAGES, queued_message);
+
+        return;
+    }
+
+    /* Do not proceed if the socket has been closed */
+    if (socket_comm_session->socket_fd < 0)
+    {
+        /* Should never get here, only if the session was deleted and someone still tries to write on it */
+        pcep_log(LOG_WARNING, "Cannot write a message on a closed socket, discarding message");
+        pthread_mutex_unlock(&(socket_comm_handle_->socket_comm_mutex));
+        pceplib_free(PCEPLIB_MESSAGES, queued_message);
+
+        return;
+    }
+
     queue_enqueue(socket_comm_session->message_queue, queued_message);
-    ordered_list_add_node(socket_comm_handle_->write_list, socket_comm_session);
-    pthread_mutex_unlock(&(socket_comm_handle_->socket_comm_mutex));
+
+    /* Add it to the write list only if its not already there */
+    if (ordered_list_find(socket_comm_handle_->write_list, socket_comm_session) == NULL)
+    {
+        ordered_list_add_node(socket_comm_handle_->write_list, socket_comm_session);
+    }
 
     if (socket_comm_handle_->socket_write_func != NULL)
     {
@@ -663,4 +706,5 @@ void socket_comm_session_send_message(pcep_socket_comm_session *socket_comm_sess
                 socket_comm_session->socket_fd,
                 socket_comm_handle_);
     }
+    pthread_mutex_unlock(&(socket_comm_handle_->socket_comm_mutex));
 }

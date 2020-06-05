@@ -241,7 +241,7 @@ void send_pce_path_request_message(pcep_session *session)
     inet_pton(AF_INET, "1.2.3.4", &src_ipv4);
     inet_pton(AF_INET, "10.20.30.40", &dst_ipv4);
 
-    struct pcep_object_rp *rp_object = pcep_obj_create_rp(1, false, false, false, 42, NULL);
+    struct pcep_object_rp *rp_object = pcep_obj_create_rp(1, false, false, false, false, 42, NULL);
     struct pcep_object_endpoints_ipv4 *ep_object = pcep_obj_create_endpoint_ipv4(&src_ipv4, &dst_ipv4);
 
     struct pcep_message *path_request = pcep_msg_create_request(rp_object,  ep_object, NULL);

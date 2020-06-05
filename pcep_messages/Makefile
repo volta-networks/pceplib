@@ -22,10 +22,12 @@ _DEPS = *.h
 DEPS = $(patsubst %,$(INC_DIR)/%,$(_DEPS))
 EXTERNAL_DEPS = $(patsubst %,$(PCEP_UTILS_INC_DIR)/%,$(_DEPS))
 
-_OBJ = pcep-messages.o pcep-objects.o pcep-tlvs.o pcep-tools.o pcep-messages-encoding.o pcep-objects-encoding.o pcep-tlvs-encoding.o
+_OBJ = pcep-messages.o pcep-objects.o pcep-tlvs.o pcep-tools.o pcep-messages-encoding.o \
+       pcep-objects-encoding.o pcep-tlvs-encoding.o pcep-object-error-types.o
 OBJ = $(patsubst %,$(OBJ_DIR)/%,$(_OBJ))
 
-_TEST_OBJ = pcep-messages-tests.o pcep-messages-test.o pcep-tlvs-test.o pcep-objects-test.o pcep-tools-test.o
+_TEST_OBJ = pcep-messages-tests.o pcep-messages-test.o pcep-tlvs-test.o pcep-objects-test.o \
+            pcep-tools-test.o pcep-object-error-types-test.c
 TEST_OBJ = $(patsubst %,$(TEST_DIR)/%,$(_TEST_OBJ))
 
 all: $(LIB) $(TEST_BIN)

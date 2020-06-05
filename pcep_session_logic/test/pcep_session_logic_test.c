@@ -108,6 +108,8 @@ void test_create_destroy_pcep_session()
     pcep_configuration config;
     struct in_addr pce_ip;
 
+    run_session_logic();
+
     memset(&config, 0, sizeof(pcep_configuration));
     config.keep_alive_seconds = 5;
     config.dead_timer_seconds = 5;
@@ -132,6 +134,8 @@ void test_create_destroy_pcep_session()
     destroy_pcep_session(session);
     pcep_msg_free_message(open_msg);
     pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
+
+    stop_session_logic();
 }
 
 
@@ -140,6 +144,8 @@ void test_create_destroy_pcep_session_ipv6()
     pcep_session *session;
     pcep_configuration config;
     struct in6_addr pce_ip;
+
+    run_session_logic();
 
     memset(&config, 0, sizeof(pcep_configuration));
     config.keep_alive_seconds = 5;
@@ -167,6 +173,8 @@ void test_create_destroy_pcep_session_ipv6()
     destroy_pcep_session(session);
     pcep_msg_free_message(open_msg);
     pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
+
+    stop_session_logic();
 }
 
 
@@ -180,6 +188,8 @@ void test_create_pcep_session_open_tlvs()
     memset(&config, 0, sizeof(pcep_configuration));
     config.pcep_msg_versioning = create_default_pcep_versioning();
     inet_pton(AF_INET, "127.0.0.1", &(pce_ip));
+
+    run_session_logic();
 
     /* Verify the created Open message only has 1 TLV:
      *   pcep_tlv_create_stateful_pce_capability() */
@@ -327,6 +337,8 @@ void test_create_pcep_session_open_tlvs()
     destroy_pcep_session(session);
     pcep_msg_free_message(open_msg);
     pceplib_free(PCEPLIB_MESSAGES, encoded_msg);
+
+    stop_session_logic();
 }
 
 

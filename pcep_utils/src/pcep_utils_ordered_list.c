@@ -187,7 +187,6 @@ void *ordered_list_remove_first_node(ordered_list_handle *handle)
 
     if (handle->head == NULL)
     {
-        pcep_log(LOG_WARNING, "ordered_list_remove_first_node, empty list");
         return NULL;
     }
     handle->num_entries--;
@@ -213,7 +212,6 @@ void *ordered_list_remove_first_node_equals2(ordered_list_handle *handle,
 
     if (handle->head == NULL)
     {
-        pcep_log(LOG_DEBUG, "ordered_list_remove_first_node_equals2, empty list");
         return NULL;
     }
 
@@ -278,7 +276,6 @@ void *ordered_list_remove_node(ordered_list_handle *handle, ordered_list_node *p
 
     if (handle->head == NULL)
     {
-        pcep_log(LOG_WARNING, "ordered_list_remove_node, empty list");
         return NULL;
     }
 
@@ -309,7 +306,6 @@ void *ordered_list_remove_node2(ordered_list_handle *handle, ordered_list_node *
 
     if (handle->head == NULL)
     {
-        pcep_log(LOG_WARNING, "ordered_list_remove_node2, empty list");
         return NULL;
     }
 

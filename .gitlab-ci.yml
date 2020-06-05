@@ -21,6 +21,8 @@ compile_debian:
 
 unittest_debian:
   stage: unittest
+  tags:
+    - network_host
   script: make all test
 # Copy a core file, if there is one. (there will only be one)
   artifacts:

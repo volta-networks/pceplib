@@ -93,6 +93,7 @@ struct pcep_message*  pcep_msg_create_close           (uint8_t reason);
 struct pcep_message*  pcep_msg_create_error           (uint8_t error_type, uint8_t error_value);
 struct pcep_message*  pcep_msg_create_error_with_objects(uint8_t error_type, uint8_t error_value, double_linked_list *object_list); /* include the offending objects */
 struct pcep_message*  pcep_msg_create_keepalive       ();
+struct pcep_message*  pcep_msg_create_notify          (struct pcep_object_notify *notify, double_linked_list *object_list);
 
 /* Message defined in RFC 8231 section 6.1. Expecting double_linked_list of
  * struct pcep_object_header* objects of type SRP, LSP, or path (ERO, Bandwidth,

@@ -255,3 +255,19 @@ pcep_msg_create_initiate(double_linked_list *lsp_object_list)
 
     return(pcep_msg_create_common_with_obj_list(PCEP_TYPE_INITIATE, lsp_object_list));
 }
+
+struct pcep_message*
+pcep_msg_create_notify(struct pcep_object_notify *notify, double_linked_list *object_list)
+{
+    if (notify == NULL)
+    {
+        pcep_log(LOG_INFO, "pcep_msg_create_notify NULL notify object");
+        return NULL;
+    }
+
+    struct pcep_message *message = pcep_msg_create_common_with_obj_list(PCEP_TYPE_PCNOTF, object_list);
+    dll_prepend(message->obj_list, notify);
+
+    return message;
+}
+

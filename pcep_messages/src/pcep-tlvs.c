@@ -155,6 +155,23 @@ pcep_tlv_create_sr_pce_capability(bool flag_n, bool flag_x, uint8_t max_sid_dept
     return tlv;
 }
 
+struct pcep_object_tlv_of_list*
+pcep_tlv_create_of_list(double_linked_list *of_list)
+{
+    if (of_list == NULL)
+    {
+        return NULL;
+    }
+
+    struct pcep_object_tlv_of_list *tlv =
+            (struct pcep_object_tlv_of_list *)
+            pcep_tlv_common_create(PCEP_OBJ_TLV_TYPE_OBJECTIVE_FUNCTION_LIST,
+                    sizeof(struct pcep_object_tlv_of_list));
+
+    tlv->of_list = of_list;
+
+    return tlv;
+}
 
 /*
  * LSP Object TLVs

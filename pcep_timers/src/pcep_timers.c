@@ -62,6 +62,13 @@ int timer_list_node_timer_id_compare(void *list_entry, void *new_entry)
     return ((pcep_timer *) new_entry)->timer_id - ((pcep_timer *) list_entry)->timer_id;
 }
 
+/* simple compare method callback used by pcep_utils_ordered_list
+ * ordered_list_remove_first_node_equals2 to remove a timer based on
+ * its address. */
+int timer_list_node_timer_ptr_compare(void *list_entry, void *new_entry)
+{
+    return (new_entry - list_entry);
+}
 
 /* internal util method */
 static pcep_timers_context *create_timers_context_()
@@ -127,16 +134,31 @@ bool initialize_timers_external_infra(
         timer_expire_handler expire_handler,
         void *external_timer_infra_data,
         ext_timer_create timer_create_func,
-        ext_timer_cancel timer_cancel_func)
+        ext_timer_cancel timer_cancel_func,
+        ext_pthread_create_callback thread_create_func)
 {
-    if (timer_create_func == NULL || timer_cancel_func == NULL)
-    {
-        return initialize_timers(expire_handler);
-    }
-
     if (initialize_timers_common(expire_handler) == false)
     {
         return false;
+    }
+
+    if (thread_create_func != NULL)
+    {
+        if(thread_create_func(
+                &(timers_context_->event_loop_thread),
+                NULL, event_loop, timers_context_, "pceplib_timers"))
+        {
+            pcep_log(LOG_ERR, "Cannot initialize external timers thread.");
+            return false;
+        }
+    }
+    else
+    {
+        if(pthread_create(&(timers_context_->event_loop_thread), NULL, event_loop, timers_context_))
+        {
+            pcep_log(LOG_ERR, "ERROR initializing timers, cannot initialize the thread");
+            return false;
+        }
     }
 
     timers_context_->external_timer_infra_data = external_timer_infra_data;
@@ -240,9 +262,9 @@ int create_timer(uint16_t sleep_seconds, void *data)
     timer->data = data;
     timer->sleep_seconds = sleep_seconds;
     timer->expire_time = time(NULL) + sleep_seconds;
-    timer->timer_id = get_next_timer_id();
 
     pthread_mutex_lock(&timers_context_->timer_list_lock);
+    timer->timer_id = get_next_timer_id();
 
     /* implemented in pcep_utils_ordered_list.c */
     if (ordered_list_add_node(timers_context_->timer_list, timer) == NULL)
@@ -349,11 +371,6 @@ bool reset_timer(int timer_id)
 
     ordered_list_remove_node2(timers_context_->timer_list, timer_to_reset_node);
 
-    if (timers_context_->timer_cancel_func)
-    {
-        timers_context_->timer_cancel_func(&timer_to_reset->external_timer);
-    }
-
     timer_to_reset->expire_time = expire_time;
     if (ordered_list_add_node(timers_context_->timer_list, timer_to_reset) == NULL)
     {
@@ -366,6 +383,15 @@ bool reset_timer(int timer_id)
 
     pthread_mutex_unlock(&timers_context_->timer_list_lock);
 
+    if (timers_context_->timer_cancel_func)
+    {
+        /* Keeping this log for now, since in older versions of FRR the timer
+         * cancellation was blocking. This allows us to see how long the it takes.*/
+        pcep_log(LOG_DEBUG, "Reseting timer [%d] with callback", timer_to_reset->timer_id);
+        timers_context_->timer_cancel_func(&timer_to_reset->external_timer);
+        timer_to_reset->external_timer = NULL;
+    }
+
     if (timers_context_->timer_create_func)
     {
         timers_context_->timer_create_func(
@@ -373,6 +399,9 @@ bool reset_timer(int timer_id)
             &timer_to_reset->external_timer,
             timer_to_reset->sleep_seconds,
             timer_to_reset);
+        /* Keeping this log for now, since in older versions of FRR the timer
+         * cancellation was blocking. This allows us to see how long the it takes.*/
+        pcep_log(LOG_DEBUG, "Reset timer [%d] with callback", timer_to_reset->timer_id);
     }
 
     return true;
@@ -400,5 +429,25 @@ void pceplib_external_timer_expire_handler(void *data)
     }
 
     pcep_timer *timer = (pcep_timer *) data;
+    pthread_mutex_lock(&timers_context_->timer_list_lock);
+    ordered_list_node *timer_node =
+            ordered_list_find2(timers_context_->timer_list, timer,
+                    timer_list_node_timer_ptr_compare);
+    pthread_mutex_unlock(&timers_context_->timer_list_lock);
+
+    /* Cannot continue if the timer does not exist */
+    if (timer_node == NULL)
+    {
+        pcep_log(LOG_WARNING, "pceplib_external_timer_expire_handler timer [%p] id [%d] does not exist",
+                timer, timer->timer_id);
+        return;
+    }
+
     timers_context_->expire_handler(timer->data, timer->timer_id);
+
+    pthread_mutex_lock(&timers_context_->timer_list_lock);
+    ordered_list_remove_node2(timers_context_->timer_list, timer_node);
+    pthread_mutex_unlock(&timers_context_->timer_list_lock);
+
+    pceplib_free(PCEPLIB_INFRA, timer);
 }

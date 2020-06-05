@@ -33,6 +33,7 @@
 #include <stdint.h>
 
 #include "pcep_utils_double_linked_list.h"
+#include "pcep-object-error-types.h"
 #include "pcep-tlvs.h"
 
 #ifdef __cplusplus
@@ -66,6 +67,7 @@ enum pcep_object_classes
     PCEP_OBJ_CLASS_NOTF = 12,
     PCEP_OBJ_CLASS_ERROR = 13,
     PCEP_OBJ_CLASS_CLOSE = 15,
+    PCEP_OBJ_CLASS_OF = 21,
     PCEP_OBJ_CLASS_LSP = 32,
     PCEP_OBJ_CLASS_SRP = 33,
     PCEP_OBJ_CLASS_VENDOR_INFO = 34,
@@ -105,6 +107,7 @@ enum pcep_object_types
     PCEP_OBJ_TYPE_SERVER_IND = 1,
     PCEP_OBJ_TYPE_ASSOCIATION_IPV4 = 1,/*draft-ietf-pce-association-group-10*/
     PCEP_OBJ_TYPE_ASSOCIATION_IPV6 = 2,/*draft-ietf-pce-association-group-10*/
+    PCEP_OBJ_TYPE_OF = 1,
     PCEP_OBJ_TYPE_MAX = 2,
 };
 
@@ -139,6 +142,7 @@ struct pcep_object_open
 #define OBJECT_RP_FLAG_R 0x08
 #define OBJECT_RP_FLAG_B 0x10
 #define OBJECT_RP_FLAG_O 0x20
+#define OBJECT_RP_FLAG_OF 0x80
 #define OBJECT_RP_MAX_PRIORITY 0x07
 
 struct pcep_object_rp
@@ -148,6 +152,7 @@ struct pcep_object_rp
     bool flag_reoptimization;
     bool flag_bidirectional;
     bool flag_strict;         /* when set, a loose path is acceptable */
+    bool flag_of;             /* Supply Objective Function on Response */
     uint32_t request_id;      /* The Request-id-number value combined with the source for PCC & PCE creates a uniquely number. */
 };
 
@@ -312,92 +317,6 @@ struct pcep_object_svec
     double_linked_list *request_id_list; /* list of 32-bit request ID pointers */
 };
 
-enum pcep_error_type
-{
-    PCEP_ERRT_SESSION_FAILURE = 1,
-    PCEP_ERRT_CAPABILITY_NOT_SUPPORTED = 2,
-    PCEP_ERRT_UNKNOW_OBJECT = 3,
-    PCEP_ERRT_NOT_SUPPORTED_OBJECT = 4,
-    PCEP_ERRT_POLICY_VIOLATION = 5,
-    PCEP_ERRT_MANDATORY_OBJECT_MISSING = 6,
-    PCEP_ERRT_SYNC_PC_REQ_MISSING = 7,
-    PCEP_ERRT_UNKNOWN_REQ_REF = 8,
-    PCEP_ERRT_ATTEMPT_TO_ESTABLISH_2ND_PCEP_SESSION = 9,
-    PCEP_ERRT_RECEPTION_OF_INV_OBJECT = 10,
-    PCEP_ERRT_INVALID_OPERATION = 19,     /* From RFC 8231 */
-    PCEP_ERRT_LSP_STATE_SYNC_ERROR = 20,  /* From RFC 8231 */
-    PCEP_ERRT_BAD_PARAMETER_VALUE = 23,   /* From RFC 8281 */
-    PCEP_ERRT_LSP_INSTANTIATE_ERROR = 24, /* From RFC 8281 */
-};
-
-enum pcep_error_value
-{
-    /* Error Value for Error Types that do not use an Error Value:
-     * PCEP_ERRT_CAPABILITY_NOT_SUPPORTED=2, PCEP_ERRT_SYNC_PC_REQ_MISSING=7,
-     * PCEP_ERRT_UNKNOWN_REQ_REF=8, PCEP_ERRT_ATTEMPT_TO_ESTABLISH_2ND_PCEP_SESSION=9 */
-    PCEP_ERRV_UNASSIGNED = 0,
-
-    /* Error Values for PCEP_ERRT_SESSION_FAILURE=1 */
-    PCEP_ERRV_RECVD_INVALID_OPEN_MSG = 1,
-    PCEP_ERRV_OPENWAIT_TIMED_OUT = 2,
-    PCEP_ERRV_UNACCEPTABLE_OPEN_MSG_NO_NEG = 3,
-    PCEP_ERRV_UNACCEPTABLE_OPEN_MSG_NEG = 4,
-    PCEP_ERRV_RECVD_SECOND_OPEN_MSG_UNACCEPTABLE = 5,
-    PCEP_ERRV_RECVD_PCERR = 6,
-    PCEP_ERRV_KEEPALIVEWAIT_TIMED_OUT = 7,
-
-    /* Error Values for PCEP_ERRT_UNKNOW_OBJECT=3 */
-    PCEP_ERRV_UNREC_OBJECT_CLASS = 1,
-    PCEP_ERRV_UNREC_OBJECT_TYPE = 2,
-
-    /* Error Values for PCEP_ERRT_NOT_SUPPORTED_OBJECT=4 */
-    PCEP_ERRV_NOT_SUPPORTED_OBJECT_CLASS = 1,
-    PCEP_ERRV_NOT_SUPPORTED_OBJECT_TYPE = 2,
-
-    /* Error Values for PCEP_ERRT_POLICY_VIOLATION=5 */
-    PCEP_ERRV_C_BIT_SET_IN_METRIC_OBJECT = 1,
-    PCEP_ERRV_O_BIT_CLEARD_IN_RP_OBJECT = 2,
-
-    /* Error Values for PCEP_ERRT_MANDATORY_OBJECT_MISSING=6 */
-    PCEP_ERRV_RP_OBJECT_MISSING = 1,
-    PCEP_ERRV_RRO_OBJECT_MISSING_FOR_REOP = 2,
-    PCEP_ERRV_EP_OBJECT_MISSING = 3,
-        /* Additional Error values from RFC 8231 */
-    PCEP_ERRV_LSP_OBJECT_MISSING = 8,
-    PCEP_ERRV_ERO_OBJECT_MISSING = 9,
-    PCEP_ERRV_SRP_OBJECT_MISSING = 10,
-    PCEP_ERRV_LSP_ID_TLV_MISSING = 11,
-
-    /* Error Values for PCEP_ERRT_RECEPTION_OF_INV_OBJECT=10 */
-    PCEP_ERRV_P_FLAG_NOT_CORRECT_IN_OBJECT = 1,
-    PCEP_ERRV_PCC_SYMBOLIC_PATH_NAME_TLV_MISSING = 8,
-
-    /* Error Values for PCEP_ERRT_INVALID_OPERATION=19 */
-    PCEP_ERRV_LSP_UPDATE_FOR_NON_DELEGATED_LSP = 1,
-    PCEP_ERRV_LSP_UPDATE_NON_ADVERTISED_PCE = 2,
-    PCEP_ERRV_LSP_UPDATE_UNKNOWN_PLSP_ID = 3,
-    PCEP_ERRV_LSP_REPORT_NON_ADVERTISED_PCE = 5,
-    PCEP_ERRV_PCE_INIT_LSP_LIMIT_REACHED = 6,
-    PCEP_ERRV_PCE_INIT_LSP_DELEGATION_CANT_REVOKE = 7,
-    PCEP_ERRV_LSP_INIT_NON_ZERO_PLSP_ID = 8,
-    PCEP_ERRV_LSP_NOT_PCE_INITIATED = 9,
-    PCEP_ERRV_PCE_INIT_OP_FREQ_LIMIT_REACHED = 10,
-
-    /* Error Values for PCEP_ERRT_LSP_STATE_SYNC_ERROR=20 */
-    PCEP_ERRV_PCE_CANT_PROCESS_LSP_REPORT = 1,
-    PCEP_ERRV_PCC_CANT_COMPLETE_STATE_SYNC = 5,
-
-    /* Error Values for PCEP_ERRT_BAD_PARAMETER_VALUE=23 */
-    PCEP_ERRV_SYMBOLIC_PATH_NAME_IN_USE = 1,
-    PCEP_ERRV_LSP_SPEAKER_ID_NOT_PCE_INITIATED = 2,
-
-    /* Error Values for PCEP_ERRT_LSP_INSTANTIATE_ERROR=24 */
-    PCEP_ERRV_UNACCEPTABLE_INSTANTIATE_ERROR = 1,
-    PCEP_ERRV_INTERNAL_ERROR = 2,
-    PCEP_ERRV_SIGNALLING_ERROR = 3,
-
-};
-
 struct pcep_object_error
 {
     struct pcep_object_header header;
@@ -553,6 +472,14 @@ struct pcep_object_server_indication
     /* This object is identical to req_adap_cap, except it allows TLVs */
 };
 
+/* Objective Function Object: RFC 5541 */
+
+struct pcep_object_objective_function
+{
+    struct pcep_object_header header;
+    uint16_t of_code;
+};
+
 /*
  * Common Route Object sub-object definitions
  * used by ERO, IRO, and RRO
@@ -567,8 +494,8 @@ enum pcep_ro_subobj_types
     RO_SUBOBJ_TYPE_LABEL = 3,      /* RFC 3209 */
     RO_SUBOBJ_TYPE_UNNUM = 4,      /* RFC 3477 */
     RO_SUBOBJ_TYPE_ASN = 32,       /* RFC 3209, Section 4.3.3.4 */
-    RO_SUBOBJ_TYPE_SR_DRAFT07 = 5, /* draft-ietf-pce-segment-routing-07 */
-    RO_SUBOBJ_TYPE_SR = 36,        /* draft-ietf-pce-segment-routing-16 */
+    RO_SUBOBJ_TYPE_SR = 36,        /* RFC 8408, draft-ietf-pce-segment-routing-16.
+                                      Type 5 for draft07 has been assigned to something else. */
     RO_SUBOBJ_UNKNOWN
 };
 
@@ -687,7 +614,8 @@ struct pcep_ro_subobj_sr
  */
 
 struct pcep_object_open*                pcep_obj_create_open        (uint8_t keepalive, uint8_t deadtimer, uint8_t sid, double_linked_list *tlv_list);
-struct pcep_object_rp*                  pcep_obj_create_rp          (uint8_t priority, bool flag_r, bool flag_b, bool flag_s, uint32_t reqid, double_linked_list *tlv_list);
+struct pcep_object_rp*                  pcep_obj_create_rp          (uint8_t priority, bool flag_r, bool flag_b, bool flag_s, bool flag_of,
+                                                                     uint32_t reqid, double_linked_list *tlv_list);
 struct pcep_object_notify*              pcep_obj_create_notify      (enum pcep_notification_types notification_type, enum pcep_notification_values notification_value);
 struct pcep_object_nopath*              pcep_obj_create_nopath      (uint8_t ni, bool flag_c, enum pcep_nopath_tlv_err_codes error_code);
 struct pcep_object_association_ipv4*    pcep_obj_create_association_ipv4(bool r_flag, uint16_t association_type, uint16_t association_id, struct in_addr src);
@@ -712,6 +640,7 @@ struct pcep_object_req_adap_cap*        pcep_obj_create_req_adap_cap(enum pcep_s
 struct pcep_object_server_indication*   pcep_obj_create_server_indication(enum pcep_switching_capability sw_cap,
                                                                           enum pcep_lsp_encoding_type encoding,
                                                                           double_linked_list *tlv_list);
+struct pcep_object_objective_function*  pcep_obj_create_objective_function(uint16_t of_code, double_linked_list *tlv_list);
 
 /* Route Object (Explicit ero, Reported rro, and Include iro) functions
  * First, the sub-objects should be created and appended to a double_linked_list,

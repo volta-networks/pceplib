@@ -352,10 +352,11 @@ void test_pcep_msg_read_pcep_initiate2()
     /* ERO Subobjects */
     double_linked_list *ero_subobj_list = ((struct pcep_object_ro *) obj_hdr)->sub_objects;
     CU_ASSERT_PTR_NOT_NULL(ero_subobj_list);
-    CU_ASSERT_EQUAL(ero_subobj_list->num_entries, 1);
+    CU_ASSERT_EQUAL(ero_subobj_list->num_entries, 0);
     double_linked_list_node *subobj_node = ero_subobj_list->head;
+    CU_ASSERT_PTR_NULL(subobj_node);
+    /* We no longer support draft07 SR sub-object type=5, and only support type=36
     struct pcep_object_ro_subobj *subobj_hdr = (struct pcep_object_ro_subobj *) subobj_node->data;
-    /* RO_SUBOBJ_TYPE_SR_DRAFT07 is overwritten with RO_SUBOBJ_TYPE_SR */
     CU_ASSERT_EQUAL(subobj_hdr->ro_subobj_type, RO_SUBOBJ_TYPE_SR);
     struct pcep_ro_subobj_sr *subobj_sr = (struct pcep_ro_subobj_sr *) subobj_hdr;
     CU_ASSERT_EQUAL(subobj_sr->nai_type, PCEP_SR_SUBOBJ_NAI_IPV4_NODE);
@@ -365,6 +366,7 @@ void test_pcep_msg_read_pcep_initiate2()
     CU_ASSERT_FALSE(subobj_sr->flag_f);
     CU_ASSERT_EQUAL(subobj_sr->sid, 65576960);
     CU_ASSERT_EQUAL(*((uint32_t *) subobj_sr->nai_list->head->data), 0x01010101);
+    */
 
     pcep_msg_free_message_list(msg_list);
     close(fd);
@@ -455,10 +457,11 @@ void test_pcep_msg_read_pcep_update()
     /* ERO Subobjects */
     double_linked_list *ero_subobj_list = ((struct pcep_object_ro *) obj_hdr)->sub_objects;
     CU_ASSERT_PTR_NOT_NULL(ero_subobj_list);
-    CU_ASSERT_EQUAL(ero_subobj_list->num_entries, 1);
+    CU_ASSERT_EQUAL(ero_subobj_list->num_entries, 0);
     double_linked_list_node *subobj_node = ero_subobj_list->head;
+    CU_ASSERT_PTR_NULL(subobj_node);
+    /* We no longer support draft07 SR sub-object type=5, and only support type=36
     struct pcep_object_ro_subobj *subobj_hdr = (struct pcep_object_ro_subobj *) subobj_node->data;
-    /* RO_SUBOBJ_TYPE_SR_DRAFT07 is overwritten with RO_SUBOBJ_TYPE_SR */
     CU_ASSERT_EQUAL(subobj_hdr->ro_subobj_type, RO_SUBOBJ_TYPE_SR);
     struct pcep_ro_subobj_sr *subobj_sr = (struct pcep_ro_subobj_sr *) subobj_hdr;
     CU_ASSERT_EQUAL(subobj_sr->nai_type, PCEP_SR_SUBOBJ_NAI_IPV4_NODE);
@@ -468,6 +471,7 @@ void test_pcep_msg_read_pcep_update()
     CU_ASSERT_FALSE(subobj_sr->flag_f);
     CU_ASSERT_EQUAL(subobj_sr->sid, 65576960);
     CU_ASSERT_EQUAL(*((uint32_t *) subobj_sr->nai_list->head->data), 0x01010101);
+    */
 
     pcep_msg_free_message_list(msg_list);
     close(fd);

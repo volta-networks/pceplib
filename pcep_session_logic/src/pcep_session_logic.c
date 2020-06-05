@@ -50,18 +50,6 @@ int session_id_ = 0;
 
 void send_pcep_open(pcep_session *session); /* forward decl */
 
-int session_id_compare_function(void *list_entry, void *new_entry)
-{
-    /* return:
-     *   < 0  if new_entry  < list_entry
-     *   == 0 if new_entry == list_entry (new_entry will be inserted after list_entry)
-     *   > 0  if new_entry  > list_entry
-     */
-
-    return ((pcep_session *) new_entry)->session_id - ((pcep_session *) list_entry)->session_id;
-}
-
-
 static bool run_session_logic_common()
 {
     if (session_logic_handle_ != NULL)
@@ -75,7 +63,7 @@ static bool run_session_logic_common()
 
     session_logic_handle_->active = true;
     session_logic_handle_->session_logic_condition = false;
-    session_logic_handle_->session_list = ordered_list_initialize(session_id_compare_function);
+    session_logic_handle_->session_list = ordered_list_initialize(pointer_compare_function);
     session_logic_handle_->session_event_queue = queue_initialize();
 
     /* Initialize the event queue */
@@ -95,9 +83,9 @@ static bool run_session_logic_common()
         return false;
     }
 
-    if(pthread_create(&(session_logic_handle_->session_logic_thread), NULL, session_logic_loop, session_logic_handle_))
+    if (pthread_mutex_init(&(session_logic_handle_->session_list_mutex), NULL) != 0)
     {
-        pcep_log(LOG_ERR, "Cannot initialize session_logic thread.");
+        pcep_log(LOG_ERR, "Cannot initialize session_list mutex.");
         return false;
     }
 
@@ -109,6 +97,12 @@ bool run_session_logic()
 {
     if (!run_session_logic_common())
     {
+        return false;
+    }
+
+    if(pthread_create(&(session_logic_handle_->session_logic_thread), NULL, session_logic_loop, session_logic_handle_))
+    {
+        pcep_log(LOG_ERR, "Cannot initialize session_logic thread.");
         return false;
     }
 
@@ -151,6 +145,28 @@ bool run_session_logic_with_infra(pceplib_infra_config *infra_config)
         return false;
     }
 
+    /* Create the pcep_session_logic pthread so it can be managed externally */
+    if (infra_config->pthread_create_func != NULL) {
+        if (infra_config->pthread_create_func(
+               &(session_logic_handle_->session_logic_thread),
+               NULL,
+               session_logic_loop,
+               session_logic_handle_,
+               "pcep_session_logic"))
+        {
+            pcep_log(LOG_ERR, "Cannot initialize external session_logic thread.");
+            return false;
+        }
+    }
+    else
+    {
+        if(pthread_create(&(session_logic_handle_->session_logic_thread), NULL, session_logic_loop, session_logic_handle_))
+        {
+            pcep_log(LOG_ERR, "Cannot initialize session_logic thread.");
+            return false;
+        }
+    }
+
     session_logic_event_queue_->event_callback = infra_config->pcep_event_func;
     session_logic_event_queue_->event_callback_data = infra_config->external_infra_data;
 
@@ -158,19 +174,39 @@ bool run_session_logic_with_infra(pceplib_infra_config *infra_config)
             session_logic_timer_expire_handler,
             infra_config->external_infra_data,
             infra_config->timer_create_func,
-            infra_config->timer_cancel_func))
+            infra_config->timer_cancel_func,
+            infra_config->pthread_create_func))
     {
         pcep_log(LOG_ERR, "Cannot initialize session_logic timers with infra.");
         return false;
     }
 
-    if (infra_config->socket_read_func != NULL &&
-        infra_config->socket_write_func != NULL)
+    /* We found a problem with the FRR sockets, where not all the KeepAlive
+     * messages were received, so if the pthread_create_func is set, the
+     * internal PCEPlib socket infrastructure will be used. */
+
+    /* For the SocketComm, the socket_read/write_func and the
+     * pthread_create_func are mutually exclusive. */
+    if (infra_config->pthread_create_func != NULL)
+    {
+        if (!initialize_socket_comm_external_infra(
+                infra_config->external_infra_data,
+                NULL,
+                NULL,
+                infra_config->pthread_create_func))
+        {
+            pcep_log(LOG_ERR, "Cannot initialize session_logic socket comm with infra.");
+            return false;
+        }
+    }
+    else if (infra_config->socket_read_func != NULL &&
+             infra_config->socket_write_func != NULL)
     {
         if (!initialize_socket_comm_external_infra(
                 infra_config->external_infra_data,
                 infra_config->socket_read_func,
-                infra_config->socket_write_func))
+                infra_config->socket_write_func,
+                NULL))
         {
             pcep_log(LOG_ERR, "Cannot initialize session_logic socket comm with infra.");
             return false;
@@ -212,6 +248,7 @@ bool stop_session_logic()
     pthread_join(session_logic_handle_->session_logic_thread, NULL);
 
     pthread_mutex_destroy(&(session_logic_handle_->session_logic_mutex));
+    pthread_mutex_destroy(&(session_logic_handle_->session_list_mutex));
     ordered_list_destroy(session_logic_handle_->session_list);
     queue_destroy(session_logic_handle_->session_event_queue);
 
@@ -239,7 +276,7 @@ void close_pcep_session_with_reason(pcep_session *session, enum pcep_close_reaso
 {
     struct pcep_message* close_msg = pcep_msg_create_close(reason);
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send pcep_close message for session_id [%d]",
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send pcep_close message for session [%d]",
            time(NULL), pthread_self(), session->session_id);
 
     session_send_message(session, close_msg);
@@ -256,14 +293,16 @@ void destroy_pcep_session(pcep_session *session)
         return;
     }
 
+    /* Remove the session from the session_list and synchronize session
+     * destroy with the session_logic_loop, so that no in-flight events
+     * will be handled now that the session is destroyed. */
+    pthread_mutex_lock(&(session_logic_handle_->session_list_mutex));
+    ordered_list_remove_first_node_equals(session_logic_handle_->session_list, session);
+    pcep_log(LOG_DEBUG, "destroy_pcep_session delete session_list sessionPtr %p", session);
+
     pcep_session_cancel_timers(session);
-
     delete_counters_group(session->pcep_session_counters);
-
     queue_destroy_with_data(session->num_unknown_messages_time_queue);
-
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session [%d] destroyed", time(NULL), pthread_self(), session->session_id);
-
     socket_comm_session_teardown(session->socket_comm_session);
 
     if (session->pcc_config.pcep_msg_versioning != NULL)
@@ -276,7 +315,10 @@ void destroy_pcep_session(pcep_session *session)
         pceplib_free(PCEPLIB_INFRA, session->pce_config.pcep_msg_versioning);
     }
 
+    int session_id = session->session_id;
     pceplib_free(PCEPLIB_INFRA, session);
+    pcep_log(LOG_INFO, "[%ld-%ld] session [%d] destroyed", time(NULL), pthread_self(), session_id);
+    pthread_mutex_unlock(&(session_logic_handle_->session_list_mutex));
 }
 
 void pcep_session_cancel_timers(pcep_session *session)
@@ -301,9 +343,9 @@ void pcep_session_cancel_timers(pcep_session *session)
         cancel_timer(session->timer_id_open_keep_wait);
     }
 
-    if (session->timer_id_pc_req_wait != TIMER_ID_NOT_SET)
+    if (session->timer_id_open_keep_alive != TIMER_ID_NOT_SET)
     {
-        cancel_timer(session->timer_id_pc_req_wait);
+        cancel_timer(session->timer_id_open_keep_alive);
     }
 }
 
@@ -332,13 +374,14 @@ static pcep_session *create_pcep_session_pre_setup(pcep_configuration *config)
     session->session_id = get_next_session_id();
     session->session_state = SESSION_STATE_INITIALIZED;
     session->timer_id_open_keep_wait = TIMER_ID_NOT_SET;
-    session->timer_id_pc_req_wait = TIMER_ID_NOT_SET;
+    session->timer_id_open_keep_alive = TIMER_ID_NOT_SET;
     session->timer_id_dead_timer = TIMER_ID_NOT_SET;
     session->timer_id_keep_alive = TIMER_ID_NOT_SET;
     session->stateful_pce = false;
     session->num_unknown_messages_time_queue = queue_initialize();
     session->pce_open_received = false;
     session->pce_open_rejected = false;
+    session->pce_open_keep_alive_sent = false;
     session->pcc_open_rejected = false;
     session->pce_open_accepted = false;
     session->pcc_open_accepted = false;
@@ -354,6 +397,11 @@ static pcep_session *create_pcep_session_pre_setup(pcep_configuration *config)
         session->pce_config.pcep_msg_versioning = pceplib_malloc(PCEPLIB_INFRA, sizeof(struct pcep_versioning));
         memcpy(session->pce_config.pcep_msg_versioning, config->pcep_msg_versioning, sizeof(struct pcep_versioning));
     }
+
+    pthread_mutex_lock(&(session_logic_handle_->session_list_mutex));
+    ordered_list_add_node(session_logic_handle_->session_list, session);
+    pcep_log(LOG_DEBUG, "create_pcep_session_pre_setup add session_list sessionPtr %p", session);
+    pthread_mutex_unlock(&(session_logic_handle_->session_list_mutex));
 
     return session;
 }
@@ -562,7 +610,7 @@ struct pcep_message *create_pcep_open(pcep_session *session)
             session->session_id,
             tlv_list);
 
-    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic send open message: TLVs [%d] for session_id [%d]",
+    pcep_log(LOG_INFO, "[%ld-%ld] pcep_session_logic create open message: TLVs [%d] for session [%d]",
             time(NULL), pthread_self(), tlv_list->num_entries, session->session_id);
 
     return(open_msg);
@@ -572,4 +620,23 @@ struct pcep_message *create_pcep_open(pcep_session *session)
 void send_pcep_open(pcep_session *session)
 {
     session_send_message(session, create_pcep_open(session));
+}
+
+/* This is a blocking call, since it is synchronized with destroy_pcep_session()
+ * and session_logic_loop(). It may be possible that the session has been deleted
+ * but API users havent been informed yet.
+ */
+bool session_exists(pcep_session *session)
+{
+    if (session_logic_handle_ == NULL)
+    {
+        pcep_log(LOG_DEBUG, "session_exists session_logic_handle_ is NULL");
+        return false;
+    }
+
+    pthread_mutex_lock(&(session_logic_handle_->session_list_mutex));
+    bool retval = (ordered_list_find(session_logic_handle_->session_list, session) != NULL);
+    pthread_mutex_unlock(&(session_logic_handle_->session_list_mutex));
+
+    return retval;
 }

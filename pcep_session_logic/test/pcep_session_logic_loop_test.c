@@ -39,7 +39,7 @@
 
 
 extern pcep_session_logic_handle *session_logic_handle_;
-extern int session_id_compare_function(void *list_entry, void *new_entry);
+extern pcep_event_queue *session_logic_event_queue_;
 
 /*
  * Test suite setup and teardown called before AND after the test suite.
@@ -70,10 +70,15 @@ void pcep_session_logic_loop_test_setup()
     memset(session_logic_handle_, 0, sizeof(pcep_session_logic_handle));
     session_logic_handle_->active = true;
     session_logic_handle_->session_logic_condition = false;
-    session_logic_handle_->session_list = ordered_list_initialize(session_id_compare_function);
+    session_logic_handle_->session_list = ordered_list_initialize(pointer_compare_function);
     session_logic_handle_->session_event_queue = queue_initialize();
     pthread_cond_init(&(session_logic_handle_->session_logic_cond_var), NULL);
     pthread_mutex_init(&(session_logic_handle_->session_logic_mutex), NULL);
+    pthread_mutex_init(&(session_logic_handle_->session_list_mutex), NULL);
+
+    session_logic_event_queue_ = pceplib_malloc(PCEPLIB_INFRA, sizeof(pcep_event_queue));
+    memset(session_logic_event_queue_, 0, sizeof(pcep_event_queue));
+    session_logic_event_queue_->event_queue = queue_initialize();
 }
 
 
@@ -83,8 +88,13 @@ void pcep_session_logic_loop_test_teardown()
     queue_destroy(session_logic_handle_->session_event_queue);
     pthread_mutex_unlock(&(session_logic_handle_->session_logic_mutex));
     pthread_mutex_destroy(&(session_logic_handle_->session_logic_mutex));
+    pthread_mutex_destroy(&(session_logic_handle_->session_list_mutex));
     pceplib_free(PCEPLIB_INFRA, session_logic_handle_);
     session_logic_handle_ = NULL;
+
+    queue_destroy(session_logic_event_queue_->event_queue);
+    pceplib_free(PCEPLIB_INFRA, session_logic_event_queue_);
+    session_logic_event_queue_ = NULL;
 }
 
 
@@ -119,6 +129,9 @@ void test_session_logic_msg_ready_handler()
     session.session_id = 100;
     CU_ASSERT_EQUAL(session_logic_msg_ready_handler(&session, fd), 0);
     CU_ASSERT_EQUAL(session_logic_handle_->session_event_queue->num_entries, 1);
+    pcep_event *e = queue_dequeue(session_logic_event_queue_->event_queue);
+    CU_ASSERT_EQUAL(PCE_CLOSED_SOCKET, e->event_type);
+    pceplib_free(PCEPLIB_INFRA, e);
     pcep_session_event *socket_event =
             (pcep_session_event *) queue_dequeue(session_logic_handle_->session_event_queue);
     CU_ASSERT_PTR_NOT_NULL(socket_event);

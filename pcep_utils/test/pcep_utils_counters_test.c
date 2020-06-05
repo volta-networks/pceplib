@@ -93,6 +93,9 @@ void test_add_counters_subgroup()
     /* Cant add more than num_subgroups to the group */
     CU_ASSERT_FALSE(add_counters_subgroup(group, subgroup2));
 
+    CU_ASSERT_PTR_NOT_NULL(find_subgroup(group, 0));
+    CU_ASSERT_PTR_NULL(find_subgroup(group, 1));
+
     delete_counters_group(group);
     delete_counters_subgroup(subgroup2);
 }
@@ -181,6 +184,7 @@ void test_increment_counter()
     CU_ASSERT_FALSE(increment_counter(group, subgroup_id, 123));
     CU_ASSERT_TRUE(increment_counter(group, subgroup_id, counter_id));
     CU_ASSERT_EQUAL(counter->counter_value, 101);
+    CU_ASSERT_EQUAL(subgroup_counters_total(subgroup), 101);
 
     delete_counters_group(group);
 }

@@ -107,10 +107,14 @@ pcep_configuration *create_default_pcep_configuration()
     memset(config, 0, sizeof(pcep_configuration));
 
     config->keep_alive_seconds = DEFAULT_CONFIG_KEEP_ALIVE;
+    /* This value will possibly be overwritten later with PCE config data */
+    config->keep_alive_pce_negotiated_timer_seconds = DEFAULT_CONFIG_KEEP_ALIVE;
     config->min_keep_alive_seconds = DEFAULT_MIN_CONFIG_KEEP_ALIVE;
     config->max_keep_alive_seconds = DEFAULT_MAX_CONFIG_KEEP_ALIVE;
 
     config->dead_timer_seconds = DEFAULT_CONFIG_DEAD_TIMER;
+    /* This value will be overwritten later with PCE config data */
+    config->dead_timer_pce_negotiated_seconds = DEFAULT_CONFIG_DEAD_TIMER;
     config->min_dead_timer_seconds = DEFAULT_MIN_CONFIG_DEAD_TIMER;
     config->max_dead_timer_seconds = DEFAULT_MAX_CONFIG_DEAD_TIMER;
 
@@ -158,15 +162,44 @@ pcep_session *connect_pce_ipv6(pcep_configuration *config, struct in6_addr *pce_
 
 void disconnect_pce(pcep_session *session)
 {
-    /* This will cause the session to be destroyed AFTER the close message is sent */
-    session->destroy_session_after_write = true;
+    if (session_exists(session) == false)
+    {
+        pcep_log(LOG_WARNING, "disconnect_pce session [%p] has already been deleted", session);
+        return;
+    }
 
-    /* Send a PCEP close message */
-    close_pcep_session(session);
+    if (session->socket_comm_session == NULL ||
+        session->socket_comm_session->socket_fd < 0)
+    {
+        /* If the socket has already been closed, just destroy the session */
+        destroy_pcep_session(session);
+    }
+    else
+    {
+        /* This will cause the session to be destroyed AFTER the close message is sent */
+        session->destroy_session_after_write = true;
+
+        /* Send a PCEP close message */
+        close_pcep_session(session);
+    }
 }
 
 void send_message(pcep_session *session, struct pcep_message *msg, bool free_after_send)
 {
+    if (session == NULL || msg == NULL)
+    {
+        pcep_log(LOG_DEBUG, "send_message NULL params session [%p] msg [%p]",
+                session, msg);
+
+        return;
+    }
+
+    if (session_exists(session) == false)
+    {
+        pcep_log(LOG_WARNING, "send_message session [%p] has already been deleted", session);
+        return;
+    }
+
     pcep_encode_message(msg, session->pcc_config.pcep_msg_versioning);
     socket_comm_session_send_message(session->socket_comm_session,
             (char *) msg->encoded_message, msg->encoded_message_length, free_after_send);
@@ -293,6 +326,12 @@ const char *get_event_type_str(int event_type)
 
 void dump_pcep_session_counters(pcep_session *session)
 {
+    if (session_exists(session) == false)
+    {
+        pcep_log(LOG_WARNING, "dump_pcep_session_counters session [%p] has already been deleted", session);
+        return;
+    }
+
     /* Update the counters group name so that the PCE session connected time is accurate */
     time_t now = time(NULL);
     char counters_name[MAX_COUNTER_STR_LENGTH];
@@ -314,6 +353,12 @@ void dump_pcep_session_counters(pcep_session *session)
 
 void reset_pcep_session_counters(pcep_session *session)
 {
+    if (session_exists(session) == false)
+    {
+        pcep_log(LOG_WARNING, "reset_pcep_session_counters session [%p] has already been deleted", session);
+        return;
+    }
+
     reset_group_counters(session->pcep_session_counters);
 }
 
