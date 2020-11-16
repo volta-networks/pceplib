@@ -1,2 +1,11 @@
 For active development, a feature/topic branch should be created off of the devel branch.
+oPeriodically, master will be rebased with devel and relevant tags will be created.
+As releases are created, a devel-X.Y branch will be created where bug fixes for that release
 Pull Requests to master will be rejected.
+
+Release branch devel-1.0:
+- tested version of PCEPlib with FRR pathd PCC, as of May 28.
+
+Release branch devel-1.2:
+- tested version of PCEPlib with FRR pathd PCC from Volta 20.5 branch, as of November 16, 2020.
+
