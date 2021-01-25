@@ -282,6 +282,7 @@ headers per library.
 
 The project or individual libraries can be built, cleaned, and tested as follows:
 
+CUnit is required (currently) - ensure that libcunit1 is installed.
 
 ### Building
 
